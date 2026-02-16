@@ -1,0 +1,22 @@
+{
+  "name": "sssync-test-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vinxi dev",
+    "build": "vinxi build",
+    "start": "vinxi start"
+  },
+  "dependencies": {
+    "@solidjs/router": "^0.15.3",
+    "@solidjs/start": "^1.1.0",
+    "hono": "^4.7.4",
+    "solid-js": "^1.9.5",
+    "valibot": "^0.33.2",
+    "vinxi": "^0.5.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.2"
+  }
+}
