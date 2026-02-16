@@ -1,18 +1,19 @@
 import { type IDBPDatabase, openDB } from "idb";
 import * as v from "valibot";
-import type {
-  EventDefinitions,
-  EventEnvelope,
-  EventKey,
-  EventPayload,
-  MaterializerAction,
-  MaterializerContext,
-  MaterializerMap,
-  RawEvent,
-  SyncResponse,
-  InMemoryStore,
-  TableSchemas,
-  TablesFromSchemas,
+import {
+  createTables,
+  type EventDefinitions,
+  type EventEnvelope,
+  type EventKey,
+  type EventPayload,
+  type MaterializerAction,
+  type MaterializerContext,
+  type MaterializerMap,
+  type RawEvent,
+  type SyncResponse,
+  type InMemoryStore,
+  type TableSchemas,
+  type TablesFromSchemas,
 } from "./types";
 import { QueryCache } from "./cache/query-cache";
 import { createDefaultStore } from "./stores/default";
@@ -71,7 +72,7 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     this.eventDefinitions = events;
     this.materializers = materializers;
     this.tableSchemas = tableSchemas;
-    this.store = store ?? createDefaultStore(tableSchemas);
+    this.store = store ?? createDefaultStore(createTables(tableSchemas));
     this.events = [];
     this.queryCache = new QueryCache();
     this.dbPromise = this.openDatabase();
@@ -378,8 +379,7 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     const transaction = database.transaction([STORE_NAMES.data], "readonly");
     const store = transaction.objectStore(STORE_NAMES.data);
     const entries = (await store.getAll()) as DataEntry[];
-    const dataEntries = Object.keys(this.tableSchemas).map((key) => [key, []]);
-    const data = Object.fromEntries(dataEntries) as TablesFromSchemas<Schemas>;
+    const data = createTables(this.tableSchemas);
     entries.forEach((entry) => {
       if (!entry || typeof entry.key !== "string") {
         return;
@@ -470,20 +470,32 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
       if (id === undefined) {
         continue;
       }
-      const table = this.store.data[action.tableName];
-      if (!table) {
-        continue;
-      }
-      const row = table.find((entry) => entry?.id === id);
-      if (!row) {
+      const key = `${action.tableName}/${String(id)}`;
+      const nextValue = await this.resolveActionValue(store, key, action);
+      if (!nextValue) {
         continue;
       }
       await store.put({
-        key: `${action.tableName}/${String(id)}`,
-        value: this.cloneForStorage(row),
+        key,
+        value: this.cloneForStorage(nextValue),
       });
     }
     await transaction.done;
+  }
+
+  private async resolveActionValue(
+    store: { get: (key: string) => Promise<DataEntry | undefined> },
+    key: string,
+    action: MaterializerAction<Schemas>,
+  ): Promise<MaterializerAction<Schemas>["value"] | null> {
+    if (action.type === "create") {
+      return action.value;
+    }
+    const existing = await store.get(key);
+    if (!existing || typeof existing.value !== "object" || existing.value === null) {
+      return action.value;
+    }
+    return { ...(existing.value as Record<string, unknown>), ...action.value } as typeof action.value;
   }
 
   private cloneForStorage<T>(value: T): T {

@@ -1,15 +1,10 @@
 import { createStore, produce, reconcile } from "solid-js/store";
 import type { InMemoryStore, TableSchemas, TablesFromSchemas } from "../types";
 
-const createTables = <Schemas extends TableSchemas>(tableSchemas: Schemas): TablesFromSchemas<Schemas> => {
-  const entries = Object.keys(tableSchemas).map((key) => [key, []]);
-  return Object.fromEntries(entries) as TablesFromSchemas<Schemas>;
-};
-
 export const createSolidStore = <Schemas extends TableSchemas>(
-  tableSchemas: Schemas,
+  initialData: TablesFromSchemas<Schemas>,
 ): InMemoryStore<Schemas> => {
-  const [data, setData] = createStore(createTables(tableSchemas));
+  const [data, setData] = createStore(initialData);
 
   return {
     get data() {
@@ -19,20 +14,19 @@ export const createSolidStore = <Schemas extends TableSchemas>(
       setData(reconcile(nextData));
     },
     upsert: (tableName, row) => {
-      const table = data[tableName];
-      if (!table) {
-        throw new Error(`Unknown table: ${String(tableName)}`);
-      }
-      const index = table.findIndex((existing) => existing?.id === row.id);
-      const nextTable = [...table];
-      if (index === -1) {
-        nextTable.push(row);
-      } else {
-        nextTable[index] = row;
-      }
-      (setData as (key: string, value: unknown) => void)(
-        tableName,
-        reconcile(nextTable) as unknown as TablesFromSchemas<Schemas>[keyof TablesFromSchemas<Schemas>],
+      setData(
+        produce((draft) => {
+          const table = draft[tableName];
+          if (!table) {
+            throw new Error(`Unknown table: ${String(tableName)}`);
+          }
+          const index = table.findIndex((existing) => existing?.id === row.id);
+          if (index === -1) {
+            table.push(row);
+          } else {
+            table[index] = row;
+          }
+        }),
       );
     },
     mutate: (actions) => {

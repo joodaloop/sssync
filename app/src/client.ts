@@ -1,5 +1,5 @@
 import * as v from "valibot";
-import { Events, SSSync, createSolidStore, type MaterializerMap } from "sssync";
+import { Events, SSSync, createSolidStore, createTables, type MaterializerMap } from "sssync";
 
 const events = {
   postCreated: Events.define({
@@ -35,5 +35,5 @@ export const client = new SSSync(
   events,
   materializers,
   tableSchemas,
-  createSolidStore(tableSchemas),
+  createSolidStore(createTables(tableSchemas)),
 );

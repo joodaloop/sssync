@@ -109,3 +109,8 @@ export type QueryResult<Value> = {
   value: Value
   updatedAt: number
 }
+
+export const createTables = <Schemas extends TableSchemas>(tableSchemas: Schemas): TablesFromSchemas<Schemas> => {
+  const entries = Object.keys(tableSchemas).map((key) => [key, []]);
+  return Object.fromEntries(entries) as TablesFromSchemas<Schemas>;
+};

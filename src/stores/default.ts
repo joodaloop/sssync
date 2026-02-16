@@ -1,14 +1,9 @@
 import type { InMemoryStore, TableSchemas, TablesFromSchemas } from "../types";
 
-const createTables = <Schemas extends TableSchemas>(tableSchemas: Schemas): TablesFromSchemas<Schemas> => {
-  const entries = Object.keys(tableSchemas).map((key) => [key, []]);
-  return Object.fromEntries(entries) as TablesFromSchemas<Schemas>;
-};
-
 export const createDefaultStore = <Schemas extends TableSchemas>(
-  tableSchemas: Schemas,
+  initialData: TablesFromSchemas<Schemas>,
 ): InMemoryStore<Schemas> => {
-  let data = createTables(tableSchemas);
+  let data = initialData;
   return {
     get data() {
       return data;

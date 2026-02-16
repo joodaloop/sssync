@@ -8,6 +8,7 @@ export {
   type IndexedDbConfig
 } from './storage/indexeddb'
 export { SSSync } from './sssync'
+export { createTables } from './types'
 export type {
   EventDefinitions,
   EventEnvelope,
