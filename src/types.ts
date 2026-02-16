@@ -70,6 +70,16 @@ export type MaterializerAction<Schemas extends TableSchemas> = {
       }
 }[TableName<Schemas>]
 
+export type InMemoryStore<Schemas extends TableSchemas> = {
+  data: TablesFromSchemas<Schemas>
+  mutate: (actions: Array<MaterializerAction<Schemas>>) => void
+  hydrate: (data: TablesFromSchemas<Schemas>) => void
+  upsert: <Name extends TableName<Schemas>>(
+    tableName: Name,
+    row: TablesFromSchemas<Schemas>[Name][number]
+  ) => void
+}
+
 export type Materializer<
   Schemas extends TableSchemas,
   Definition extends EventDefinition<string, SchemaLike>

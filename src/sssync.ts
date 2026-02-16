@@ -10,10 +10,12 @@ import type {
   MaterializerMap,
   RawEvent,
   SyncResponse,
+  InMemoryStore,
   TableSchemas,
   TablesFromSchemas,
 } from "./types";
 import { QueryCache } from "./cache/query-cache";
+import { createDefaultStore } from "./stores/default";
 
 type QueryCacheEntry<Result> = {
   key: string;
@@ -43,7 +45,7 @@ const STORE_NAMES = {
 
 export class SSSync<Definitions extends EventDefinitions, Schemas extends TableSchemas> {
   readonly id: string;
-  readonly tables: TablesFromSchemas<Schemas>;
+  private readonly store: InMemoryStore<Schemas>;
   private readonly eventDefinitions: Definitions;
   private readonly materializers: MaterializerMap<Schemas, Definitions>;
   private readonly events: Array<EventEnvelope<Definitions[keyof Definitions]>>;
@@ -51,6 +53,7 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
   private readonly dbPromise: Promise<IDBPDatabase<unknown>>;
   private readonly tableSchemas: Schemas;
   readonly ready: Promise<void>;
+  private initialized = false;
   private leader = false;
   private releaseLeadership?: () => void;
   private readonly channel: BroadcastChannel | undefined;
@@ -62,12 +65,13 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     events: Definitions,
     materializers: MaterializerMap<Schemas, Definitions>,
     tableSchemas: Schemas,
+    store?: InMemoryStore<Schemas>,
   ) {
     this.id = id;
     this.eventDefinitions = events;
     this.materializers = materializers;
     this.tableSchemas = tableSchemas;
-    this.tables = this.createTables(tableSchemas);
+    this.store = store ?? createDefaultStore(tableSchemas);
     this.events = [];
     this.queryCache = new QueryCache();
     this.dbPromise = this.openDatabase();
@@ -84,12 +88,25 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     return this.leader;
   }
 
-  async commit(events: RawEvent<Definitions>[]): Promise<EventEnvelope<Definitions[keyof Definitions]>[]> {
-    await this.ready;
-    const envelopes = events.map((event) => this.applyEvent(event));
+  get tables(): TablesFromSchemas<Schemas> {
+    return this.store.data;
+  }
+
+  commit(events: RawEvent<Definitions>[]): EventEnvelope<Definitions[keyof Definitions]>[] {
+    if (!this.initialized) {
+      throw new Error("SSSync is not ready yet.");
+    }
+    const applied = events.map((event) => this.applyEvent(event));
+    const envelopes = applied.map((entry) => entry.envelope);
+    const actions = applied.flatMap((entry) => entry.actions);
+    const rescanKeys = this.collectRescanKeys(applied);
     this.events.push(...envelopes);
-    await this.writeMutations(envelopes);
-    await this.persistTables();
+    void this.writeMutations(envelopes);
+    if (this.leader) {
+      void this.persistActions(actions).then(() => {
+        this.broadcastRescanKeys(rescanKeys);
+      });
+    }
     return envelopes;
   }
 
@@ -129,11 +146,6 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     return validated;
   }
 
-  private createTables(tableSchemas: Schemas): TablesFromSchemas<Schemas> {
-    const entries = Object.keys(tableSchemas).map((key) => [key, []]);
-    return Object.fromEntries(entries) as TablesFromSchemas<Schemas>;
-  }
-
   private createSyncResponseSchema(tableSchemas: Schemas): v.BaseSchema<unknown, SyncResponse<Schemas>, unknown> {
     const tableEntries = Object.entries(tableSchemas).map(([name, schema]) => [name, v.array(schema)]);
     const tablesSchema = v.object(Object.fromEntries(tableEntries));
@@ -169,6 +181,7 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
   private async initialize(): Promise<void> {
     await this.ensureMetaRow();
     await this.loadTables();
+    this.initialized = true;
   }
 
   private createChannel(): BroadcastChannel | undefined {
@@ -200,7 +213,7 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
       if (!this.leader) {
         return;
       }
-      void this.persistMutation(data.envelope);
+      void this.handleRemoteMutation(data.envelope);
     });
   }
 
@@ -248,8 +261,37 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     this.rescanChannel?.postMessage({ key });
   }
 
-  private async persistMutation(envelope: EventEnvelope<Definitions[keyof Definitions]>): Promise<void> {
+  private broadcastRescanKeys(keys: Set<string>): void {
+    for (const key of keys) {
+      this.broadcastRescanKey(key);
+    }
+  }
+
+  private collectRescanKeys(applied: Array<AppliedEvent<Schemas, Definitions>>): Set<string> {
+    const keys = new Set<string>();
+    for (const entry of applied) {
+      for (const key of entry.rescanKeys) {
+        keys.add(key);
+      }
+    }
+    return keys;
+  }
+
+  private async handleRemoteMutation(
+    envelope: EventEnvelope<Definitions[keyof Definitions]>,
+  ): Promise<void> {
     await this.ready;
+    await this.persistMutation(envelope);
+    const rawEvent = this.toRawEvent(envelope);
+    if (!rawEvent) {
+      return;
+    }
+    const applied = this.applyEvent(rawEvent);
+    await this.persistActions(applied.actions);
+    this.broadcastRescanKeys(applied.rescanKeys);
+  }
+
+  private async persistMutation(envelope: EventEnvelope<Definitions[keyof Definitions]>): Promise<void> {
     await this.writeMutation(envelope);
   }
 
@@ -283,26 +325,19 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
       return;
     }
 
-    console.log("updated@");
-
     const [tableName] = entry.key.split("/", 1);
-    const table = this.tables[tableName as keyof TablesFromSchemas<Schemas>];
-    const schema = this.tableSchemas[tableName as keyof Schemas];
-    if (!table || !schema) {
+    const tableKey = tableName as Extract<keyof Schemas, string>;
+    const table = this.store.data[tableKey];
+    const schema = this.tableSchemas[tableKey];
+    if (!schema) {
       return;
     }
 
     const parsed = v.parse(schema, entry.value);
-    const rowId = (parsed as { id?: string | number }).id;
-    if (rowId === undefined) {
-      return;
-    }
-    const index = table.findIndex((row) => row?.id === rowId);
-    if (index === -1) {
-      table.push(parsed as TablesFromSchemas<Schemas>[keyof TablesFromSchemas<Schemas>][number]);
-      return;
-    }
-    table[index] = parsed as TablesFromSchemas<Schemas>[keyof TablesFromSchemas<Schemas>][number];
+    this.store.upsert(
+      tableKey,
+      parsed as TablesFromSchemas<Schemas>[Extract<keyof Schemas, string>][number],
+    );
   }
 
   private async openDatabase(): Promise<IDBPDatabase<unknown>> {
@@ -343,18 +378,21 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     const transaction = database.transaction([STORE_NAMES.data], "readonly");
     const store = transaction.objectStore(STORE_NAMES.data);
     const entries = (await store.getAll()) as DataEntry[];
+    const dataEntries = Object.keys(this.tableSchemas).map((key) => [key, []]);
+    const data = Object.fromEntries(dataEntries) as TablesFromSchemas<Schemas>;
     entries.forEach((entry) => {
       if (!entry || typeof entry.key !== "string") {
         return;
       }
       const [tableName] = entry.key.split("/", 1);
-      const table = this.tables[tableName as keyof TablesFromSchemas<Schemas>];
+      const table = data[tableName as keyof TablesFromSchemas<Schemas>];
       const schema = this.tableSchemas[tableName as keyof Schemas];
       if (table && schema) {
         const parsed = v.parse(schema, entry.value);
         table.push(parsed as TablesFromSchemas<Schemas>[keyof TablesFromSchemas<Schemas>][number]);
       }
     });
+    this.store.hydrate(data);
     await transaction.done;
   }
 
@@ -378,7 +416,7 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     }
   }
 
-  private applyEvent(event: RawEvent<Definitions>): EventEnvelope<Definitions[EventKey<Definitions>]> {
+  private applyEvent(event: RawEvent<Definitions>): AppliedEvent<Schemas, Definitions> {
     const definition = this.eventDefinitions[event.name];
     if (!definition) {
       throw new Error(`Unknown event: ${event.name}`);
@@ -398,50 +436,94 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     }
 
     const context: MaterializerContext<Schemas, Definitions[EventKey<Definitions>]> = {
-      db: this.tables,
+      db: this.store.data,
       event: envelope,
     };
     const actions = handler(payload as EventPayload<Definitions[EventKey<Definitions>]>, context);
-    this.applyActions(actions);
+    const rescanKeys = this.createRescanKeys(actions);
+    this.store.mutate(actions);
 
-    return envelope;
+    return { envelope, actions, rescanKeys };
   }
 
-  private applyActions(actions: Array<MaterializerAction<Schemas>>): void {
+  private createRescanKeys(actions: Array<MaterializerAction<Schemas>>): Set<string> {
+    const keys = new Set<string>();
     for (const action of actions) {
-      const table = this.tables[action.tableName];
-      if (!table) {
-        throw new Error(`Unknown table: ${action.tableName}`);
-      }
-      if (action.type === "create") {
-        table.push(action.value);
-        if (action.value.id !== undefined) {
-          this.broadcastRescanKey(`${action.tableName}/${String(action.value.id)}`);
-        }
+      const id = action.value.id;
+      if (id === undefined) {
         continue;
       }
-
-      const index = table.findIndex((row) => row?.id === action.value.id);
-      if (index === -1) {
-        continue;
-      }
-      table[index] = { ...table[index], ...action.value };
+      keys.add(`${action.tableName}/${String(id)}`);
     }
+    return keys;
   }
 
-  private async persistTables(): Promise<void> {
+  private async persistActions(actions: Array<MaterializerAction<Schemas>>): Promise<void> {
+    if (actions.length === 0) {
+      return;
+    }
     const database = await this.dbPromise;
     const transaction = database.transaction([STORE_NAMES.data], "readwrite");
     const store = transaction.objectStore(STORE_NAMES.data);
-    await store.clear();
-    for (const [tableName, rows] of Object.entries(this.tables)) {
-      for (const row of rows as Array<{ id?: string | number }>) {
-        if (row?.id === undefined) {
-          continue;
-        }
-        await store.put({ key: `${tableName}/${String(row.id)}`, value: row });
+    for (const action of actions) {
+      const id = action.value.id;
+      if (id === undefined) {
+        continue;
       }
+      const table = this.store.data[action.tableName];
+      if (!table) {
+        continue;
+      }
+      const row = table.find((entry) => entry?.id === id);
+      if (!row) {
+        continue;
+      }
+      await store.put({
+        key: `${action.tableName}/${String(id)}`,
+        value: this.cloneForStorage(row),
+      });
     }
     await transaction.done;
   }
+
+  private cloneForStorage<T>(value: T): T {
+    if (typeof structuredClone === "function") {
+      try {
+        return structuredClone(value);
+      } catch {
+        // Fall back to JSON serialization for non-cloneable values like proxies.
+      }
+    }
+    return JSON.parse(JSON.stringify(value)) as T;
+  }
+
+  private toRawEvent(
+    envelope: EventEnvelope<Definitions[keyof Definitions]>,
+  ): RawEvent<Definitions> | null {
+    const key = this.findDefinitionKey(envelope.name);
+    if (!key) {
+      return null;
+    }
+    return {
+      id: envelope.id,
+      name: key,
+      payload: envelope.payload,
+      timestamp: envelope.timestamp,
+    };
+  }
+
+  private findDefinitionKey(name: string): EventKey<Definitions> | null {
+    for (const [key, definition] of Object.entries(this.eventDefinitions)) {
+      if (definition.name === name) {
+        return key as EventKey<Definitions>;
+      }
+    }
+    return null;
+  }
 }
+
+type AppliedEvent<Schemas extends TableSchemas, Definitions extends EventDefinitions> = {
+  envelope: EventEnvelope<Definitions[keyof Definitions]>;
+  actions: Array<MaterializerAction<Schemas>>;
+  rescanKeys: Set<string>;
+};

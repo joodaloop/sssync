@@ -1,5 +1,7 @@
 export { Events } from './events/registry'
 export { QueryCache, type QueryCacheOptions } from './cache/query-cache'
+export { createDefaultStore } from './stores/default'
+export { createSolidStore } from './stores/solid-store'
 export {
   createIndexedDbClient,
   type IndexedDbClient,

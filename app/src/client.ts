@@ -1,5 +1,5 @@
 import * as v from "valibot";
-import { Events, SSSync, type MaterializerMap } from "sssync";
+import { Events, SSSync, createSolidStore, type MaterializerMap } from "sssync";
 
 const events = {
   postCreated: Events.define({
@@ -30,4 +30,10 @@ const materializers: MaterializerMap<typeof tableSchemas, typeof events> = {
   ],
 };
 
-export const client = new SSSync("test-app", events, materializers, tableSchemas);
+export const client = new SSSync(
+  "test-app",
+  events,
+  materializers,
+  tableSchemas,
+  createSolidStore(tableSchemas),
+);

@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "idb": "^8.0.0",
+    "solid-js": "^1.8.17",
     "valibot": "^0.33.2"
   },
   "devDependencies": {
