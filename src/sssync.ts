@@ -54,6 +54,7 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
   private leader = false;
   private releaseLeadership?: () => void;
   private readonly channel: BroadcastChannel | undefined;
+  private readonly rescanChannel: BroadcastChannel | undefined;
   private readonly syncResponseSchema: v.BaseSchema<unknown, SyncResponse<Schemas>, unknown>;
 
   constructor(
@@ -72,8 +73,10 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     this.dbPromise = this.openDatabase();
     this.ready = this.initialize();
     this.channel = this.createChannel();
+    this.rescanChannel = this.createRescanChannel();
     this.syncResponseSchema = this.createSyncResponseSchema(tableSchemas);
     this.attachChannelListeners();
+    this.attachRescanListeners();
     this.startLeaderElection();
   }
 
@@ -175,6 +178,13 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     return new BroadcastChannel(`sssync:${this.id}`);
   }
 
+  private createRescanChannel(): BroadcastChannel | undefined {
+    if (typeof BroadcastChannel === "undefined") {
+      return undefined;
+    }
+    return new BroadcastChannel(`${this.id}_rescan`);
+  }
+
   private attachChannelListeners(): void {
     if (!this.channel) {
       return;
@@ -191,6 +201,21 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
         return;
       }
       void this.persistMutation(data.envelope);
+    });
+  }
+
+  private attachRescanListeners(): void {
+    if (!this.rescanChannel) {
+      return;
+    }
+
+    this.rescanChannel.addEventListener("message", (event) => {
+      const data = event.data as { key?: string } | string | undefined;
+      const key = typeof data === "string" ? data : data?.key;
+      if (!key) {
+        return;
+      }
+      void this.rescan(key);
     });
   }
 
@@ -219,6 +244,10 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     this.channel?.postMessage({ type: "mutation", id: this.id, envelope });
   }
 
+  private broadcastRescanKey(key: string): void {
+    this.rescanChannel?.postMessage({ key });
+  }
+
   private async persistMutation(envelope: EventEnvelope<Definitions[keyof Definitions]>): Promise<void> {
     await this.ready;
     await this.writeMutation(envelope);
@@ -243,6 +272,37 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
   destroy(): void {
     this.releaseLeadership?.();
     this.channel?.close();
+    this.rescanChannel?.close();
+  }
+
+  async rescan(key: string): Promise<void> {
+    await this.ready;
+    const database = await this.dbPromise;
+    const entry = (await database.get(STORE_NAMES.data, key)) as DataEntry | undefined;
+    if (!entry || typeof entry.key !== "string") {
+      return;
+    }
+
+    console.log("updated@");
+
+    const [tableName] = entry.key.split("/", 1);
+    const table = this.tables[tableName as keyof TablesFromSchemas<Schemas>];
+    const schema = this.tableSchemas[tableName as keyof Schemas];
+    if (!table || !schema) {
+      return;
+    }
+
+    const parsed = v.parse(schema, entry.value);
+    const rowId = (parsed as { id?: string | number }).id;
+    if (rowId === undefined) {
+      return;
+    }
+    const index = table.findIndex((row) => row?.id === rowId);
+    if (index === -1) {
+      table.push(parsed as TablesFromSchemas<Schemas>[keyof TablesFromSchemas<Schemas>][number]);
+      return;
+    }
+    table[index] = parsed as TablesFromSchemas<Schemas>[keyof TablesFromSchemas<Schemas>][number];
   }
 
   private async openDatabase(): Promise<IDBPDatabase<unknown>> {
@@ -355,6 +415,9 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
       }
       if (action.type === "create") {
         table.push(action.value);
+        if (action.value.id !== undefined) {
+          this.broadcastRescanKey(`${action.tableName}/${String(action.value.id)}`);
+        }
         continue;
       }
 
