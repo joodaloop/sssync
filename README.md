@@ -14,3 +14,7 @@ Client-side library that satisifes half of the sssync protocol (defined below), 
 - Design strategies for the query caching layer
 - Separate in-memory store into pluggable version (so it can be a Solid store, legend-state list, etc)
 - Use https://detail.dev/, maybe
+
+## Development guide
+- Clone the repository, run bun install in root, and also inside /app
+- In /app use `bun run dev` to get the test web app running
