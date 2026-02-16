@@ -60,6 +60,7 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
   private readonly channel: BroadcastChannel | undefined;
   private readonly rescanChannel: BroadcastChannel | undefined;
   private readonly syncResponseSchema: v.BaseSchema<unknown, SyncResponse<Schemas>, unknown>;
+  private readonly broadcastEnvelopeSchema: v.BaseSchema<unknown, EventEnvelope<Definitions[keyof Definitions]>, unknown>;
 
   constructor(
     id: string,
@@ -80,6 +81,7 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     this.channel = this.createChannel();
     this.rescanChannel = this.createRescanChannel();
     this.syncResponseSchema = this.createSyncResponseSchema(tableSchemas);
+    this.broadcastEnvelopeSchema = this.createEnvelopeSchema(events);
     this.attachChannelListeners();
     this.attachRescanListeners();
     this.startLeaderElection();
@@ -179,6 +181,24 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     ]);
   }
 
+  private createEnvelopeSchema(
+    events: Definitions,
+  ): v.BaseSchema<unknown, EventEnvelope<Definitions[keyof Definitions]>, unknown> {
+    const eventSchemas = Object.entries(events).map(([name, definition]) =>
+      v.object({
+        id: v.string(),
+        name: v.literal(definition.name),
+        payload: definition.schema,
+        timestamp: v.number(),
+      }),
+    );
+    return v.union(eventSchemas) as v.BaseSchema<
+      unknown,
+      EventEnvelope<Definitions[keyof Definitions]>,
+      unknown
+    >;
+  }
+
   private async initialize(): Promise<void> {
     await this.ensureMetaRow();
     await this.loadTables();
@@ -205,10 +225,8 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     }
 
     this.channel.addEventListener("message", (event) => {
-      const data = event.data as
-        | { type?: string; envelope?: EventEnvelope<Definitions[keyof Definitions]> }
-        | undefined;
-      if (!data || data.type !== "mutation" || !data.envelope) {
+      const data = this.parseBroadcastMessage(event.data);
+      if (!data || data.type !== "mutation") {
         return;
       }
       if (!this.leader) {
@@ -292,6 +310,23 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     this.broadcastRescanKeys(applied.rescanKeys);
   }
 
+  private parseBroadcastMessage(
+    payload: unknown,
+  ): { type: "mutation"; envelope: EventEnvelope<Definitions[keyof Definitions]> } | null {
+    if (!payload || typeof payload !== "object") {
+      return null;
+    }
+    const { type, envelope } = payload as { type?: unknown; envelope?: unknown };
+    if (type !== "mutation") {
+      return null;
+    }
+    const validated = v.safeParse(this.broadcastEnvelopeSchema, envelope);
+    if (!validated.success) {
+      return null;
+    }
+    return { type: "mutation", envelope: validated.output };
+  }
+
   private async persistMutation(envelope: EventEnvelope<Definitions[keyof Definitions]>): Promise<void> {
     await this.writeMutation(envelope);
   }
@@ -316,6 +351,7 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
     this.releaseLeadership?.();
     this.channel?.close();
     this.rescanChannel?.close();
+    void this.closeDatabase();
   }
 
   async rescan(key: string): Promise<void> {
@@ -358,6 +394,11 @@ export class SSSync<Definitions extends EventDefinitions, Schemas extends TableS
         }
       },
     });
+  }
+
+  private async closeDatabase(): Promise<void> {
+    const database = await this.dbPromise;
+    database.close();
   }
 
   private async ensureMetaRow(): Promise<void> {

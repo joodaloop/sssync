@@ -9,6 +9,7 @@ export type IndexedDbConfig = {
 
 export type IndexedDbClient = {
   open(): Promise<IDBPDatabase<unknown>>
+  close(): Promise<void>
   clear(): Promise<void>
   getAll<Value>(storeName: string): Promise<Value[]>
   scanByPrefix<Value>(storeName: string, prefix: string): Promise<Value[]>
@@ -19,17 +20,31 @@ export type IndexedDbClient = {
 }
 
 export const createIndexedDbClient = (config: IndexedDbConfig): IndexedDbClient => {
-  const open = () =>
-    openDB(config.name, config.version, {
-      upgrade(database) {
-        if (!database.objectStoreNames.contains(config.eventStoreName)) {
-          database.createObjectStore(config.eventStoreName, { keyPath: 'id' })
+  let databasePromise: Promise<IDBPDatabase<unknown>> | null = null
+  const open = () => {
+    if (!databasePromise) {
+      databasePromise = openDB(config.name, config.version, {
+        upgrade(database) {
+          if (!database.objectStoreNames.contains(config.eventStoreName)) {
+            database.createObjectStore(config.eventStoreName, { keyPath: 'id' })
+          }
+          if (!database.objectStoreNames.contains(config.cacheStoreName)) {
+            database.createObjectStore(config.cacheStoreName, { keyPath: 'key' })
+          }
         }
-        if (!database.objectStoreNames.contains(config.cacheStoreName)) {
-          database.createObjectStore(config.cacheStoreName, { keyPath: 'key' })
-        }
-      }
-    })
+      })
+    }
+    return databasePromise
+  }
+
+  const close = async () => {
+    if (!databasePromise) {
+      return
+    }
+    const database = await databasePromise
+    database.close()
+    databasePromise = null
+  }
 
   const clear = async () => {
     const database = await open()
@@ -66,5 +81,5 @@ export const createIndexedDbClient = (config: IndexedDbConfig): IndexedDbClient 
     return result
   }
 
-  return { open, clear, getAll, scanByPrefix, withReadwrite }
+  return { open, close, clear, getAll, scanByPrefix, withReadwrite }
 }

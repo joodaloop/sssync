@@ -24,7 +24,7 @@ export const createSolidStore = <Schemas extends TableSchemas>(
           if (index === -1) {
             table.push(row);
           } else {
-            table[index] = row;
+            table[index] = reconcile(row)(table[index]);
           }
         }),
       );

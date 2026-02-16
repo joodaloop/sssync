@@ -24,6 +24,7 @@
     "format": "biome format . --write"
   },
   "dependencies": {
+    "@legendapp/state": "^2.1.15",
     "idb": "^8.0.0",
     "solid-js": "^1.8.17",
     "valibot": "^0.33.2"
