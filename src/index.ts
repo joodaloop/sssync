@@ -17,6 +17,7 @@ export type {
   QueryKey,
   QueryResult,
   RawEvent,
+  SyncResponse,
   TableName,
   TableSchemas,
   TablesFromSchemas,

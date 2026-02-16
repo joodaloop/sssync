@@ -1,3 +1,4 @@
+import { type BaseSchema, parse } from 'valibot'
 import type { QueryKey, QueryResult } from '../types'
 
 export type QueryCacheOptions = {
@@ -28,6 +29,17 @@ export class QueryCache<Value> {
 
   set(key: QueryKey, value: Value, now = Date.now()): void {
     this.cache.set(key.join('|'), { value, updatedAt: now })
+  }
+
+  setValidated<TOutput>(
+    key: QueryKey,
+    value: unknown,
+    schema: BaseSchema<unknown, TOutput, unknown>,
+    now = Date.now()
+  ): TOutput {
+    const parsed = parse(schema, value)
+    this.set(key, parsed as Value, now)
+    return parsed
   }
 
   invalidate(key: QueryKey): void {

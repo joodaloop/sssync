@@ -9,9 +9,8 @@
     "jsxImportSource": "solid-js",
     "strict": true,
     "noEmit": true,
-    "types": ["vinxi/types/client"],
     "paths": {
-      "~/*": ["./src/*"]
+      "sssync": ["../src/index.ts"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]

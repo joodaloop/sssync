@@ -1,69 +1,70 @@
-import { createResource, For, Show, createSignal } from "solid-js";
-import type { User, Post } from "../server/data";
-
-async function fetchUsers(): Promise<User[]> {
-  const res = await fetch("/api/users");
-  return res.json();
-}
-
-async function fetchUserPosts(id: number): Promise<Post[]> {
-  const res = await fetch(`/api/users/${id}/posts`);
-  return res.json();
-}
+import { createSignal, For, Show } from "solid-js";
+import { client } from "../client";
 
 export default function Home() {
-  const [users] = createResource(fetchUsers);
-  const [selectedUserId, setSelectedUserId] = createSignal<number | null>(null);
-  const [posts] = createResource(selectedUserId, (id) => fetchUserPosts(id));
+  const [posts, setPosts] = createSignal(client.tables.posts);
+  const [title, setTitle] = createSignal("");
+  const [body, setBody] = createSignal("");
+
+  async function createPost(e: Event) {
+    e.preventDefault();
+    if (!title().trim()) return;
+
+    await client.commit([
+      {
+        id: crypto.randomUUID(),
+        name: "postCreated",
+        payload: { id: crypto.randomUUID(), title: title(), body: body() },
+        timestamp: Date.now(),
+      },
+    ]);
+
+    setPosts([...client.tables.posts]);
+    setTitle("");
+    setBody("");
+  }
 
   return (
     <main style={{ "font-family": "system-ui, sans-serif", padding: "2rem" }}>
       <h1>sssync test app</h1>
 
-      <h2>Users</h2>
-      <Show when={!users.loading} fallback={<p>Loading users...</p>}>
-        <ul>
-          <For each={users()}>
-            {(user) => (
-              <li>
-                <button
-                  onClick={() => setSelectedUserId(user.id)}
-                  style={{
-                    "font-weight": selectedUserId() === user.id ? "bold" : "normal",
-                    cursor: "pointer",
-                    background: "none",
-                    border: "none",
-                    "text-decoration": "underline",
-                    padding: 0,
-                    font: "inherit",
-                    color: "blue",
-                  }}
-                >
-                  {user.name}
-                </button>{" "}
-                — {user.email}
+      <h2>Create Post</h2>
+      <form onSubmit={createPost} style={{ "margin-bottom": "2rem" }}>
+        <div style={{ "margin-bottom": "0.5rem" }}>
+          <input
+            type="text"
+            placeholder="Title"
+            value={title()}
+            onInput={(e) => setTitle(e.currentTarget.value)}
+            style={{ padding: "0.5rem", width: "300px" }}
+          />
+        </div>
+        <div style={{ "margin-bottom": "0.5rem" }}>
+          <textarea
+            placeholder="Body"
+            value={body()}
+            onInput={(e) => setBody(e.currentTarget.value)}
+            style={{ padding: "0.5rem", width: "300px", height: "80px" }}
+          />
+        </div>
+        <button type="submit" style={{ padding: "0.5rem 1rem" }}>
+          Create Post
+        </button>
+      </form>
+
+      <h2>Posts ({posts().length})</h2>
+      <Show when={posts().length > 0} fallback={<p>No posts yet. Create one above.</p>}>
+        <ul style={{ "list-style": "none", padding: 0 }}>
+          <For each={posts()}>
+            {(post) => (
+              <li style={{ "margin-bottom": "1rem", "border-bottom": "1px solid #eee", "padding-bottom": "1rem" }}>
+                <strong>{post.title}</strong>
+                <p style={{ margin: "0.25rem 0", color: "#666" }}>{post.body}</p>
+                <small style={{ color: "#999" }}>{post.id}</small>
               </li>
             )}
           </For>
         </ul>
-      </Show>
-
-      <Show when={selectedUserId()}>
-        <h2>Posts</h2>
-        <Show when={!posts.loading} fallback={<p>Loading posts...</p>}>
-          <Show when={posts()?.length} fallback={<p>No posts found.</p>}>
-            <ul>
-              <For each={posts()}>
-                {(post) => (
-                  <li>
-                    <strong>{post.title}</strong>
-                    <p>{post.body}</p>
-                  </li>
-                )}
-              </For>
-            </ul>
-          </Show>
-        </Show>
       </Show>
     </main>
   );

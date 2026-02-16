@@ -83,6 +83,16 @@ export type MaterializerMap<
   Definitions extends EventDefinitions
 > = { [Key in keyof Definitions]: Materializer<Schemas, Definitions[Key]> }
 
+export type SyncResponse<Schemas extends TableSchemas> =
+  | {
+      mode: 'snapshot'
+      data: TablesFromSchemas<Schemas>
+    }
+  | {
+      mode: 'actions'
+      data: Array<MaterializerAction<Schemas>>
+    }
+
 export type QueryKey = readonly [string, ...Array<string | number>]
 
 export type QueryResult<Value> = {

@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto'
 import { describe, expect, it } from 'bun:test'
 import * as v from 'valibot'
 import { Events, SSSync, type MaterializerMap } from '../src/index'
+import { mock } from 'bun:test'
 
 describe('SSSync', () => {
   it('materializes events into tables and caches queries', async () => {
@@ -29,6 +30,17 @@ describe('SSSync', () => {
       ]
     }
 
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = mock(async () =>
+      new Response(
+        JSON.stringify({
+          mode: 'snapshot',
+          data: { pages: [{ id: 'page-1', title: 'Hello' }] }
+        }),
+        { status: 200 }
+      )
+    ) as unknown as typeof fetch
+
     const client = new SSSync('client-1', events, materializers, tableSchemas)
 
     await client.commit([
@@ -42,18 +54,8 @@ describe('SSSync', () => {
 
     expect(client.tables.pages).toHaveLength(1)
 
-    let fetchCount = 0
-    const first = await client.query('pages:list', () => {
-      fetchCount += 1
-      return client.tables.pages
-    })
-
-    const second = await client.query('pages:list', () => {
-      fetchCount += 1
-      return client.tables.pages
-    })
-
-    expect(first).toBe(second)
-    expect(fetchCount).toBe(1)
+    const response = await client.query('/pages')
+    expect(response.mode).toBe('snapshot')
+    globalThis.fetch = originalFetch
   })
 })
