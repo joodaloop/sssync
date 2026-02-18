@@ -20,7 +20,7 @@
     <meta name="twitter:title" content="SSSync">
     <meta name="twitter:description" content="A cool page" />
     <meta name="twitter:image" content="/card.png" />
-    <link rel="stylesheet" type="text/css" href="style.css?v=fab01b95" />
+    <link rel="stylesheet" type="text/css" href="style.css?v=ec5b8a44" />
     <style>/* Background */ .bg { background-color: #f7f7f7; }
 /* PreWrapper */ .chroma { background-color: #f7f7f7; -webkit-text-size-adjust: none; }
 /* Error */ .chroma .err { color: #f6f8fa; background-color: #82071e }
@@ -100,19 +100,16 @@
     <main>
   <h1 id="sssync-documentation">SSSync documentation</h1>
   <ul>
-  <li><a href="#sssync-documentation">SSSync documentation</a>
+  <li><a href="#protocol">Protocol</a></li>
+  <li><a href="#faq">FAQ</a>
   <ul>
-    <li><a href="#protocol">Protocol</a></li>
-    <li><a href="#faq">FAQ</a>
-    <ul>
-      <li><a href="#is-this-approach-local-first">Is this approach local-first?</a></li>
-    </ul>
-  </li>
+    <li><a href="#will-this-scale-to-insert-large-number-here-users">Will this scale to [insert large number here] users?</a></li>
+    <li><a href="#is-this-approach-local-first">Is this approach local-first?</a></li>
   </ul>
 </li>
 </ul>
 
-  <p>If you like software that works offline, you will like our sync engine architecture. It works with as few moving parts as possible:</p>
+  <p>If you like software that works offline, you might like our sync engine architecture. It works with as few parts as possible:</p>
 <ul>
 <li>A server, including edge functions like Cloudflare Workers</li>
 <li>A database, anything you like</li>
@@ -123,6 +120,9 @@
 <p>Writing a sssync client is pretty easy, all it really requires you to do is keep track of sync_cursors handed to you by the server.</p>
 
   <h2 id="faq">FAQ</h2>
+<h3 id="will-this-scale-to-insert-large-number-here-users">Will this scale to [insert large number here] users?</h3>
+<p>It depends on how well you set things up to do so. There are no fundamental bottlenecks to keeping things performant as your storage needs increase — at worst, SSSync is much more efficient than a regular web app that makes full API requests on each payload.</p>
+<p>There is no special magic server that might run out of memory, or special database with storage constraints. You can build whatever backend you like, as long as it satisfies the <a href="#protocol">protocol</a>.</p>
 <h3 id="is-this-approach-local-first">Is this approach local-first?</h3>
 <p>The defintions of that term are <em>very</em> muddled at the moment (read more), but we think the the seven original principles of the <a href="https://www.inkandswitch.com/essay/local-first/#5-the-long-now" target="_blank" rel="noopener">local-first paper</a> are the correct banchmark to use.</p>
 <ol>

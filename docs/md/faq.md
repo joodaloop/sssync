@@ -1,5 +1,10 @@
 ## FAQ
 
+### Will this scale to [insert large number here] users?
+It depends on how well you set things up to do so. There are no fundamental bottlenecks to keeping things performant as your storage needs increase — at worst, SSSync is much more efficient than a regular web app that makes full API requests on each payload. 
+
+There is no special magic server that might run out of memory, or special database with storage constraints. You can build whatever backend you like, as long as it satisfies the [protocol](#protocol).
+
 ### Is this approach local-first?
 
 The defintions of that term are *very* muddled at the moment (read more), but we think the the seven original principles of the [local-first paper](https://www.inkandswitch.com/essay/local-first/#5-the-long-now) are the correct banchmark to use.

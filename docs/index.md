@@ -7,14 +7,13 @@ domain: ""
 
 # SSSync documentation
 
-- [SSSync documentation](#sssync-documentation)
+- [Protocol](#protocol)
+- [FAQ](#faq)
   
-  - [Protocol](#protocol)
-  - [FAQ](#faq)
-    
-    - [Is this approach local-first?](#is-this-approach-local-first)
+  - [Will this scale to \[insert large number here\] users?](#will-this-scale-to-insert-large-number-here-users)
+  - [Is this approach local-first?](#is-this-approach-local-first)
 
-If you like software that works offline, you will like our sync engine architecture. It works with as few moving parts as possible:
+If you like software that works offline, you might like our sync engine architecture. It works with as few parts as possible:
 
 - A server, including edge functions like Cloudflare Workers
 - A database, anything you like
@@ -25,6 +24,12 @@ If you like software that works offline, you will like our sync engine architect
 Writing a sssync client is pretty easy, all it really requires you to do is keep track of sync\_cursors handed to you by the server.
 
 ## FAQ
+
+### Will this scale to \[insert large number here] users?
+
+It depends on how well you set things up to do so. There are no fundamental bottlenecks to keeping things performant as your storage needs increase — at worst, SSSync is much more efficient than a regular web app that makes full API requests on each payload.
+
+There is no special magic server that might run out of memory, or special database with storage constraints. You can build whatever backend you like, as long as it satisfies the [protocol](#protocol).
 
 ### Is this approach local-first?
 
