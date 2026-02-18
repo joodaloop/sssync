@@ -2,15 +2,11 @@
 
 ## WARNING: THIS IS NOWHERE NEAR DONE
 
-Client-side library that satisifes half of the sssync protocol (defined below), made to enable apps where the priorities are:
+Client-side library that satisifes half of the sssync protocol, made to enable apps where the priorities are:
 - offline-first usage
 - partial data loading
 - simple infrastructure setup (server + database + client)
 - pleasant DX, with the basics taken care of
-
-### Protocol
-- All writes are done though semantic, versioned events.
-- Reads are done through a combination of fetch() calls and implementing a log of changes that the client can subscribe to.
 
 ### nice-to-haves
 - Undo-redo support
@@ -28,3 +24,4 @@ Client-side library that satisifes half of the sssync protocol (defined below), 
 - Simulate bugs through double sending, out of order handling
 - Semantic annotation layer to events
 - Rewind
+- IVM (https://github.com/TanStack/db/tree/main/packages/db-ivm) and query builder API (https://github.com/TanStack/db/tree/main/packages/db/src/query)

@@ -21,3 +21,8 @@ ul,
 ol {
   padding: 0em 1.5em;
 }
+
+footer {
+  margin-top: 3em;
+  text-align: center;
+}

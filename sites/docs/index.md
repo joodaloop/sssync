@@ -2,7 +2,7 @@
 ---
 title: "SSSync"
 description: "Simple Sync for Small apps"
-domain: ""
+domain: "sssync.joodaloop.com"
 ---
 
 # SSSync documentation (WIP)
@@ -55,3 +55,5 @@ Points 5, 6, and 7 are as true as you make them.
 - Privacy and security: You can encrypt all user data and still continue using our sync protocol. Our library doesn't care about what you sync as long as it has unique IDs for each object.
 - The Long Now: If you build a desktop app instead of web one, people can keep using it even if someone stops paying for the server. The data is usually stored as very readable JSON or SQLite.
 - Ownership and control: Users can be "able to copy and modify data in any way" by appending to the event log, through any means that the developer chooses to expose that functionality. As long as they use events from the existing list, the application can process an sync them perfectly fine.
+
+This page was made with [Pager](https://pager.joodaloop.com) , a tool for authoring single-page HTML sites.
