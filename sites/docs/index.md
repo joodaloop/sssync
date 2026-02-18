@@ -1,17 +1,20 @@
 <!-- THIS FILE IS AUTO-GENERATED FROM INDEX.HTML -->
 ---
 title: "SSSync"
-description: "A cool page"
+description: "Simple Sync for Small apps"
 domain: ""
 ---
 
-# SSSync documentation
+# SSSync documentation (WIP)
 
+- [Introduction](#introduction)
 - [Protocol](#protocol)
 - [FAQ](#faq)
   
   - [Will this scale to \[insert large number here\] users?](#will-this-scale-to-insert-large-number-here-users)
   - [Is this approach local-first?](#is-this-approach-local-first)
+
+## Introduction
 
 If you like software that works offline, you might like our sync engine architecture. It works with as few parts as possible:
 

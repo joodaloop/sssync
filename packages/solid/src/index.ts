@@ -1,5 +1,5 @@
 import { createStore, produce, reconcile } from "solid-js/store";
-import type { InMemoryStore, TableSchemas, TablesFromSchemas } from "../types";
+import type { InMemoryStore, TableSchemas, TablesFromSchemas } from "sssync";
 
 export const createSolidStore = <Schemas extends TableSchemas>(
   initialData: TablesFromSchemas<Schemas>,

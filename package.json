@@ -1,37 +1,19 @@
 {
-  "name": "sssync",
-  "version": "0.1.0",
+  "name": "sssync-monorepo",
+  "version": "0.0.0",
   "private": true,
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist"
+  "workspaces": [
+    "packages/*",
+    "sites/*"
   ],
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --format esm && tsc --emitDeclarationOnly",
-    "dev": "bun build src/index.ts --outdir dist --format esm --watch",
-    "typecheck": "tsc --noEmit",
-    "test": "bun test",
-    "test:watch": "bun test --watch",
+    "build": "bun run --filter sssync build",
+    "dev": "bun run --filter sssync dev",
+    "test": "bun run --filter sssync test",
     "lint": "biome check .",
     "format": "biome format . --write"
   },
-  "dependencies": {
-    "@legendapp/state": "^2.1.15",
-    "idb": "^8.0.0",
-    "solid-js": "^1.8.17",
-    "valibot": "^0.33.2"
-  },
   "devDependencies": {
-    "@biomejs/biome": "^1.6.4",
-    "fake-indexeddb": "^5.0.2",
-    "typescript": "^5.4.2"
+    "@biomejs/biome": "^1.6.4"
   }
 }

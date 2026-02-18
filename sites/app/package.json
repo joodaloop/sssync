@@ -11,6 +11,7 @@
   "dependencies": {
     "hono": "^4.7.4",
     "solid-js": "^1.9.5",
+    "sssync": "workspace:*",
     "valibot": "^0.33.2"
   },
   "devDependencies": {

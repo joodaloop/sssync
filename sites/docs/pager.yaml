@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://www.schemastore.org/any.json
 
 title: "SSSync"
-description: "A cool page"
+description: "Simple Sync for Small apps"
 favicon: "/favicon.png"
 card: "/card.png"
 base_url: "sssync.joodaloop.com"
