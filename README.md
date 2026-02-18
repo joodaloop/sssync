@@ -15,6 +15,19 @@ Client-side library that satisifes half of the sssync protocol (defined below), 
 - Separate in-memory store into pluggable version (so it can be a Solid store, legend-state list, etc)
 - Use https://detail.dev/, maybe
 
+### nice-to-haves
+- Undo-redo support
+- UI state persistence (with screen width options)
+- Design schema management + migration system
+- Query lifecycles
+- Sync status + metadata
+- Devtools with test modes
+- Update batching API (for sliders)
+- Preloading API
+- Event => UI mapping for toasts
+- Persistent client-side stores
+- Memory usage reduction strategies
+
 ## Development guide
 - Clone the repository, run bun install in root, and also inside /app
 - In /app use `bun run dev` to get the test web app running

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>SSSync</title>
+    <meta name="description" content="A cool page">
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png">
+
+    <meta property="og:url" content="" />
+    <meta property="og:title" content="SSSync" />
+    <meta property="og:description" content="A cool page" />
+    <meta property="og:image" content="/card.png" />
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="SSSync">
+    <meta name="twitter:description" content="A cool page" />
+    <meta name="twitter:image" content="/card.png" />
+    <link rel="stylesheet" type="text/css" href="style.css?v=fab01b95" />
+    <style>/* Background */ .bg { background-color: #f7f7f7; }
+/* PreWrapper */ .chroma { background-color: #f7f7f7; -webkit-text-size-adjust: none; }
+/* Error */ .chroma .err { color: #f6f8fa; background-color: #82071e }
+/* LineLink */ .chroma .lnlinks { outline: none; text-decoration: none; color: inherit }
+/* LineTableTD */ .chroma .lntd { vertical-align: top; padding: 0; margin: 0; border: 0; }
+/* LineTable */ .chroma .lntable { border-spacing: 0; padding: 0; margin: 0; border: 0; }
+/* LineHighlight */ .chroma .hl { background-color: #dedede }
+/* LineNumbersTable */ .chroma .lnt { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #7f7f7f }
+/* LineNumbers */ .chroma .ln { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #7f7f7f }
+/* Line */ .chroma .line { display: flex; }
+/* Keyword */ .chroma .k { color: #cf222e }
+/* KeywordConstant */ .chroma .kc { color: #cf222e }
+/* KeywordDeclaration */ .chroma .kd { color: #cf222e }
+/* KeywordNamespace */ .chroma .kn { color: #cf222e }
+/* KeywordPseudo */ .chroma .kp { color: #cf222e }
+/* KeywordReserved */ .chroma .kr { color: #cf222e }
+/* KeywordType */ .chroma .kt { color: #cf222e }
+/* NameAttribute */ .chroma .na { color: #1f2328 }
+/* NameClass */ .chroma .nc { color: #1f2328 }
+/* NameConstant */ .chroma .no { color: #0550ae }
+/* NameDecorator */ .chroma .nd { color: #0550ae }
+/* NameEntity */ .chroma .ni { color: #6639ba }
+/* NameLabel */ .chroma .nl { color: #990000; font-weight: bold }
+/* NameNamespace */ .chroma .nn { color: #24292e }
+/* NameOther */ .chroma .nx { color: #1f2328 }
+/* NameTag */ .chroma .nt { color: #0550ae }
+/* NameBuiltin */ .chroma .nb { color: #6639ba }
+/* NameBuiltinPseudo */ .chroma .bp { color: #6a737d }
+/* NameVariable */ .chroma .nv { color: #953800 }
+/* NameVariableClass */ .chroma .vc { color: #953800 }
+/* NameVariableGlobal */ .chroma .vg { color: #953800 }
+/* NameVariableInstance */ .chroma .vi { color: #953800 }
+/* NameVariableMagic */ .chroma .vm { color: #953800 }
+/* NameFunction */ .chroma .nf { color: #6639ba }
+/* NameFunctionMagic */ .chroma .fm { color: #6639ba }
+/* LiteralString */ .chroma .s { color: #0a3069 }
+/* LiteralStringAffix */ .chroma .sa { color: #0a3069 }
+/* LiteralStringBacktick */ .chroma .sb { color: #0a3069 }
+/* LiteralStringChar */ .chroma .sc { color: #0a3069 }
+/* LiteralStringDelimiter */ .chroma .dl { color: #0a3069 }
+/* LiteralStringDoc */ .chroma .sd { color: #0a3069 }
+/* LiteralStringDouble */ .chroma .s2 { color: #0a3069 }
+/* LiteralStringEscape */ .chroma .se { color: #0a3069 }
+/* LiteralStringHeredoc */ .chroma .sh { color: #0a3069 }
+/* LiteralStringInterpol */ .chroma .si { color: #0a3069 }
+/* LiteralStringOther */ .chroma .sx { color: #0a3069 }
+/* LiteralStringRegex */ .chroma .sr { color: #0a3069 }
+/* LiteralStringSingle */ .chroma .s1 { color: #0a3069 }
+/* LiteralStringSymbol */ .chroma .ss { color: #032f62 }
+/* LiteralNumber */ .chroma .m { color: #0550ae }
+/* LiteralNumberBin */ .chroma .mb { color: #0550ae }
+/* LiteralNumberFloat */ .chroma .mf { color: #0550ae }
+/* LiteralNumberHex */ .chroma .mh { color: #0550ae }
+/* LiteralNumberInteger */ .chroma .mi { color: #0550ae }
+/* LiteralNumberIntegerLong */ .chroma .il { color: #0550ae }
+/* LiteralNumberOct */ .chroma .mo { color: #0550ae }
+/* Operator */ .chroma .o { color: #0550ae }
+/* OperatorWord */ .chroma .ow { color: #0550ae }
+/* Punctuation */ .chroma .p { color: #1f2328 }
+/* Comment */ .chroma .c { color: #57606a }
+/* CommentHashbang */ .chroma .ch { color: #57606a }
+/* CommentMultiline */ .chroma .cm { color: #57606a }
+/* CommentSingle */ .chroma .c1 { color: #57606a }
+/* CommentSpecial */ .chroma .cs { color: #57606a }
+/* CommentPreproc */ .chroma .cp { color: #57606a }
+/* CommentPreprocFile */ .chroma .cpf { color: #57606a }
+/* GenericDeleted */ .chroma .gd { color: #82071e; background-color: #ffebe9 }
+/* GenericEmph */ .chroma .ge { color: #1f2328 }
+/* GenericInserted */ .chroma .gi { color: #116329; background-color: #dafbe1 }
+/* GenericOutput */ .chroma .go { color: #1f2328 }
+/* GenericUnderline */ .chroma .gl { text-decoration: underline }
+/* TextWhitespace */ .chroma .w { color: #ffffff }
+</style>
+    
+  </head>
+  <body>
+    <main>
+  <h1 id="sssync-documentation">SSSync documentation</h1>
+  <ul>
+  <li><a href="#sssync-documentation">SSSync documentation</a>
+  <ul>
+    <li><a href="#protocol">Protocol</a></li>
+    <li><a href="#faq">FAQ</a>
+    <ul>
+      <li><a href="#is-this-approach-local-first">Is this approach local-first?</a></li>
+    </ul>
+  </li>
+  </ul>
+</li>
+</ul>
+
+  <p>If you like software that works offline, you will like our sync engine architecture. It works with as few moving parts as possible:</p>
+<ul>
+<li>A server, including edge functions like Cloudflare Workers</li>
+<li>A database, anything you like</li>
+<li>A client library, which is what we provide</li>
+</ul>
+
+  <h2 id="protocol">Protocol</h2>
+<p>Writing a sssync client is pretty easy, all it really requires you to do is keep track of sync_cursors handed to you by the server.</p>
+
+  <h2 id="faq">FAQ</h2>
+<h3 id="is-this-approach-local-first">Is this approach local-first?</h3>
+<p>The defintions of that term are <em>very</em> muddled at the moment (read more), but we think the the seven original principles of the <a href="https://www.inkandswitch.com/essay/local-first/#5-the-long-now" target="_blank" rel="noopener">local-first paper</a> are the correct banchmark to use.</p>
+<ol>
+<li>No spinners: your work at your fingertips</li>
+<li>Your work is not trapped on one device</li>
+<li>The network is optional</li>
+<li>Seamless collaboration with your colleagues</li>
+<li>The Long Now</li>
+<li>Security and privacy by default</li>
+<li>You retain ultimate ownership and control</li>
+</ol>
+<p>SSSync itself doesn&#39;t make your app full local-first, it starts out as a subset and gives the developer the ability to make it fully so if they desire.</p>
+<p>We&#39;re as offline-first as can be, so that satisfies points 1 and 3, and we&#39;re a protocol for connecting to a server that syncs updates and satisfies queries, which accomplishes 2 and 4 once implemented correctly.</p>
+<p>Points 5, 6, and 7 are as true as you make them.</p>
+<ul>
+<li>Privacy and security: You can encrypt all user data and still continue using our sync protocol. Our library doesn&#39;t care about what you sync as long as it has unique IDs for each object.</li>
+<li>The Long Now: If you build a desktop app instead of web one, people can keep using it even if someone stops paying for the server. The data is usually stored as very readable JSON or SQLite.</li>
+<li>Ownership and control: Users can be &#34;able to copy and modify data in any way&#34; by appending to the event log, through any means that the developer chooses to expose that functionality. As long as they use events from the existing list, the application can process an sync them perfectly fine.</li>
+</ul>
+
+</main>
+
+  </body>
+</html>
