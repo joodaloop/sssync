@@ -25,3 +25,4 @@ Client-side library that satisifes half of the sssync protocol, made to enable a
 - Semantic annotation layer to events
 - Rewind
 - IVM (https://github.com/TanStack/db/tree/main/packages/db-ivm) and query builder API (https://github.com/TanStack/db/tree/main/packages/db/src/query)
+- Or, an API like `post.comments().last(10).sort(() => a.text.length > b.text.length);`, which i would honestly much prefer to JOINs, and is what Linear does anyway

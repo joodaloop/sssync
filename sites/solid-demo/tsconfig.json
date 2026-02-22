@@ -10,7 +10,7 @@
     "strict": true,
     "noEmit": true,
     "paths": {
-      "sssync": ["../src/index.ts"]
+      "@sssync/solid-ivm": ["../../packages/solid-ivm/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]

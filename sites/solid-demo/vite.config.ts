@@ -37,7 +37,7 @@ export default defineConfig({
   plugins: [solidPlugin(), honoDevServer()],
   resolve: {
     alias: {
-      sssync: path.resolve(__dirname, "../src/index.ts"),
+      "@sssync/solid-ivm": path.resolve(__dirname, "../../packages/solid-ivm/src/index.ts"),
     },
   },
 });
