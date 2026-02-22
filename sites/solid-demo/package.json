@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@sssync/solid-ivm": "workspace:*",
+    "@sssync/solid": "workspace:*",
     "@tanstack/db": "^0.5.27",
     "@tanstack/db-ivm": "^0.1.17",
     "hono": "^4.7.4",

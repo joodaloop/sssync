@@ -22,11 +22,13 @@
         "@legendapp/state": ">=2.0.0",
       },
     },
-    "packages/solid": {
+    "packages/solid-ivm": {
       "name": "@sssync/solid",
       "version": "0.1.1",
       "dependencies": {
-        "sssync": "workspace:*",
+        "@tanstack/db": "^0.5.27",
+        "@tanstack/db-ivm": "^0.1.17",
+        "@tanstack/solid-db": "^0.2.7",
       },
       "devDependencies": {
         "solid-js": "^1.8.17",
@@ -36,12 +38,11 @@
         "solid-js": ">=1.0.0",
       },
     },
-    "packages/solid-ivm": {
-      "name": "@sssync/solid-ivm",
+    "packages/solid-store": {
+      "name": "@sssync/solid-store",
       "version": "0.1.1",
       "dependencies": {
-        "@tanstack/db": "^0.5.27",
-        "@tanstack/db-ivm": "^0.1.17",
+        "sssync": "workspace:*",
       },
       "devDependencies": {
         "solid-js": "^1.8.17",
@@ -69,7 +70,7 @@
       "name": "sssync-test-app",
       "version": "0.0.0",
       "dependencies": {
-        "@sssync/solid-ivm": "workspace:*",
+        "@sssync/solid": "workspace:*",
         "@tanstack/db": "^0.5.27",
         "@tanstack/db-ivm": "^0.1.17",
         "hono": "^4.7.4",
@@ -251,11 +252,17 @@
 
     "@rollup/rollup-win32-x64-msvc": ["@rollup/rollup-win32-x64-msvc@4.57.1", "", { "os": "win32", "cpu": "x64" }, "sha512-mxRFDdHIWRxg3UfIIAwCm6NzvxG0jDX/wBN6KsQFTvKFqqg9vTrWUE68qEjHt19A5wwx5X5aUi2zuZT7YR0jrA=="],
 
+    "@solid-primitives/map": ["@solid-primitives/map@0.7.2", "", { "dependencies": { "@solid-primitives/trigger": "^1.2.2" }, "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-sXK/rS68B4oq3XXNyLrzVhLtT1pnimmMUahd2FqhtYUuyQsCfnW058ptO1s+lWc2k8F/3zQSNVkZ2ifJjlcNbQ=="],
+
+    "@solid-primitives/trigger": ["@solid-primitives/trigger@1.2.2", "", { "dependencies": { "@solid-primitives/utils": "^6.3.2" }, "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-IWoptVc0SWYgmpBPpCMehS5b07+tpFcvw15tOQ3QbXedSYn6KP8zCjPkHNzMxcOvOicTneleeZDP7lqmz+PQ6g=="],
+
+    "@solid-primitives/utils": ["@solid-primitives/utils@6.3.2", "", { "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-hZ/M/qr25QOCcwDPOHtGjxTD8w2mNyVAYvcfgwzBHq2RwNqHNdDNsMZYap20+ruRwW4A3Cdkczyoz0TSxLCAPQ=="],
+
     "@sssync/legend-state": ["@sssync/legend-state@workspace:packages/legend-state"],
 
-    "@sssync/solid": ["@sssync/solid@workspace:packages/solid"],
+    "@sssync/solid": ["@sssync/solid@workspace:packages/solid-ivm"],
 
-    "@sssync/solid-ivm": ["@sssync/solid-ivm@workspace:packages/solid-ivm"],
+    "@sssync/solid-store": ["@sssync/solid-store@workspace:packages/solid-store"],
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
@@ -264,6 +271,8 @@
     "@tanstack/db-ivm": ["@tanstack/db-ivm@0.1.17", "", { "dependencies": { "fractional-indexing": "^3.2.0", "sorted-btree": "^1.8.1" }, "peerDependencies": { "typescript": ">=4.7" } }, "sha512-DK7vm56CDxNuRAdsbiPs+gITJ+16tUtYgZg3BRTLYKGIDsy8sdIO7sQFq5zl7Y+aIKAPmMAbVp9UjJ75FTtwgQ=="],
 
     "@tanstack/pacer-lite": ["@tanstack/pacer-lite@0.2.1", "", {}, "sha512-3PouiFjR4B6x1c969/Pl4ZIJleof1M0n6fNX8NRiC9Sqv1g06CVDlEaXUR4212ycGFyfq4q+t8Gi37Xy+z34iQ=="],
+
+    "@tanstack/solid-db": ["@tanstack/solid-db@0.2.8", "", { "dependencies": { "@solid-primitives/map": "^0.7.2", "@tanstack/db": "0.5.28" }, "peerDependencies": { "solid-js": ">=1.9.0" } }, "sha512-HH3NQSY2nrelCHcqhpRusTJVlGrtxiH36KC9v++LUwlX6dTJJH08nwpG/F64yofIU+gRH4P8tNZmrC+IymZZoA=="],
 
     "@types/babel__core": ["@types/babel__core@7.20.5", "", { "dependencies": { "@babel/parser": "^7.20.7", "@babel/types": "^7.20.7", "@types/babel__generator": "*", "@types/babel__template": "*", "@types/babel__traverse": "*" } }, "sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA=="],
 

@@ -1,13 +1,13 @@
 # @sssync/solid-ivm
 
-`@sssync/solid-ivm` keeps TanStack DB `Collection`s as the write/read layer and projects query results into granular Solid stores via IVM.
+`@sssync/solid-ivm` is now a thin TanStack wrapper: local-only `Collection`s for writes, and `@tanstack/solid-db` for live query reads.
 
 ## What it provides
 
 - A collection-first database wrapper with write helpers (`insert`, `upsert`, `update`, `delete`, `apply`, `replace`)
-- `liveQuery()` that compiles TanStack query IR into a D2 graph
-- `subscribeChanges()` → MultiSet conversion → incremental Solid store updates
-- Keyed reactive query output (`records`) plus stable row order (`order`)
+- `liveQuery()` delegated to `@tanstack/solid-db`'s `useLiveQuery`
+- Local-only collections (`localOnlyCollectionOptions`) so direct `insert/update/delete` works without sync adapters
+- Compatibility layer for wiring existing materializer pipelines into TanStack mutation APIs
 
 ## API
 
@@ -39,14 +39,14 @@ const live = db.liveQuery((q) =>
     .orderBy(({ todo }) => todo.title, "asc"),
 );
 
-// keyed store
-live.data.records;
+// TanStack solid-db accessor
+live();
 
-// ordered array accessor
-live.rows();
+// reactive map (key -> row)
+live.state;
 
-// cleanup
-live.dispose();
+// query status
+live.status;
 ```
 
 ## Query input options
@@ -55,10 +55,9 @@ live.dispose();
 
 - A query callback: `(q) => q.from(...).where(...).select(...)`
 - A built query builder instance
-- Query IR
 
 ## Notes
 
 - `replace()` is snapshot-style hydration for one or more collections.
 - `apply()` supports batched actions: `insert | upsert | update | delete`.
-- For ordered queries, output order is maintained from TanStack's fractional index tokens.
+- The prior custom IVM runtime is preserved in `src/old-implementation.ts` for future experimentation.

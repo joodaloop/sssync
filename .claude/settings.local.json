@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(tail:*)",
+      "Bash(gh api:*)",
+      "Bash(which git-pick:*)",
+      "Bash(npx degit:*)",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ]
+  }
+}

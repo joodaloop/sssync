@@ -1,5 +1,5 @@
 {
-  "name": "@sssync/solid-ivm",
+  "name": "@sssync/solid",
   "version": "0.1.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -17,11 +17,13 @@
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --format esm && tsc --emitDeclarationOnly",
     "dev": "bun build src/index.ts --outdir dist --format esm --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
   },
   "dependencies": {
     "@tanstack/db": "^0.5.27",
-    "@tanstack/db-ivm": "^0.1.17"
+    "@tanstack/db-ivm": "^0.1.17",
+    "@tanstack/solid-db": "^0.2.7"
   },
   "peerDependencies": {
     "solid-js": ">=1.0.0"
