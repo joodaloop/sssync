@@ -13,6 +13,7 @@
     "@databases/escape-identifier": "^1.0.3",
     "@databases/sql": "^3.3.0",
     "solid-js": "^1.9.11",
+    "valibot": "^1.2.0",
     "wa-sqlite": "^1.0.0"
   },
   "scripts": {

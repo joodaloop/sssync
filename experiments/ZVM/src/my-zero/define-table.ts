@@ -1,7 +1,22 @@
-import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { TableSchema } from "../../packages/zero-types/src/schema.ts";
 import type { SchemaValue } from "../../packages/zero-types/src/schema-value.ts";
 import type { TableBuilderWithColumns } from "../../packages/zero-schema/src/builder/table-builder.ts";
+
+/** Minimal Standard Schema V1 validator interface, typed to its output. */
+type SchemaValidator<Output = unknown> = {
+  readonly "~standard": {
+    readonly version: 1;
+    readonly validate: (
+      value: unknown,
+    ) =>
+      | { value: Output; issues?: undefined }
+      | { issues: readonly { message: string }[] }
+      | Promise<
+          | { value: Output; issues?: undefined }
+          | { issues: readonly { message: string }[] }
+        >;
+  };
+};
 
 /**
  * Columns that need a runtime validator:
@@ -19,29 +34,31 @@ type NeedsValidator<V extends SchemaValue> = V extends {
       : true // enumeration<"a" | "b">(), customType is narrower
     : false;
 
-/**
- * Extract column names that require a validator.
- */
-type ColumnsNeedingValidators<T extends TableSchema> = {
-  [K in keyof T["columns"] as NeedsValidator<T["columns"][K]> extends true
-    ? K
-    : never]: T["columns"][K];
-};
+/** Extract the customType from a SchemaValue, falling back to unknown. */
+type CustomTypeOf<V extends SchemaValue> = V extends { customType: infer T }
+  ? T
+  : unknown;
 
 /**
  * The validators object: required for json/enum columns, mapping each
- * column name to a StandardSchemaV1 validator.
+ * column name to a SchemaValidator typed to the column's customType.
  */
 type RequiredValidators<T extends TableSchema> =
-  keyof ColumnsNeedingValidators<T> extends never
+  ValidatorKeys<T> extends never
     ? void | Record<string, never>
     : {
-        [K in keyof ColumnsNeedingValidators<T>]: StandardSchemaV1;
+        [K in ValidatorKeys<T>]: SchemaValidator<CustomTypeOf<T["columns"][K]>>;
       };
+
+type ValidatorKeys<T extends TableSchema> = {
+  [K in keyof T["columns"]]: NeedsValidator<T["columns"][K]> extends true
+    ? K
+    : never;
+}[keyof T["columns"]];
 
 export type SyncTable<T extends TableSchema = TableSchema> = {
   readonly schema: T;
-  readonly validators: Record<string, StandardSchemaV1>;
+  readonly validators: Record<string, SchemaValidator>;
 };
 
 /**
@@ -61,6 +78,6 @@ export function defineTable<T extends TableSchema>(
     : [validators: RequiredValidators<T>]
 ): SyncTable<T> {
   const schema = tableBuilder.build() as T;
-  const validators = (args[0] ?? {}) as Record<string, StandardSchemaV1>;
+  const validators = (args[0] ?? {}) as Record<string, SchemaValidator>;
   return { schema, validators };
 }

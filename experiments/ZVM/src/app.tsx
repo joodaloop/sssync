@@ -1,29 +1,31 @@
 import { render } from "solid-js/web";
 import { createSignal, onMount, For, Show } from "solid-js";
-import {
-  createSchema,
-} from "../packages/zero-schema/src/builder/schema-builder.ts";
-import {
-  number,
-  string,
-  table,
-} from "../packages/zero-schema/src/builder/table-builder.ts";
+import { createSchema } from "../packages/zero-schema/src/builder/schema-builder.ts";
+import { json, number, string, table } from "../packages/zero-schema/src/builder/table-builder.ts";
 import { MyZero } from "./my-zero/my-zero.ts";
 import { asQueryInternals } from "../packages/zql/src/query/query-internals.ts";
 import { zqlToSQL } from "./zql-to-sql.ts";
-import { execSQL, runSQL } from "./db.ts";
+import { execSQL } from "./db.ts";
+import { migrate } from "./my-zero/migrate.ts";
+import { insert } from "./my-zero/crud.ts";
+import { defineTable } from "./my-zero/define-table.ts";
+import * as v from "valibot";
 
 // ── Schema ──────────────────────────────────────────────────────────
 
-const users = table("users")
-  .columns({ id: number(), name: string() })
+const usersBuilder = table("users").columns({ id: number(), name: string() }).primaryKey("id");
+
+const issuesBuilder = table("issues")
+  .columns({ id: number(), title: string(), ownerId: number(), tags: json<{ id: string }>() })
   .primaryKey("id");
 
-const issues = table("issues")
-  .columns({ id: number(), title: string(), ownerId: number() })
-  .primaryKey("id");
+const users = defineTable(usersBuilder);
+const issues = defineTable(issuesBuilder, { tags: v.object({ id: v.string() }) });
 
-const schema = createSchema({ tables: [users, issues], relationships: [] });
+const schema = createSchema({
+  tables: [usersBuilder, issuesBuilder],
+  relationships: [],
+});
 
 // ── Zero instance ───────────────────────────────────────────────────
 
@@ -36,34 +38,22 @@ function App() {
   const [sqlText, setSqlText] = createSignal("");
   const [data, setData] = createSignal<any[]>([]);
   const [nextId, setNextId] = createSignal(100);
+  const [migratedTables, setMigratedTables] = createSignal<string[]>([]);
 
   const usersQuery = zero.query().users;
 
   onMount(async () => {
-    // 1. Create tables in SQLite (via worker)
-    await runSQL(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL
-      )
-    `);
-    await runSQL(`
-      CREATE TABLE IF NOT EXISTS issues (
-        id INTEGER PRIMARY KEY,
-        title TEXT NOT NULL,
-        ownerId INTEGER NOT NULL
-      )
-    `);
+    // 1. Migrate SQLite tables (creates/recreates if schema changed)
+    const changed = await migrate(schema);
+    setMigratedTables(changed);
 
-    // 2. Seed sample data if empty
-    const existing = await execSQL("SELECT COUNT(*) as cnt FROM users");
-    if ((existing[0]?.cnt as number) === 0) {
-      await runSQL(
-        "INSERT INTO users (id, name) VALUES (1, 'Ada'), (2, 'Grace'), (3, 'Margaret')",
-      );
-      await runSQL(
-        "INSERT INTO issues (id, title, ownerId) VALUES (1, 'Fix the thing', 1), (2, 'Build the feature', 2)",
-      );
+    // 2. Seed sample data if tables were just created
+    if (changed.includes("users")) {
+      await insert(users.schema, { id: 1, name: "Ada" });
+      await insert(users.schema, { id: 2, name: "Grace" });
+      await insert(users.schema, { id: 3, name: "Margaret" });
+      await insert(issues.schema, { id: 1, title: "Fix the thing", ownerId: 1 });
+      await insert(issues.schema, { id: 2, title: "Build the feature", ownerId: 2 });
     }
 
     // 3. Generate SQL from ZQL query
@@ -71,18 +61,16 @@ function App() {
     const { text, values } = zqlToSQL(schema, ast);
     setSqlText(text);
 
-    // 4. Run the generated SQL against SQLite
+    // 4. Run the generated SQL against SQLite, seed IVM
     const rows = await execSQL(text, values as unknown[]);
-
-    // 5. Seed IVM pipeline from SQLite results
     zero.seed("users", rows as any[]);
 
-    // 6. Find the max id for generating new ids
+    // 5. Find max id for generating new ids
     const maxRow = await execSQL("SELECT MAX(id) as maxId FROM users");
     const maxId = (maxRow[0]?.maxId as number) ?? 0;
     setNextId(maxId + 1);
 
-    // 7. Materialize the query and wire up reactivity
+    // 6. Materialize the query and wire up reactivity
     const view = zero.materialize(usersQuery);
     setData(view.data as any[]);
     view.addListener((d) => setData(d as any[]));
@@ -90,21 +78,20 @@ function App() {
     setReady(true);
   });
 
-  const names = [
-    "Hedy", "Radia", "Barbara", "Frances", "Adele",
-    "Karen", "Anita", "Fran", "Sophie", "Marian",
-  ];
+  const names = ["Hedy", "Radia", "Barbara", "Frances", "Adele", "Karen", "Anita", "Fran", "Sophie", "Marian"];
 
   async function addUser() {
     const id = nextId();
     const name = names[id % names.length];
     setNextId(id + 1);
 
-    // Persist in SQLite
-    await runSQL("INSERT INTO users (id, name) VALUES (?, ?)", [id, name]);
+    const row = { id, name };
+
+    // Persist in SQLite (validates against schema)
+    await insert(users.schema, row);
 
     // Ingest into IVM (instant UI update)
-    zero.ingest("users", { type: "add", row: { id, name } });
+    zero.ingest("users", { type: "add", row });
   }
 
   return (
@@ -112,14 +99,20 @@ function App() {
       <h1>wa-sqlite + IVM Demo</h1>
 
       <Show when={ready()} fallback={<p>Loading SQLite worker...</p>}>
+        <Show when={migratedTables().length > 0}>
+          <p style={{ color: "#666", "font-style": "italic" }}>Migrated tables: {migratedTables().join(", ")}</p>
+        </Show>
+
         <section>
           <h2>Generated SQL (from ZQL)</h2>
-          <pre style={{
-            background: "#f0f0f0",
-            padding: "1rem",
-            "border-radius": "4px",
-            overflow: "auto",
-          }}>
+          <pre
+            style={{
+              background: "#f0f0f0",
+              padding: "1rem",
+              "border-radius": "4px",
+              overflow: "auto",
+            }}
+          >
             {sqlText()}
           </pre>
         </section>
