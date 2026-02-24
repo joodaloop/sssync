@@ -1,16 +1,17 @@
-import type { TableSchema } from "../../packages/zero-types/src/schema.ts";
 import type { ValueType } from "../../packages/zero-types/src/schema-value.ts";
 import { runSQL } from "../db.ts";
+import type { SyncTable } from "./define-table.ts";
 
-type ValidationError = { column: string; expected: ValueType; got: string };
+type ValidationError = { column: string; expected: string; got: string };
 
 function validateRow(
-  table: TableSchema,
+  syncTable: SyncTable,
   row: Record<string, unknown>,
 ): ValidationError[] {
   const errors: ValidationError[] = [];
+  const { schema, validators } = syncTable;
 
-  for (const [col, def] of Object.entries(table.columns)) {
+  for (const [col, def] of Object.entries(schema.columns)) {
     const val = row[col];
 
     if (val === undefined || val === null) {
@@ -20,6 +21,7 @@ function validateRow(
       continue;
     }
 
+    // Primitive type check
     switch (def.type) {
       case "string":
         if (typeof val !== "string")
@@ -43,9 +45,30 @@ function validateRow(
       case "null":
         break;
     }
+
+    // Rich validator for json/enum columns
+    const validator = validators[col];
+    if (validator) {
+      const result = validator["~standard"].validate(val);
+      if (result instanceof Promise) {
+        throw new Error(
+          `Async validators are not supported. Column "${col}" on table "${schema.name}" returned a Promise.`,
+        );
+      }
+      if (result.issues) {
+        const messages = result.issues.map((i) => i.message).join("; ");
+        errors.push({ column: col, expected: "valid " + def.type, got: messages });
+      }
+    }
   }
 
   return errors;
+}
+
+function throwValidation(tableName: string, errors: ValidationError[]): never {
+  throw new Error(
+    `Validation failed for "${tableName}": ${errors.map((e) => `${e.column} (expected ${e.expected}, got ${e.got})`).join(", ")}`,
+  );
 }
 
 function prepareValue(type: ValueType, val: unknown): unknown {
@@ -56,44 +79,38 @@ function prepareValue(type: ValueType, val: unknown): unknown {
 }
 
 export async function insert(
-  table: TableSchema,
+  syncTable: SyncTable,
   row: Record<string, unknown>,
 ): Promise<void> {
-  const errors = validateRow(table, row);
-  if (errors.length > 0) {
-    throw new Error(
-      `Validation failed for "${table.name}": ${errors.map((e) => `${e.column} (expected ${e.expected}, got ${e.got})`).join(", ")}`,
-    );
-  }
+  const errors = validateRow(syncTable, row);
+  if (errors.length > 0) throwValidation(syncTable.schema.name, errors);
 
-  const cols = Object.keys(table.columns).filter(
+  const { schema } = syncTable;
+  const cols = Object.keys(schema.columns).filter(
     (col) => row[col] !== undefined,
   );
   const values = cols.map((col) =>
-    prepareValue(table.columns[col].type, row[col]),
+    prepareValue(schema.columns[col].type, row[col]),
   );
   const placeholders = cols.map(() => "?").join(", ");
   const colNames = cols.map((c) => `"${c}"`).join(", ");
 
   await runSQL(
-    `INSERT INTO "${table.name}" (${colNames}) VALUES (${placeholders})`,
+    `INSERT INTO "${schema.name}" (${colNames}) VALUES (${placeholders})`,
     values,
   );
 }
 
 export async function update(
-  table: TableSchema,
+  syncTable: SyncTable,
   row: Record<string, unknown>,
 ): Promise<void> {
-  const errors = validateRow(table, row);
-  if (errors.length > 0) {
-    throw new Error(
-      `Validation failed for "${table.name}": ${errors.map((e) => `${e.column} (expected ${e.expected}, got ${e.got})`).join(", ")}`,
-    );
-  }
+  const errors = validateRow(syncTable, row);
+  if (errors.length > 0) throwValidation(syncTable.schema.name, errors);
 
-  const pkCols = table.primaryKey;
-  const setCols = Object.keys(table.columns).filter(
+  const { schema } = syncTable;
+  const pkCols = schema.primaryKey;
+  const setCols = Object.keys(schema.columns).filter(
     (col) => !pkCols.includes(col) && row[col] !== undefined,
   );
 
@@ -103,40 +120,40 @@ export async function update(
   const whereClause = pkCols.map((c) => `"${c}" = ?`).join(" AND ");
 
   const setValues = setCols.map((col) =>
-    prepareValue(table.columns[col].type, row[col]),
+    prepareValue(schema.columns[col].type, row[col]),
   );
   const pkValues = pkCols.map((col) =>
-    prepareValue(table.columns[col].type, row[col]),
+    prepareValue(schema.columns[col].type, row[col]),
   );
 
   await runSQL(
-    `UPDATE "${table.name}" SET ${setClause} WHERE ${whereClause}`,
+    `UPDATE "${schema.name}" SET ${setClause} WHERE ${whereClause}`,
     [...setValues, ...pkValues],
   );
 }
 
 export async function remove(
-  table: TableSchema,
+  syncTable: SyncTable,
   row: Record<string, unknown>,
 ): Promise<void> {
-  const pkCols = table.primaryKey;
+  const { schema } = syncTable;
+  const pkCols = schema.primaryKey;
 
   for (const col of pkCols) {
     if (row[col] === undefined || row[col] === null) {
       throw new Error(
-        `Missing primary key column "${col}" for delete on "${table.name}"`,
+        `Missing primary key column "${col}" for delete on "${schema.name}"`,
       );
     }
   }
 
   const whereClause = pkCols.map((c) => `"${c}" = ?`).join(" AND ");
   const pkValues = pkCols.map((col) =>
-    prepareValue(table.columns[col].type, row[col]),
+    prepareValue(schema.columns[col].type, row[col]),
   );
 
   await runSQL(
-    `DELETE FROM "${table.name}" WHERE ${whereClause}`,
+    `DELETE FROM "${schema.name}" WHERE ${whereClause}`,
     pkValues,
   );
 }
-

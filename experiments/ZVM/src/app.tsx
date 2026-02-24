@@ -1,29 +1,27 @@
 import { render } from "solid-js/web";
 import { createSignal, onMount, For, Show } from "solid-js";
-import { createSchema } from "../packages/zero-schema/src/builder/schema-builder.ts";
 import { json, number, string, table } from "../packages/zero-schema/src/builder/table-builder.ts";
 import { MyZero } from "./my-zero/my-zero.ts";
-import { asQueryInternals } from "../packages/zql/src/query/query-internals.ts";
-import { zqlToSQL } from "./zql-to-sql.ts";
 import { execSQL } from "./db.ts";
 import { migrate } from "./my-zero/migrate.ts";
 import { insert } from "./my-zero/crud.ts";
-import { defineTable } from "./my-zero/define-table.ts";
+import { defineTable, createSyncSchema } from "./my-zero/define-table.ts";
+import { hydrateFromSQLite } from "./my-zero/hydrate.ts";
 import * as v from "valibot";
 
 // ── Schema ──────────────────────────────────────────────────────────
 
-const usersBuilder = table("users").columns({ id: number(), name: string() }).primaryKey("id");
+const users = defineTable(
+  table("users").columns({ id: number(), name: string(), interests: json<[]>() }).primaryKey("id"),
+  { interests: v.tuple([]) },
+);
 
-const issuesBuilder = table("issues")
-  .columns({ id: number(), title: string(), ownerId: number(), tags: json<{ id: string }>() })
-  .primaryKey("id");
+const issues = defineTable(
+  table("issues").columns({ id: number(), title: string(), ownerId: number(), priority: number() }).primaryKey("id"),
+);
 
-const users = defineTable(usersBuilder);
-const issues = defineTable(issuesBuilder, { tags: v.object({ id: v.string() }) });
-
-const schema = createSchema({
-  tables: [usersBuilder, issuesBuilder],
+const schema = createSyncSchema({
+  tables: [users, issues],
   relationships: [],
 });
 
@@ -49,28 +47,23 @@ function App() {
 
     // 2. Seed sample data if tables were just created
     if (changed.includes("users")) {
-      await insert(users.schema, { id: 1, name: "Ada" });
-      await insert(users.schema, { id: 2, name: "Grace" });
-      await insert(users.schema, { id: 3, name: "Margaret" });
-      await insert(issues.schema, { id: 1, title: "Fix the thing", ownerId: 1 });
-      await insert(issues.schema, { id: 2, title: "Build the feature", ownerId: 2 });
+      await insert(users, { id: 1, name: "Ada", interests: 3 });
+      await insert(users, { id: 2, name: "Grace", interests: 5 });
+      await insert(users, { id: 3, name: "Margaret", interests: 2 });
+      await insert(issues, { id: 1, title: "Fix the thing", ownerId: 1, priority: 1 });
+      await insert(issues, { id: 2, title: "Build the feature", ownerId: 2, priority: 2 });
     }
 
-    // 3. Generate SQL from ZQL query
-    const ast = asQueryInternals(usersQuery).ast;
-    const { text, values } = zqlToSQL(schema, ast);
-    setSqlText(text);
+    // 3. Hydrate IVM from SQLite
+    const { sql } = await hydrateFromSQLite(zero, "users", usersQuery, schema);
+    setSqlText(sql);
 
-    // 4. Run the generated SQL against SQLite, seed IVM
-    const rows = await execSQL(text, values as unknown[]);
-    zero.seed("users", rows as any[]);
-
-    // 5. Find max id for generating new ids
+    // 4. Find max id for generating new ids
     const maxRow = await execSQL("SELECT MAX(id) as maxId FROM users");
     const maxId = (maxRow[0]?.maxId as number) ?? 0;
     setNextId(maxId + 1);
 
-    // 6. Materialize the query and wire up reactivity
+    // 5. Materialize the query and wire up reactivity
     const view = zero.materialize(usersQuery);
     setData(view.data as any[]);
     view.addListener((d) => setData(d as any[]));
@@ -85,10 +78,10 @@ function App() {
     const name = names[id % names.length];
     setNextId(id + 1);
 
-    const row = { id, name };
+    const row = { id, name, interests: Math.floor(Math.random() * 10) };
 
-    // Persist in SQLite (validates against schema)
-    await insert(users.schema, row);
+    // Persist in SQLite (validates against schema + rich validators)
+    await insert(users, row);
 
     // Ingest into IVM (instant UI update)
     zero.ingest("users", { type: "add", row });

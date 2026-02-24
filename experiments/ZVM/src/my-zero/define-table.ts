@@ -1,22 +1,31 @@
 import type { TableSchema } from "../../packages/zero-types/src/schema.ts";
 import type { SchemaValue } from "../../packages/zero-types/src/schema-value.ts";
 import type { TableBuilderWithColumns } from "../../packages/zero-schema/src/builder/table-builder.ts";
+import { createSchema } from "../../packages/zero-schema/src/builder/schema-builder.ts";
+import type { Relationships } from "../../packages/zero-schema/src/builder/relationship-builder.ts";
 
-/** Minimal Standard Schema V1 validator interface, typed to its output. */
-type SchemaValidator<Output = unknown> = {
+// ── Standard Schema V1 (inlined from @standard-schema/spec) ────────
+
+interface StandardSchemaV1<Input = unknown, Output = Input> {
   readonly "~standard": {
     readonly version: 1;
+    readonly vendor: string;
+    readonly types?: { readonly input: Input; readonly output: Output } | undefined;
     readonly validate: (
       value: unknown,
     ) =>
-      | { value: Output; issues?: undefined }
-      | { issues: readonly { message: string }[] }
+      | { readonly value: Output; readonly issues?: undefined }
+      | { readonly issues: ReadonlyArray<{ readonly message: string }> }
       | Promise<
-          | { value: Output; issues?: undefined }
-          | { issues: readonly { message: string }[] }
+          | { readonly value: Output; readonly issues?: undefined }
+          | { readonly issues: ReadonlyArray<{ readonly message: string }> }
         >;
   };
-};
+}
+
+export type { StandardSchemaV1 as SchemaValidator };
+
+// ── Type-level helpers ─────────────────────────────────────────────
 
 /**
  * Columns that need a runtime validator:
@@ -41,13 +50,13 @@ type CustomTypeOf<V extends SchemaValue> = V extends { customType: infer T }
 
 /**
  * The validators object: required for json/enum columns, mapping each
- * column name to a SchemaValidator typed to the column's customType.
+ * column name to a StandardSchemaV1 typed to the column's customType.
  */
 type RequiredValidators<T extends TableSchema> =
   ValidatorKeys<T> extends never
     ? void | Record<string, never>
     : {
-        [K in ValidatorKeys<T>]: SchemaValidator<CustomTypeOf<T["columns"][K]>>;
+        [K in ValidatorKeys<T>]: StandardSchemaV1<unknown, CustomTypeOf<T["columns"][K]>>;
       };
 
 type ValidatorKeys<T extends TableSchema> = {
@@ -56,20 +65,17 @@ type ValidatorKeys<T extends TableSchema> = {
     : never;
 }[keyof T["columns"]];
 
+// ── SyncTable ──────────────────────────────────────────────────────
+
 export type SyncTable<T extends TableSchema = TableSchema> = {
   readonly schema: T;
-  readonly validators: Record<string, SchemaValidator>;
+  readonly validators: Record<string, StandardSchemaV1>;
+  readonly builder: TableBuilderWithColumns<T>;
 };
 
 /**
  * Wraps a zero-schema table definition with required validators for
  * json and enumeration columns.
- *
- * Usage:
- *   const usersTable = defineTable(users, {
- *     settings: v.object({ theme: v.string() }),
- *     mood: v.picklist(["happy", "sad"]),
- *   });
  */
 export function defineTable<T extends TableSchema>(
   tableBuilder: TableBuilderWithColumns<T>,
@@ -78,6 +84,23 @@ export function defineTable<T extends TableSchema>(
     : [validators: RequiredValidators<T>]
 ): SyncTable<T> {
   const schema = tableBuilder.build() as T;
-  const validators = (args[0] ?? {}) as Record<string, SchemaValidator>;
-  return { schema, validators };
+  const validators = (args[0] ?? {}) as Record<string, StandardSchemaV1>;
+  return { schema, validators, builder: tableBuilder };
+}
+
+/**
+ * Creates a zero-schema from SyncTable definitions.
+ * Eliminates the need to keep separate references to builders.
+ */
+export function createSyncSchema<
+  const TTables extends readonly SyncTable[],
+  const TRelationships extends readonly Relationships[],
+>(options: {
+  readonly tables: TTables;
+  readonly relationships?: TRelationships | undefined;
+}) {
+  return createSchema({
+    tables: options.tables.map((t) => t.builder) as any,
+    relationships: options.relationships,
+  });
 }
