@@ -44,3 +44,16 @@ export function runSQL(
     worker.postMessage({ type: "run", sql, bindings, id });
   });
 }
+
+export async function resetDatabase(): Promise<void> {
+  // Terminate worker to release OPFS file handles
+  worker.terminate();
+
+  // Clear all OPFS entries
+  const root = await navigator.storage.getDirectory();
+  for await (const name of root.keys()) {
+    await root.removeEntry(name, { recursive: true });
+  }
+
+  location.reload();
+}
