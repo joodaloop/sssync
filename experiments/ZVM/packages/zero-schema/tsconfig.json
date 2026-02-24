@@ -1,0 +1,4 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["src", "../zero-types/src/server-schema.ts"]
+}

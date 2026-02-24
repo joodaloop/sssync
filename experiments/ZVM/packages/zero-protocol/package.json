@@ -1,0 +1,24 @@
+{
+  "name": "zero-protocol",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check-types": "tsc",
+    "check-types:watch": "tsc --watch",
+    "format": "prettier --write .",
+    "check-format": "prettier --check .",
+    "lint": "oxlint --type-aware src/",
+    "test": "vitest run",
+    "test:watch": "vitest watch"
+  },
+  "dependencies": {
+    "@badrap/valita": "0.3.11",
+    "compare-utf8": "^0.1.1"
+  },
+  "devDependencies": {
+    "shared": "0.0.0",
+    "typescript": "~5.9.3",
+    "zero-types": "0.0.0"
+  }
+}

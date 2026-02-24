@@ -1,0 +1,22 @@
+{
+  "name": "zero-schema",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "module": "true",
+  "scripts": {
+    "check-types": "tsc",
+    "check-types:watch": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "format": "prettier --write .",
+    "check-format": "prettier --check .",
+    "lint": "oxlint --type-aware src/"
+  },
+  "devDependencies": {
+    "shared": "0.0.0",
+    "zero-protocol": "0.0.0",
+    "zero-types": "0.0.0",
+    "zql": "0.0.0"
+  }
+}

@@ -1,7 +1,43 @@
-import { For, Show, createEffect, createSignal } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
 import { client, type Post } from "../client";
+import { createStore, unwrap } from "solid-js/store";
 
 export default function Home() {
+
+  console.time("store:create");
+      const items = Array.from({ length: 1_000 }, (_, i) => ({
+        id: i,
+        title: Math.random().toString(36).slice(2, 10),
+      }));
+      const [store, setStore] = createStore({ items });
+      console.timeEnd("store:create");
+
+      // Sorted memo
+      console.time("memo:create");
+      const sorted = createMemo(() => {
+        // O(n) proxy reads — establishes tracking on every title
+        store.items.forEach(item => item.title);
+        // O(n log n) sort on plain objects — no proxy overhead
+        const plain = [...unwrap(store.items)];
+        return plain.sort((a, b) => a.title.localeCompare(b.title));
+      });
+      console.timeEnd("memo:create");
+
+      // Trigger first read (memos are lazy)
+      console.time("memo:firstRead");
+      const result = sorted();
+      console.timeEnd("memo:firstRead");
+
+      console.log(`First 5:`, result.slice(0, 5).map(r => r.title));
+      console.log(`Last 5:`, result.slice(-5).map(r => r.title));
+
+      // Benchmark a reactive update
+      console.time("update+resort");
+      setStore("items", 0, "title", "AAAA_updated");
+      const updated = sorted();
+      console.timeEnd("update+resort");
+  console.log(`After update, first 5:`, updated.slice(0, 5).map(r => r.title));
+
   const posts = client.db.liveQuery((q) =>
     q
       .from({ post: client.collections.posts })

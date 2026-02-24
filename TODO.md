@@ -14,6 +14,7 @@
 
 
 ## Questions
+- differences in Zero and TanstackDB IVM?
 - server can return cache_bust: timestamp to hard reset any queries that might have had a bug?
 - minimum_version number to stop syncs: old clients shouldn't receive new data. look at what Replicache scheamVersion is used for
 - test optimise storing in indexeddb by not duplicating key titles, for many 100ks of items

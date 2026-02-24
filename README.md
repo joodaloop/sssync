@@ -1,5 +1,7 @@
 # sssync: Simple Sync for Small apps
 
+> A schema, transaction manager, ~~write ahead log~~, ~~change data capture/stored procedures~~, query language, ~~caching~~, indexing, ~~query planning~~, ~~security/authorization~~, ~~recovery~~, and ~~an audit log~~.
+
 ## WARNING: THIS IS NOWHERE NEAR DONE
 
 Client-side library that satisifes half of the sssync protocol, made to enable apps where the priorities are:
@@ -7,6 +9,17 @@ Client-side library that satisifes half of the sssync protocol, made to enable a
 - partial data loading
 - simple infrastructure setup (server + database + client)
 - pleasant DX, with the basics taken care of
+
+## Open questions
+- Use TanstackDB Query-based collections for data loading wrapped in our own caching?
+- Use SQLite (with indexes?) + OPFS for persistence?
+  - https://www.notion.com/blog/how-we-sped-up-notion-in-the-browser-with-wasm-sqlite
+  - https://www.powersync.com/blog/sqlite-persistence-on-the-web
+  - https://github.com/TanStack/db/issues/865
+- Provide both IVM and non-IVM versions?
+- Provide both IDB (sync) and SQLite (async) versions?
+- Semantics around temporary fetch vs. persist results
+- Write our own mini-IVM that is Solid-first?
 
 ### nice-to-haves
 - Undo-redo support
@@ -18,11 +31,9 @@ Client-side library that satisifes half of the sssync protocol, made to enable a
 - Update batching API (for sliders)
 - Preloading API
 - Event => UI mapping for toasts
-- Persistent client-side stores
-- Memory usage reduction strategies
+- Persistent (and typed) client-side stores
 - Data seeding
 - Simulate bugs through double sending, out of order handling
 - Semantic annotation layer to events
 - Rewind
-- IVM (https://github.com/TanStack/db/tree/main/packages/db-ivm) and query builder API (https://github.com/TanStack/db/tree/main/packages/db/src/query)
-- Or, an API like `post.comments().last(10).sort(() => a.text.length > b.text.length);`, which i would honestly much prefer to JOINs, and is what Linear does anyway
+- An API like `post.comments().last(10).sort(() => a.text.length > b.text.length);`, which i would honestly much prefer to JOINs, and is what Linear does anyway. Would require an ORM though...

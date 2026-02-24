@@ -1,0 +1,37 @@
+{
+  "name": "zero-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write .",
+    "check-format": "prettier --check .",
+    "lint": "oxlint --type-aware src/",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:update": "vitest run -u",
+    "bench": "vitest bench --run",
+    "bench:watch": "vitest bench --watch",
+    "check-types": "tsc",
+    "check-types:watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@rocicorp/lock": "^1.0.4",
+    "@rocicorp/logger": "^5.4.0",
+    "@rocicorp/resolver": "^1.0.2"
+  },
+  "devDependencies": {
+    "@vitest/ui": "^4.0.15",
+    "ast-to-zql": "0.0.0",
+    "datadog": "0.0.0",
+    "esbuild": "^0.25.10",
+    "playwright": "^1.53.2",
+    "replicache": "15.2.1",
+    "shared": "0.0.0",
+    "typescript": "~5.9.3",
+    "zero-protocol": "0.0.0",
+    "zero-schema": "0.0.0",
+    "zero-types": "0.0.0",
+    "zql": "0.0.0"
+  }
+}

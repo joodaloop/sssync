@@ -1,0 +1,33 @@
+import {expect, suite, test} from 'vitest';
+import {shouldEnableAnalytics} from './enable-analytics.ts';
+
+suite('when server indicates testing or local dev', () => {
+  const cases: (string | null)[] = [
+    null,
+    'http://localhost',
+    'http://localhost:8000',
+    'http://127.0.0.1',
+    'http://127.0.0.1:1900',
+    'https://[2001:db8:3333:4444:5555:6666:7777:8888]:9000',
+  ];
+  for (const c of cases) {
+    test(c + '', () => {
+      expect(shouldEnableAnalytics(c, true)).toBe(false);
+      expect(shouldEnableAnalytics(c, false)).toBe(false);
+      expect(shouldEnableAnalytics(c)).toBe(false);
+    });
+  }
+});
+
+test('enableAnalytics true and server does not indicate testing or local dev', () => {
+  expect(shouldEnableAnalytics('https://subdomain.domain.net', true)).toBe(
+    true,
+  );
+});
+
+test('enableAnalytics undefined and server does not indicate testing or local dev', () => {
+  expect(shouldEnableAnalytics('https://subdomain.domain.net', undefined)).toBe(
+    true,
+  );
+  expect(shouldEnableAnalytics('https://subdomain.domain.net')).toBe(true);
+});

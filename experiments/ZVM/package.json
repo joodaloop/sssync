@@ -1,0 +1,12 @@
+{
+  "name": "zvm-experiment",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/shared",
+    "packages/zero-protocol",
+    "packages/zero-schema",
+    "packages/zero-types",
+    "packages/zql"
+  ]
+}
