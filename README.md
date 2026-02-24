@@ -6,7 +6,7 @@
 - partial data loading
 - simple infrastructure (serverless server + any database + web client)
 - pleasant DX, with the basics taken care of
-- 
+
 ## WARNING: THIS IS NOWHERE NEAR DONE
 
 ## Open questions
