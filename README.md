@@ -1,6 +1,6 @@
 # sssync: Simple Sync for Small apps
 
-> A schema, transaction manager, ~~write ahead log~~, ~~change data capture/stored procedures~~, query language, ~~caching~~, indexing, ~~query planning~~, ~~security/authorization~~, ~~recovery~~, and ~~an audit log~~.
+> A frontend query engine, and stateless server sync protocol.
 
 ## WARNING: THIS IS NOWHERE NEAR DONE
 

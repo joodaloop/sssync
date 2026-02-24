@@ -1,6 +1,7 @@
 import type { Schema } from "../../packages/zero-types/src/schema.ts";
 import { MemorySource } from "../../packages/zql/src/ivm/memory-source.ts";
 import type { Source } from "../../packages/zql/src/ivm/source.ts";
+import type { CommitListener } from "../../packages/zql/src/query/query-delegate.ts";
 import { QueryDelegateBase } from "../../packages/zql/src/query/query-delegate-base.ts";
 
 export class MyZeroDelegate<TSchema extends Schema> extends QueryDelegateBase {
@@ -8,10 +9,24 @@ export class MyZeroDelegate<TSchema extends Schema> extends QueryDelegateBase {
 
   readonly #schema: TSchema;
   readonly #sources = new Map<string, MemorySource>();
+  readonly #commitListeners = new Set<CommitListener>();
 
   constructor(schema: TSchema) {
     super();
     this.#schema = schema;
+  }
+
+  override onTransactionCommit(cb: CommitListener): () => void {
+    this.#commitListeners.add(cb);
+    return () => {
+      this.#commitListeners.delete(cb);
+    };
+  }
+
+  fireCommit(): void {
+    for (const cb of this.#commitListeners) {
+      cb();
+    }
   }
 
   getSource(tableName: string): Source | undefined {

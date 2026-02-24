@@ -1,3 +1,4 @@
+import { relationships } from "../packages/zero-client/src/mod.ts";
 import { createSchema } from "../packages/zero-schema/src/builder/schema-builder.ts";
 import { number, string, table } from "../packages/zero-schema/src/builder/table-builder.ts";
 import { MyZero } from "./my-zero/my-zero.ts";
@@ -34,7 +35,7 @@ zero.ingest("issues", { type: "add", row: { id: 1, title: "Ignored", ownerId: 1 
 zero.ingest("users", { type: "add", row: { id: 2, name: "Grace" } });
 zero.ingest("users", {
   type: "edit",
-  oldRow: { id: 2 },
+  oldRow: { id: 2, name: "Grace" },
   row: { id: 2, name: "Grace Hopper" },
 });
 zero.ingest("users", { type: "remove", row: { id: 1, name: "Ada" } });

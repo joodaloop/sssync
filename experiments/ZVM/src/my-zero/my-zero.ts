@@ -43,6 +43,7 @@ export class MyZero<TSchema extends Schema> {
   ): void {
     const source = this.#delegate.requireSource(tableName);
     consume(source.push(change));
+    this.#delegate.fireCommit();
   }
 
   query() {
