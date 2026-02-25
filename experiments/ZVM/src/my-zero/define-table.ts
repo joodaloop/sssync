@@ -1,5 +1,5 @@
 import type { TableSchema } from "../../packages/zero-types/src/schema.ts";
-import type { SchemaValue } from "../../packages/zero-types/src/schema-value.ts";
+import type { SchemaValue, SchemaValueToTSType } from "../../packages/zero-types/src/schema-value.ts";
 import type { TableBuilderWithColumns } from "../../packages/zero-schema/src/builder/table-builder.ts";
 import { createSchema } from "../../packages/zero-schema/src/builder/schema-builder.ts";
 import type { Relationships } from "../../packages/zero-schema/src/builder/relationship-builder.ts";
@@ -44,9 +44,7 @@ type NeedsValidator<V extends SchemaValue> = V extends {
     : false;
 
 /** Extract the customType from a SchemaValue, falling back to unknown. */
-type CustomTypeOf<V extends SchemaValue> = V extends { customType: infer T }
-  ? T
-  : unknown;
+type CustomTypeOf<V extends SchemaValue> = V extends { customType: infer T } ? T : unknown;
 
 /**
  * The validators object: required for json/enum columns, mapping each
@@ -60,9 +58,7 @@ type RequiredValidators<T extends TableSchema> =
       };
 
 type ValidatorKeys<T extends TableSchema> = {
-  [K in keyof T["columns"]]: NeedsValidator<T["columns"][K]> extends true
-    ? K
-    : never;
+  [K in keyof T["columns"]]: NeedsValidator<T["columns"][K]> extends true ? K : never;
 }[keyof T["columns"]];
 
 // ── SyncTable ──────────────────────────────────────────────────────
@@ -79,9 +75,7 @@ export type SyncTable<T extends TableSchema = TableSchema> = {
  */
 export function defineTable<T extends TableSchema>(
   tableBuilder: TableBuilderWithColumns<T>,
-  ...args: RequiredValidators<T> extends void | Record<string, never>
-    ? []
-    : [validators: RequiredValidators<T>]
+  ...args: RequiredValidators<T> extends void | Record<string, never> ? [] : [validators: RequiredValidators<T>]
 ): SyncTable<T> {
   const schema = tableBuilder.build() as T;
   const validators = (args[0] ?? {}) as Record<string, StandardSchemaV1>;
@@ -95,12 +89,23 @@ export function defineTable<T extends TableSchema>(
 export function createSyncSchema<
   const TTables extends readonly SyncTable[],
   const TRelationships extends readonly Relationships[],
->(options: {
-  readonly tables: TTables;
-  readonly relationships?: TRelationships | undefined;
-}) {
+>(options: { readonly tables: TTables; readonly relationships?: TRelationships | undefined }) {
   return createSchema({
     tables: options.tables.map((t) => t.builder) as any,
     relationships: options.relationships,
   });
 }
+
+type InferTable<T extends TableSchema> = {
+  [K in keyof T["columns"]]: SchemaValueToTSType<T["columns"][K]>;
+};
+
+export type SyncTableFor<TExpected> = SyncTable<
+  TableSchema & {
+    columns: {
+      [K in keyof TExpected]: SchemaValue & {
+        customType: TExpected[K];
+      };
+    };
+  }
+>;

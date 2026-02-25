@@ -5,7 +5,7 @@ import { MyZero } from "./my-zero/my-zero.ts";
 import { execSQL, resetDatabase } from "./db.ts";
 import { migrate } from "./my-zero/migrate.ts";
 import { insert } from "./my-zero/crud.ts";
-import { defineTable, createSyncSchema } from "./my-zero/define-table.ts";
+import { defineTable, createSyncSchema, type SyncTableFor } from "./my-zero/define-table.ts";
 import * as v from "valibot";
 
 // ── Schema ──────────────────────────────────────────────────────────
@@ -160,9 +160,9 @@ function App() {
         <section>
           <h2>Users</h2>
           <p style={{ color: "#444" }}>
-            The visible list is <code>users.where("interests", "&lt;=", 3)</code>. Hydration now happens
-            automatically when queries are materialized/subscribed. Adding the second query below should grow the
-            same shared <code>users</code> source.
+            The visible list is <code>users.where("interests", "&lt;=", 3)</code>. Hydration now happens automatically
+            when queries are materialized/subscribed. Adding the second query below should grow the same shared{" "}
+            <code>users</code> source.
           </p>
           <p>
             Shared source row count: <strong>{sourceRowCount()}</strong>
@@ -178,11 +178,11 @@ function App() {
           </ul>
           <button onClick={addSecondQueryToPipeline} disabled={hasAddedSecondQuery()}>
             Add second query to pipeline (interests &gt;= 4)
+          </button>{" "}
+          <button onClick={addUser}>Add User</button>{" "}
+          <button onClick={resetDatabase} style={{ color: "red" }}>
+            Reset Database
           </button>
-          {" "}
-          <button onClick={addUser}>Add User</button>
-          {" "}
-          <button onClick={resetDatabase} style={{ color: "red" }}>Reset Database</button>
         </section>
       </Show>
     </div>
