@@ -6,7 +6,6 @@ import { execSQL, resetDatabase } from "./db.ts";
 import { migrate } from "./my-zero/migrate.ts";
 import { insert } from "./my-zero/crud.ts";
 import { defineTable, createSyncSchema } from "./my-zero/define-table.ts";
-import { hydrateFromSQLite } from "./my-zero/hydrate.ts";
 import * as v from "valibot";
 
 // ── Schema ──────────────────────────────────────────────────────────
@@ -34,11 +33,23 @@ function App() {
   const [ready, setReady] = createSignal(false);
   const [sqlText, setSqlText] = createSignal("");
   const [data, setData] = createSignal<any[]>([]);
+  const [sourceRowCount, setSourceRowCount] = createSignal(0);
   const [nextId, setNextId] = createSignal(100);
   const [error, setError] = createSignal("");
+  const [hasAddedSecondQuery, setHasAddedSecondQuery] = createSignal(false);
   const [migratedTables, setMigratedTables] = createSignal<string[]>([]);
 
-  const usersQuery = zero.query().users;
+  const initialUsersQuery = zero.query().users.where("interests", "<=", 3);
+  const secondUsersQuery = zero.query().users.where("interests", ">=", 4);
+  let secondQueryUnsubscribe: (() => void) | undefined;
+
+  const getUsersSourceRowCount = () => {
+    let count = 0;
+    for (const _row of zero.registerTable("users").data) {
+      count++;
+    }
+    return count;
+  };
 
   onMount(async () => {
     try {
@@ -56,19 +67,34 @@ function App() {
         await insert(issues, { id: 2, title: "Build the feature", ownerId: 2, priority: 2 });
       }
 
-      // 3. Hydrate IVM from SQLite
-      const { sql } = await hydrateFromSQLite(zero, "users", usersQuery, schema);
-      setSqlText(sql);
+      // 3. Observe automatic hydrations for display
+      zero.onHydrated((event) => {
+        setSqlText((previous) =>
+          [
+            previous,
+            previous ? "" : "",
+            `Auto hydration for query ${event.queryHash.slice(0, 8)}... on ${event.tableName}:`,
+            event.sql,
+            `Rows fetched: ${event.rowCount}`,
+          ].join("\n"),
+        );
+        setSourceRowCount(getUsersSourceRowCount());
+      });
 
       // 4. Find max id for generating new ids
       const maxRow = await execSQL("SELECT MAX(id) as maxId FROM users");
       const maxId = (maxRow[0]?.maxId as number) ?? 0;
       setNextId(maxId + 1);
 
-      // 5. Materialize the query and wire up reactivity
-      const view = zero.materialize(usersQuery);
+      // 5. Materialize only the first query. This will auto-hydrate interests <= 3.
+      const view = zero.materialize(initialUsersQuery);
       setData(view.data as any[]);
-      view.addListener((d) => setData(d as any[]));
+      view.addListener((d) => {
+        setData(d as any[]);
+        setSourceRowCount(getUsersSourceRowCount());
+      });
+
+      setSourceRowCount(getUsersSourceRowCount());
 
       setReady(true);
     } catch (e: any) {
@@ -91,6 +117,17 @@ function App() {
 
     // Ingest into IVM (instant UI update)
     zero.ingest("users", { type: "add", row });
+    setSourceRowCount(getUsersSourceRowCount());
+  }
+
+  function addSecondQueryToPipeline() {
+    if (secondQueryUnsubscribe) {
+      return;
+    }
+    secondQueryUnsubscribe = zero.subscribeChanges(secondUsersQuery, () => {
+      setSourceRowCount(getUsersSourceRowCount());
+    });
+    setHasAddedSecondQuery(true);
   }
 
   return (
@@ -122,15 +159,27 @@ function App() {
 
         <section>
           <h2>Users</h2>
+          <p style={{ color: "#444" }}>
+            The visible list is <code>users.where("interests", "&lt;=", 3)</code>. Hydration now happens
+            automatically when queries are materialized/subscribed. Adding the second query below should grow the
+            same shared <code>users</code> source.
+          </p>
+          <p>
+            Shared source row count: <strong>{sourceRowCount()}</strong>
+          </p>
           <ul>
             <For each={data()}>
               {(user: any) => (
                 <li>
-                  {user.id}: {user.name}
+                  {user.id}: {user.name} (interests: {user.interests})
                 </li>
               )}
             </For>
           </ul>
+          <button onClick={addSecondQueryToPipeline} disabled={hasAddedSecondQuery()}>
+            Add second query to pipeline (interests &gt;= 4)
+          </button>
+          {" "}
           <button onClick={addUser}>Add User</button>
           {" "}
           <button onClick={resetDatabase} style={{ color: "red" }}>Reset Database</button>
