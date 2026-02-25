@@ -1,17 +1,31 @@
 import { render } from "solid-js/web";
 import { createSignal, onMount, For, Show } from "solid-js";
-import { json, number, string, table } from "../packages/zero-schema/src/builder/table-builder.ts";
+import { boolean, json, number, string, table } from "../packages/zero-schema/src/builder/table-builder.ts";
 import { MyZero } from "./my-zero/my-zero.ts";
 import { execSQL, resetDatabase } from "./db.ts";
 import { migrate } from "./my-zero/migrate.ts";
 import { insert } from "./my-zero/crud.ts";
-import { defineTable, createSyncSchema, type SyncTableFor } from "./my-zero/define-table.ts";
+import { defineTable, createSyncSchema } from "./my-zero/define-table.ts";
 import * as v from "valibot";
 
 // ── Schema ──────────────────────────────────────────────────────────
 
 const users = defineTable(
-  table("users").columns({ id: number(), name: string(), interests: number() }).primaryKey("id"),
+  table("users")
+    .columns({
+      id: number(),
+      name: string(),
+      interests: number(),
+      isActive: boolean(),
+      preferences: json<{ topics: string[]; newsletter: boolean }>(),
+    })
+    .primaryKey("id"),
+  {
+    preferences: v.object({
+      topics: v.array(v.string()),
+      newsletter: v.boolean(),
+    }),
+  },
 );
 
 const issues = defineTable(
@@ -60,9 +74,27 @@ function App() {
       // 2. Seed sample data if empty
       const existing = await execSQL("SELECT COUNT(*) as cnt FROM users");
       if ((existing[0]?.cnt as number) === 0) {
-        await insert(users, { id: 1, name: "Ada", interests: 3 });
-        await insert(users, { id: 2, name: "Grace", interests: 5 });
-        await insert(users, { id: 3, name: "Margaret", interests: 2 });
+        await insert(users, {
+          id: 1,
+          name: "Ada",
+          interests: 3,
+          isActive: true,
+          preferences: { topics: ["math", "logic"], newsletter: true },
+        });
+        await insert(users, {
+          id: 2,
+          name: "Grace",
+          interests: 5,
+          isActive: false,
+          preferences: { topics: ["compilers", "navy"], newsletter: false },
+        });
+        await insert(users, {
+          id: 3,
+          name: "Margaret",
+          interests: 2,
+          isActive: true,
+          preferences: { topics: ["software", "engineering"], newsletter: true },
+        });
         await insert(issues, { id: 1, title: "Fix the thing", ownerId: 1, priority: 1 });
         await insert(issues, { id: 2, title: "Build the feature", ownerId: 2, priority: 2 });
       }
@@ -110,7 +142,16 @@ function App() {
     const name = names[id % names.length];
     setNextId(id + 1);
 
-    const row = { id, name, interests: Math.floor(Math.random() * 10) };
+    const row = {
+      id,
+      name,
+      interests: Math.floor(Math.random() * 10),
+      isActive: id % 2 === 0,
+      preferences: {
+        topics: ["topic-" + (id % 3), "topic-" + ((id + 1) % 3)],
+        newsletter: id % 3 === 0,
+      },
+    };
 
     // Persist in SQLite (validates against schema + rich validators)
     await insert(users, row);
@@ -171,7 +212,8 @@ function App() {
             <For each={data()}>
               {(user: any) => (
                 <li>
-                  {user.id}: {user.name} (interests: {user.interests})
+                  {user.id}: {user.name} (interests: {user.interests}, active: {user.isActive ? "yes" : "no"},
+                  preferences: {JSON.stringify(user.preferences)})
                 </li>
               )}
             </For>

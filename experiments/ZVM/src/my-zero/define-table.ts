@@ -69,6 +69,12 @@ export type SyncTable<T extends TableSchema = TableSchema> = {
   readonly builder: TableBuilderWithColumns<T>;
 };
 
+type BuildersFor<TTables extends readonly SyncTable[]> = {
+  [K in keyof TTables]: TTables[K] extends SyncTable<infer TSchema>
+    ? TableBuilderWithColumns<TSchema>
+    : never;
+};
+
 /**
  * Wraps a zero-schema table definition with required validators for
  * json and enumeration columns.
@@ -90,8 +96,9 @@ export function createSyncSchema<
   const TTables extends readonly SyncTable[],
   const TRelationships extends readonly Relationships[],
 >(options: { readonly tables: TTables; readonly relationships?: TRelationships | undefined }) {
+  const builders = options.tables.map((t) => t.builder) as unknown as BuildersFor<TTables>;
   return createSchema({
-    tables: options.tables.map((t) => t.builder) as any,
+    tables: builders,
     relationships: options.relationships,
   });
 }
