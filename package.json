@@ -4,5 +4,12 @@
   "workspaces": [
     "packages/*",
     "packages/vendored/*"
-  ]
+  ],
+  "scripts": {
+    "size": "bun run scripts/bundle-size.ts"
+  },
+  "devDependencies": {
+    "sonda": "^0.11.1",
+    "vite": "^8.0.13"
+  }
 }
