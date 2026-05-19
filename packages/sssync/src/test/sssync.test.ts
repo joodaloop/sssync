@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'bun:test'
+import { createMemoryStore } from '../../../store-memory/src'
 import { SSSync } from '../sssync/sssync'
 import { mockEvents } from './mock-events'
 import { mockProjectors } from './mock-projectors'
 import { mockSchema } from './mock-schema'
-import { createMockStore } from './mock-store'
 
 function createSSSync() {
-  const store = createMockStore()
+  const store = createMemoryStore(mockSchema)
   const sss = new SSSync({
     schema: mockSchema,
     events: mockEvents,
@@ -27,7 +27,7 @@ describe('SSSync', () => {
     expect(sss.store).toBe(store)
   })
 
-  test('commit runs the matching projector and applies ops to the store', async () => {
+  test('commit runs the projector and writes to the memory store', async () => {
     const { sss, store } = createSSSync()
 
     const result = await sss.commit.v2_postAdded({
@@ -37,10 +37,19 @@ describe('SSSync', () => {
     })
 
     expect(result.err).toBeNull()
-    expect(result.data).toEqual([
-      { type: 'add', table: 'posts', data: { id: 'p1', content: 'hello', title: 'Hi' } },
+    expect(store.rows('posts')).toEqual([
+      { id: 'p1', content: 'hello', title: 'Hi' },
     ])
-    expect(store.applied).toHaveLength(1)
+  })
+
+  test('v1_postAdded fills in default title via the projector', async () => {
+    const { sss, store } = createSSSync()
+
+    await sss.commit.v1_postAdded({ id: 'p2', content: 'body' })
+
+    expect(store.rows('posts')).toEqual([
+      { id: 'p2', content: 'body', title: 'Untitled' },
+    ])
   })
 
   test('commit returns an error for unknown events', async () => {
@@ -57,12 +66,12 @@ describe('SSSync', () => {
 
     const result = await sss.commit.v1_postAdded({
       id: 'p1',
-      // @ts-expect-error — content is required
+      // @ts-expect-error — content must be a string
       content: 42,
     })
 
     expect(result.data).toBeNull()
     expect(result.err).toBeInstanceOf(Error)
-    expect(store.applied).toHaveLength(0)
+    expect(store.rows('posts')).toEqual([])
   })
 })

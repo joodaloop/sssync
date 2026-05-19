@@ -22,6 +22,12 @@ export type Row<T extends TableSchema> = {
   [K in OptionalKeys<T>]?: SchemaValueToTSType<T['columns'][K] & SchemaValue>
 }
 
+export type PrimaryKeyRow<T extends TableSchema> = {
+  [K in T['primaryKey'][number] & keyof T['columns']]: SchemaValueToTSType<
+    T['columns'][K] & SchemaValue
+  >
+}
+
 type TableName<S extends TableSchemaMap> = keyof S & string
 
 export type StoreOperationAdd<
@@ -42,7 +48,7 @@ export type StoreOperationUpdate<
   [N in T]: {
     type: 'update'
     table: N
-    where: Partial<Row<S[N]>>
+    key: PrimaryKeyRow<S[N]>
     data: Partial<Row<S[N]>>
   }
 }[T]
@@ -54,7 +60,7 @@ export type StoreOperationRemove<
   [N in T]: {
     type: 'remove'
     table: N
-    where: Partial<Row<S[N]>>
+    key: PrimaryKeyRow<S[N]>
   }
 }[T]
 
