@@ -27,15 +27,6 @@ export type CommitResult<S extends TableSchemaMap> =
   | { data: ProjectorResult<S>; err: null }
   | { data: null; err: Error }
 
-export type CommitApi<
-  S extends TableSchemaMap,
-  Events extends EventMap,
-> = {
-  [K in keyof Events]: Events[K] extends v.GenericSchema
-    ? (args: EventArgs<Events[K]>) => Promise<CommitResult<S>>
-    : never
-}
-
 export class SSSync<
   Schema extends TableSchemaMap,
   Events extends EventMap,
@@ -48,7 +39,6 @@ export class SSSync<
   readonly store: Store<Schema>
   readonly loaders: Loaders
   readonly puller?: Puller
-  readonly commit: CommitApi<Schema, Events>
 
   constructor(config: SSSyncConfig<Schema, Events, Projectors, Loaders>) {
     this.schema = config.schema
@@ -57,20 +47,17 @@ export class SSSync<
     this.store = config.store
     this.loaders = config.loaders
     this.puller = config.puller
-
-    this.commit = new Proxy({} as CommitApi<Schema, Events>, {
-      get: (_, eventName: string) => {
-        return (args: unknown) => this.#commit(eventName, args)
-      },
-    })
   }
 
-  async #commit(eventName: string, args: unknown): Promise<CommitResult<Schema>> {
-    const eventSchema = (this.events as Record<string, v.GenericSchema>)[eventName]
+  async commit<K extends keyof Events & string>(
+    eventName: K,
+    args: Events[K] extends v.GenericSchema ? EventArgs<Events[K]> : never,
+  ): Promise<CommitResult<Schema>> {
+    const eventSchema = this.events[eventName]
     if (!eventSchema) {
       return { data: null, err: new Error(`Unknown event: ${eventName}`) }
     }
-    const projector = (this.projectors as Record<string, unknown>)[eventName]
+    const projector = this.projectors[eventName]
     if (typeof projector !== 'function') {
       return { data: null, err: new Error(`No projector for event: ${eventName}`) }
     }
@@ -81,7 +68,7 @@ export class SSSync<
     }
 
     try {
-      const op = (projector as (a: unknown) => ProjectorResult<Schema>)(parsed.output)
+      const op = projector(parsed.output) as ProjectorResult<Schema>
       await this.store.apply(op)
       return { data: op, err: null }
     } catch (err) {

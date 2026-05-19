@@ -1,0 +1,48 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "sssync-beta",
+    },
+    "packages/sssync": {
+      "name": "@sssync/sssync",
+      "dependencies": {
+        "valibot": "^1.4.0",
+      },
+    },
+    "packages/store-memory": {
+      "name": "@sssync/store-memory",
+    },
+    "packages/vendored/zero": {
+      "name": "ivm",
+      "version": "0.0.0",
+      "dependencies": {
+        "@badrap/valita": "0.3.11",
+        "@rocicorp/logger": "^5.4.0",
+        "@rocicorp/resolver": "^1.0.2",
+        "compare-utf8": "^0.2.0",
+        "js-xxhash": "^4.0.0",
+      },
+    },
+  },
+  "packages": {
+    "@badrap/valita": ["@badrap/valita@0.3.11", "", {}, "sha512-oak0W8bycFjnrLeVCVvZqkOWTGh74wCPKUxGLJyhRukRs+V/hQdfZp1eDcQE4Gf3UrtJWfR/Ou4Xe0DZqJZ2FA=="],
+
+    "@rocicorp/logger": ["@rocicorp/logger@5.4.0", "", {}, "sha512-kmMR5iLrwRIsvPZ+UXnmyAM3Mlvz6rCHrYfMsrMPgFYKLfo7amUH1RwHo6tuuqJiAvUbeaCoDtc8e+V0Mr4PSA=="],
+
+    "@rocicorp/resolver": ["@rocicorp/resolver@1.0.2", "", {}, "sha512-TfjMTQp9cNNqNtHFfa+XHEGdA7NnmDRu+ZJH4YF3dso0Xk/b9DMhg/sl+b6CR4ThFZArXXDsG1j8Mwl34wcOZQ=="],
+
+    "@sssync/sssync": ["@sssync/sssync@workspace:packages/sssync"],
+
+    "@sssync/store-memory": ["@sssync/store-memory@workspace:packages/store-memory"],
+
+    "compare-utf8": ["compare-utf8@0.2.0", "", {}, "sha512-5BjVs4Be9AwMm4le3Qb3crp44OAn+uuJhvrjPWA8Es/DfVPq5lSc8JaRg/clrrHOMCU+CdDfv/9eBSPh6OOiUQ=="],
+
+    "ivm": ["ivm@workspace:packages/vendored/zero"],
+
+    "js-xxhash": ["js-xxhash@4.0.0", "", {}, "sha512-3Q2eIqG6s1KEBBmkj9tGM9lef8LJbuRyTVBdI3GpTnrvtytunjLPO0wqABp5qhtMzfA32jYn1FlnIV7GH1RAHQ=="],
+
+    "valibot": ["valibot@1.4.0", "", { "peerDependencies": { "typescript": ">=5" }, "optionalPeers": ["typescript"] }, "sha512-iC/x7fVcSyOwlm/VSt7RlHnzNGLGvR9GnxdifUeWoCJo0q4ZZvrVkIHC6faTlkxG47I2Y4UrFquPuVHCrOnrLg=="],
+  }
+}

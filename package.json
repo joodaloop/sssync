@@ -1,0 +1,8 @@
+{
+  "name": "sssync-beta",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "packages/vendored/*"
+  ]
+}

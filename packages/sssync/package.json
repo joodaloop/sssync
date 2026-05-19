@@ -1,4 +1,9 @@
 {
+  "name": "@sssync/sssync",
+  "type": "module",
+  "scripts": {
+    "test": "bun test src/test"
+  },
   "dependencies": {
     "valibot": "^1.4.0"
   }

@@ -30,7 +30,7 @@ describe('SSSync', () => {
   test('commit runs the projector and writes to the memory store', async () => {
     const { sss, store } = createSSSync()
 
-    const result = await sss.commit.v2_postAdded({
+    const result = await sss.commit('v2_postAdded', {
       id: 'p1',
       content: 'hello',
       title: 'Hi',
@@ -45,7 +45,7 @@ describe('SSSync', () => {
   test('v1_postAdded fills in default title via the projector', async () => {
     const { sss, store } = createSSSync()
 
-    await sss.commit.v1_postAdded({ id: 'p2', content: 'body' })
+    await sss.commit('v1_postAdded', { id: 'p2', content: 'body' })
 
     expect(store.rows('posts')).toEqual([
       { id: 'p2', content: 'body', title: 'Untitled' },
@@ -56,7 +56,7 @@ describe('SSSync', () => {
     const { sss } = createSSSync()
 
     // @ts-expect-error — unknown event
-    const result = await sss.commit.v9_nope({})
+    const result = await sss.commit('v9_nope', {})
     expect(result.data).toBeNull()
     expect(result.err).toBeInstanceOf(Error)
   })
@@ -64,7 +64,7 @@ describe('SSSync', () => {
   test('commit returns an error when args fail validation', async () => {
     const { sss, store } = createSSSync()
 
-    const result = await sss.commit.v1_postAdded({
+    const result = await sss.commit('v1_postAdded', {
       id: 'p1',
       // @ts-expect-error — content must be a string
       content: 42,
