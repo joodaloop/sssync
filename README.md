@@ -1,8 +1,16 @@
+# SSSync is a library for offline-capable state mangement across the network
 
+It is opinionated when being so helps enforce robustness, and very flexible otherwise.
+
+Robustness it garuntees:
+- Rebasing the offline event queue each time a loader or puller runs
+- Clearing confirmed events from the offline queue once the backend has confirmed them, rebase the rest
+- Making sure that puller data is queued and rebased over in-flight loaders
 
 The core SSSync class looks like:
 ```ts
 const sss = new SSSync({
+  id: string, 
   schema: ZeroTableSchemas,
   events: Events,
   projectors: Projectors,
@@ -15,7 +23,11 @@ const {data, err} = sss.commit.eventName(eventArgs)
 const meta = sss.metadata()
 sss.loaders.loaderName(args)
 ```
-It coordinates cross-tab everything.
+
+It coordinates cross-tab leadership for:
+- Commits: Original tab applies the commit in-memory immediately, then forwards to the leader to persist it and announce changed store items to other tabs
+- Loaders: All calls instruct leader tab to run them, and announce changed store items to other tabs
+- Pullers: Get access to sssync.isLeader() in order to run from a single tab
 
 
 Schemas are declared using Zero's syntax:

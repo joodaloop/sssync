@@ -1,4 +1,4 @@
-import type { TableSchema } from '../../../vendored/zero/zero-types/src/schema'
+import type { TableSchema } from './table-schema'
 
 export type {
   Cardinality,
@@ -7,7 +7,7 @@ export type {
   RelationshipsSchema,
   Schema,
   TableSchema,
-} from '../../../vendored/zero/zero-types/src/schema'
+} from './table-schema'
 
 export type {
   ColumnTypeName,
@@ -16,6 +16,6 @@ export type {
   SchemaValueWithCustomType,
   TypeNameToTypeMap,
   ValueType,
-} from '../../../vendored/zero/zero-types/src/schema-value'
+} from './schema-value'
 
 export type TableSchemaMap = Record<string, TableSchema>

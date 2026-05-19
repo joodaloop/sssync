@@ -4,6 +4,7 @@ import type { EventMap, EventArgs, NoTransformEventMap } from '../events/types'
 import type { ProjectorMap, ProjectorResult } from '../projectors/types'
 import type { LoaderMap } from '../loaders/types'
 import type { Store } from '../store/types'
+import { LeaderElection } from './leader-election'
 
 export interface Puller {
   connectToStream(streamId: string): void
@@ -14,6 +15,7 @@ export interface SSSyncConfig<
   Events extends EventMap,
   Loaders extends LoaderMap,
 > {
+  id: string
   schema: Schema
   events: Events & NoTransformEventMap<Events>
   projectors: ProjectorMap<Schema, Events>
@@ -31,20 +33,28 @@ export class SSSync<
   Events extends EventMap,
   Loaders extends LoaderMap,
 > {
+  readonly id: string
   readonly schema: Schema
   readonly events: Events
   readonly projectors: ProjectorMap<Schema, Events>
   readonly store: Store<Schema>
   readonly loaders: Loaders
   readonly puller?: Puller
+  readonly leaderElection: LeaderElection
 
   constructor(config: SSSyncConfig<Schema, Events, Loaders>) {
+    this.id = config.id
     this.schema = config.schema
     this.events = config.events
     this.projectors = config.projectors
     this.store = config.store
     this.loaders = config.loaders
     this.puller = config.puller
+    this.leaderElection = new LeaderElection(`sssync-leader:${config.id}`)
+  }
+
+  isLeader(): boolean {
+    return this.leaderElection.isLeader()
   }
 
   async commit<K extends keyof Events & string>(
