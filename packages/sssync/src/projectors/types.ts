@@ -1,5 +1,4 @@
-import type * as v from 'valibot'
-import type { EventArgs, EventMap } from '../events/types'
+import type { EventMap, EventPayload, EventSchema } from '../events/types'
 import type { TableSchemaMap } from '../schema/types'
 import type { StoreOperationInput } from '../operations/types'
 
@@ -17,7 +16,7 @@ export type ProjectorMap<
   S extends TableSchemaMap,
   Events extends EventMap,
 > = {
-  [K in keyof Events]: Events[K] extends v.GenericSchema
-    ? (args: EventArgs<Events[K]>) => ProjectorResult<S>
+  [K in keyof Events]: Events[K] extends EventSchema
+    ? (args: EventPayload<Events[K]>) => ProjectorResult<S>
     : never
 }
