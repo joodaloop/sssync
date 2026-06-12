@@ -195,4 +195,66 @@ describe('query runtime', () => {
 
     pipeline.dispose()
   })
+
+  test('single tracks one row reactively', () => {
+    const runtime = createQueryRuntime(schema)
+    const spec = query(schema).issues.single('i1').toSpec()
+    const changes: RowChange[] = []
+    const subscription = runtime.subscribe(spec, change => {
+      changes.push(change)
+    })
+
+    runtime.add('issues', {
+      id: 'i2',
+      title: 'Other',
+      status: 'open',
+      priority: 1,
+    })
+    runtime.add('issues', {
+      id: 'i1',
+      title: 'Target',
+      status: 'open',
+      priority: 1,
+    })
+    runtime.update('issues', 'i1', { title: 'Target renamed' })
+    runtime.delete('issues', 'i1')
+
+    expect(changes.map(change => change.type)).toEqual(['add', 'update', 'delete'])
+    expect(subscription.rows()).toEqual([])
+    subscription.unsubscribe()
+  })
+
+  test('single can traverse related rows', () => {
+    const runtime = createQueryRuntime(schema)
+    runtime.add('issues', {
+      id: 'i1',
+      title: 'Target',
+      status: 'open',
+      priority: 1,
+    })
+    runtime.add('issues', {
+      id: 'i2',
+      title: 'Other',
+      status: 'open',
+      priority: 1,
+    })
+    runtime.add('comments', {
+      id: 'c1',
+      issueId: 'i1',
+      body: 'target comment',
+      status: 'visible',
+    })
+    runtime.add('comments', {
+      id: 'c2',
+      issueId: 'i2',
+      body: 'other comment',
+      status: 'visible',
+    })
+
+    const spec = query(schema).issues.single('i1').related('comments').toSpec()
+
+    expect(runtime.materialize(spec)).toEqual([
+      { id: 'c1', issueId: 'i1', body: 'target comment', status: 'visible' },
+    ])
+  })
 })

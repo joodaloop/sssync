@@ -34,6 +34,7 @@ type RuntimeRow = Record<string, unknown>
 export class RowTable<TRow extends RuntimeRow> {
   readonly #schema: TableSchema
   readonly #rows = new Map<string, TRow>()
+  readonly #indexes = new Map<string, Map<string, Set<string>>>()
   readonly #listeners = new Set<ChangeListener<TRow>>()
 
   constructor(schema: TableSchema) {
@@ -47,6 +48,7 @@ export class RowTable<TRow extends RuntimeRow> {
     }
 
     this.#rows.set(id, row)
+    this.#addToIndexes(id, row)
     const change = { type: 'add', id, row } as const
     this.#emit(change)
     return change
@@ -66,6 +68,8 @@ export class RowTable<TRow extends RuntimeRow> {
     }
 
     this.#rows.set(key, row)
+    this.#removeFromIndexes(key, old)
+    this.#addToIndexes(key, row)
     const change = { type: 'update', id: key, old, row } as const
     this.#emit(change)
     return change
@@ -79,6 +83,7 @@ export class RowTable<TRow extends RuntimeRow> {
     }
 
     this.#rows.delete(key)
+    this.#removeFromIndexes(key, old)
     const change = { type: 'delete', id: key, old } as const
     this.#emit(change)
     return change
@@ -92,6 +97,18 @@ export class RowTable<TRow extends RuntimeRow> {
     return [...this.#rows.values()]
   }
 
+  rowsByFields(fields: readonly string[], values: readonly unknown[]): readonly TRow[] {
+    const index = this.#indexFor(fields)
+    const ids = index.get(indexValue(values))
+    if (!ids) {
+      return []
+    }
+
+    return [...ids]
+      .map(id => this.#rows.get(id))
+      .filter((row): row is TRow => row !== undefined)
+  }
+
   subscribe(listener: ChangeListener<TRow>): () => void {
     this.#listeners.add(listener)
     return () => {
@@ -102,6 +119,40 @@ export class RowTable<TRow extends RuntimeRow> {
   #emit(change: RowChange<TRow>) {
     for (const listener of this.#listeners) {
       listener(change)
+    }
+  }
+
+  #indexFor(fields: readonly string[]): Map<string, Set<string>> {
+    const key = indexKey(fields)
+    let index = this.#indexes.get(key)
+    if (index) {
+      return index
+    }
+
+    index = new Map()
+    for (const [id, row] of this.#rows) {
+      addIndexEntry(index, indexValue(fields.map(field => row[field])), id)
+    }
+    this.#indexes.set(key, index)
+    return index
+  }
+
+  #addToIndexes(id: string, row: TRow) {
+    for (const [fieldsKey, index] of this.#indexes) {
+      const fields = fieldsKey.split('\0')
+      addIndexEntry(index, indexValue(fields.map(field => row[field])), id)
+    }
+  }
+
+  #removeFromIndexes(id: string, row: TRow) {
+    for (const [fieldsKey, index] of this.#indexes) {
+      const fields = fieldsKey.split('\0')
+      const key = indexValue(fields.map(field => row[field]))
+      const ids = index.get(key)
+      ids?.delete(id)
+      if (ids?.size === 0) {
+        index.delete(key)
+      }
     }
   }
 }
@@ -504,11 +555,8 @@ function followRelationship(
     const next: RuntimeRow[] = []
 
     for (const source of currentRows) {
-      for (const dest of destRows) {
-        if (fieldsEqual(source, dest, connection.sourceField, connection.destField)) {
-          next.push(dest)
-        }
-      }
+      const values = connection.sourceField.map(field => source[field])
+      next.push(...tables[connection.destSchema].rowsByFields(connection.destField, values))
     }
 
     currentRows = dedupeRows(destTable, next)
@@ -516,15 +564,6 @@ function followRelationship(
   }
 
   return dedupeRows(schema.tables[currentTable], currentRows)
-}
-
-function fieldsEqual(
-  source: RuntimeRow,
-  dest: RuntimeRow,
-  sourceFields: readonly string[],
-  destFields: readonly string[],
-): boolean {
-  return sourceFields.every((field, index) => source[field] === dest[destFields[index]])
 }
 
 function dedupeRows(table: TableSchema, rows: readonly RuntimeRow[]): RuntimeRow[] {
@@ -541,6 +580,23 @@ function rowId(table: TableSchema, row: RuntimeRow): string {
 
 function primaryKeyToId(id: Scalar | readonly Scalar[]): string {
   return Array.isArray(id) ? id.map(String).join('\0') : String(id)
+}
+
+function indexKey(fields: readonly string[]): string {
+  return fields.join('\0')
+}
+
+function indexValue(values: readonly unknown[]): string {
+  return values.map(value => JSON.stringify(value)).join('\0')
+}
+
+function addIndexEntry(index: Map<string, Set<string>>, key: string, id: string) {
+  let ids = index.get(key)
+  if (!ids) {
+    ids = new Set()
+    index.set(key, ids)
+  }
+  ids.add(id)
 }
 
 function rootTableFor(spec: QuerySpec): string {

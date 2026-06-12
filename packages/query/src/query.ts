@@ -65,7 +65,7 @@ export class TableQuery<
         TTable,
         TRelationship
       >,
-      { type: 'many' },
+      this.#mode,
       [
         ...this.#stages,
         {
