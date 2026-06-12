@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { column, relationships, table } from '@sssync/zero-schema'
+import { column, createSchema, relationships, table } from '@sssync/zero-schema'
 import { query } from '../index'
 
 const issuesTable = table('issues')
@@ -28,18 +28,7 @@ const usersTable = table('users')
   })
   .primaryKey('id')
 
-const issues = issuesTable.build()
-const comments = commentsTable.build()
-const users = usersTable.build()
-
-const schema = {
-  tables: {
-    issues,
-    comments,
-    users,
-  },
-  relationships: {
-    issues: relationships(issuesTable, ({ many, one }) => ({
+const issueRelationships = relationships(issuesTable, ({ many, one }) => ({
       comments: many({
         sourceField: ['id'],
         destField: ['issueId'],
@@ -50,17 +39,20 @@ const schema = {
         destField: ['id'],
         destSchema: usersTable,
       }),
-    })).relationships,
-    comments: relationships(commentsTable, ({ one }) => ({
+    }))
+
+const commentRelationships = relationships(commentsTable, ({ one }) => ({
       issue: one({
         sourceField: ['issueId'],
         destField: ['id'],
         destSchema: issuesTable,
       }),
-    })).relationships,
-    users: {},
-  },
-} as const
+    }))
+
+const schema = createSchema({
+  tables: [issuesTable, commentsTable, usersTable],
+  relationships: [issueRelationships, commentRelationships],
+})
 
 describe('query DSL', () => {
   test('builds chained where expressions for a table', () => {

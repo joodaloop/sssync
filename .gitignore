@@ -1,3 +1,4 @@
 node_modules
 .sonda
 .DS_Store
+dist
