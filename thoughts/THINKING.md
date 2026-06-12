@@ -1,4 +1,6 @@
 
+## I need to reduce my operators to non-rescan ones
+
 ## Reducing memory usage in the aggregate will include
 - Re-running queries against disk as much as possible to have the minimum in-use set.
 - BUT:

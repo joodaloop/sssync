@@ -5,6 +5,7 @@ export type {
   QueryNodeSnapshot,
   QuerySubscription,
   RowChange,
+  RowDelta,
   RuntimeTables,
 } from './runtime'
 export type {
