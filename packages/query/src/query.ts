@@ -1,4 +1,4 @@
-import type { Schema } from '../../sssync/src/schema/types'
+import type { Schema } from '@sssync/zero-schema'
 import { WhereBuilder } from './where-builder'
 import type {
   QuerySpec,

@@ -3,7 +3,7 @@ import type {
   Schema,
   SchemaValueToTSType,
   TableSchema,
-} from '../../sssync/src/schema/types'
+} from '@sssync/zero-schema'
 
 export type TableName<TSchema extends Schema> = keyof TSchema['tables'] & string
 

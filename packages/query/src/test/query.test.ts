@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { column, relationships, table } from '../../../sssync/src/schema'
+import { column, relationships, table } from '@sssync/zero-schema'
 import { query } from '../index'
 
 const issuesTable = table('issues')
