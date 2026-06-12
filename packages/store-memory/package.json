@@ -1,6 +1,0 @@
-{
-  "name": "@sssync/store-memory",
-  "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts"
-}

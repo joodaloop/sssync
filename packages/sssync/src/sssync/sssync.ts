@@ -5,6 +5,7 @@ import type { ProjectorMap, ProjectorResult } from '../projectors/types'
 import type { LoaderMap } from '../loaders/types'
 import type { Store } from '../store/types'
 import { LeaderElection } from './leader-election'
+import { listenChannel, type ChannelListener } from './listen-channel'
 
 export interface Puller {
   connectToStream(streamId: string): void
@@ -17,9 +18,9 @@ export interface SSSyncConfig<
 > {
   id: string
   schema: Schema
+  store: Store<Schema>
   events: Events & NoTransformEventMap<Events>
   projectors: ProjectorMap<Schema, Events>
-  store: Store<Schema>
   loaders: Loaders
   puller?: Puller
 }
@@ -41,6 +42,10 @@ export class SSSync<
   readonly loaders: Loaders
   readonly puller?: Puller
   readonly leaderElection: LeaderElection
+  pendingMutations: [] = []
+  confirmedMutations: [] = []
+  pullerQueue: [] = []
+
 
   constructor(config: SSSyncConfig<Schema, Events, Loaders>) {
     this.id = config.id
@@ -51,16 +56,34 @@ export class SSSync<
     this.loaders = config.loaders
     this.puller = config.puller
     this.leaderElection = new LeaderElection(`sssync-leader:${config.id}`)
+    listenChannel(this.id, 'loaders', v.number()).handle((message) => {
+      if (this.leaderElection.isLeader()) {
+        console.log(message)
+      }
+    })
+    listenChannel(this.id, 'puller', v.number()).handle((message) => {
+      console.log(message)
+    })
+    listenChannel(this.id, 'rescan', v.array(v.string())).handle((message) => {
+      console.log(message)
+    })
   }
 
   isLeader(): boolean {
     return this.leaderElection.isLeader()
   }
 
-  async commit<K extends keyof Events & string>(
+  listenChannel<S extends v.GenericSchema>(
+    name: string,
+    schema: S,
+  ): ChannelListener<S> {
+    return listenChannel(this.id, name, schema)
+  }
+
+  commit<K extends keyof Events & string>(
     eventName: K,
     args: EventArgs<Events[K]>,
-  ): Promise<CommitResult<Schema>> {
+  ): CommitResult<Schema> {
     const eventSchema = this.events[eventName]
     if (!eventSchema) {
       return { data: null, err: new Error(`Unknown event: ${eventName}`) }
@@ -74,7 +97,7 @@ export class SSSync<
     const projector = this.projectors[eventName]
     try {
       const op = projector(parsed.output)
-      await this.store.apply(op)
+      this.store.apply(op)
       return { data: op, err: null }
     } catch (err) {
       return {
@@ -83,6 +106,7 @@ export class SSSync<
       }
     }
   }
+
 
   metadata() {
     return {}

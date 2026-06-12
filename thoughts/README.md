@@ -1,8 +1,6 @@
-# SSSync is a library for offline-capable state mangement across the network
+# SSSync is a library for building offline-capable apps
 
 It is opinionated when being so helps enforce robustness, and very flexible otherwise.
-
-Robustness it garuntees:
 - Rebasing the offline event queue each time a loader or puller runs
 - Clearing confirmed events from the offline queue once the backend has confirmed them, rebase the rest
 - Making sure that puller data is queued and rebased over in-flight loaders
@@ -11,7 +9,7 @@ The core SSSync class looks like:
 ```ts
 const sss = new SSSync({
   id: string, 
-  schema: ZeroTableSchemas,
+  schema: Tables,
   events: Events,
   projectors: Projectors,
   store, // solid-store, solid-ivm, react, react-legend, etc.
@@ -19,16 +17,10 @@ const sss = new SSSync({
   puller?: Puller,
 })
 
-const {data, err} = sss.commit.eventName(eventArgs)
+const {data, err} = sss.commit('eventName', eventArgs)
 const meta = sss.metadata()
 sss.loaders.loaderName(args)
 ```
-
-It coordinates cross-tab leadership for:
-- Commits: Original tab applies the commit in-memory immediately, then forwards to the leader to persist it and announce changed store items to other tabs
-- Loaders: All calls instruct leader tab to run them, and announce changed store items to other tabs
-- Pullers: Get access to sssync.isLeader() in order to run from a single tab
-
 
 Schemas are declared using Zero's syntax:
 ```ts
@@ -78,12 +70,12 @@ const query = useLiveQuery(sss)
 const posts = query.posts
 ```
 
-A loader is a way to load data that matches tableSchemas, either cached forever or refreshed when called again:
+A loader is a way to load data that matches tableSchemas, cached forever:
 ```ts
 const loaders = {
   postLoader: (args) => ({
     fetcher: () => fetch('/bootstrap/posts/' + args.year),
-    once: true,
+    priority: 1 // 0 to Infinity
   })
 }
 ```
@@ -91,7 +83,7 @@ const loaders = {
 Pullers are plugins for syncing changes into the store over time:
 ```ts
 class S2Puller = {
-  constructor(sss: SSSync){
+  constructor(applyRowChanges: () => boolean, KVStore){
     
   }
   
@@ -99,3 +91,18 @@ class S2Puller = {
     // open SSE connection using lastSyncId for this streamId
   }
 }
+```
+
+Pullers are pluggable in order to support multiple ways of syncing data, while continuing to use the other nice parts of SSSync. We would like to provide first class pullers for:
+- Different network bridges
+  - Client pull (request/response)
+  - Server push over a held-open connection
+  - Broker-mediated pub/sub
+Ordering strategies:
+  - Total order
+  - Partial orders
+  - Causal order
+Change formats:
+  - Diffs
+  - Full objects
+  - Operations/event)

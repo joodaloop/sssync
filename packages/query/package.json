@@ -1,0 +1,7 @@
+{
+  "name": "@sssync/query",
+  "type": "module",
+  "scripts": {
+    "test": "bun test src/test"
+  }
+}
