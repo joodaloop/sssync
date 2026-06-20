@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>{{.Title}}</title>
+    <meta
+      name="description"
+      content="{{ if .Description }}{{ .Description }}
+    {{ else }} {{ .Site.Params.description }}{{ end }}"
+    />
+    <meta name="author" content="{{ .Site.Params.author }}" />
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/icon.png" />
+
+    <meta property="og:url" content="{{ .Site.BaseURL }}" />
+    <meta property="og:title" content="{{ .Title }}" />
+    <meta
+      property="og:description"
+      content="{{ if .Description }}{{ .Description }}
+    {{ else }} {{ .Site.Params.description }}{{ end }}"
+    />
+    <meta property="og:image" content="{{ .Site.BaseURL }}og-image.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:creator" content="{{ .Site.Params.Author.twitter}}" />
+    <meta name="twitter:title" content="{{ .Title }}" />
+    <meta
+      name="twitter:description"
+      content="{{ if .Description }}{{ .Description }}
+    {{ else }} {{ .Site.Params.description }}{{ end }}"
+    />
+    <meta name="twitter:image" content="{{ .Site.BaseURL }}og-image.png" />
+
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for {{ .Site.Title }}." href="/index.xml" />
+
+    <link rel="stylesheet" type="text/css" href="/css/typography.css" />
+    <link rel="stylesheet" type="text/css" href="/css/layout.css" />
+    <link rel="stylesheet" type="text/css" href="/css/custom.css" />
+  </head>
+
+  <body>
+    <main>
+      <nav>
+        <a href="/"> Home </a>
+
+        <div style="display: flex; gap: 1.5em">
+          <a href="/writing"> Writing </a>
+          <a href="https://github.com/joodaloop/hugoloop"> Github </a>
+        </div>
+      </nav>
+
+      <div>{{ block "main" .}} {{ end }}</div>
+    </main>
+  </body>
+</html>
