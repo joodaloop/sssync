@@ -1,0 +1,18 @@
+body {
+  font-family: "Avenir Next", "Helvetica Neue", sans-serif;
+}
+
+main {
+  max-width: 65ch;
+  margin: auto;
+}
+
+nav {
+  padding: 1em 0em;
+  margin-bottom: 4em;
+}
+
+.page-list {
+  display: grid;
+  gap: 1em;
+}

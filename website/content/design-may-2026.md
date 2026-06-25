@@ -1,3 +1,7 @@
+---
+title: Design Notes (May 2026)
+description: Design notes on memory usage, idempotency, temporary fetches, and when queries need to rerun.
+---
 
 ## I need to reduce my operators to non-rescan ones
 

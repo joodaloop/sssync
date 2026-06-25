@@ -36,20 +36,15 @@
 
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for {{ .Site.Title }}." href="/index.xml" />
 
-    <link rel="stylesheet" type="text/css" href="/css/typography.css" />
-    <link rel="stylesheet" type="text/css" href="/css/layout.css" />
-    <link rel="stylesheet" type="text/css" href="/css/custom.css" />
+    <link rel="stylesheet" type="text/css" href="/base.css" />
   </head>
 
   <body>
     <main>
-      <nav>
-        <a href="/"> Home </a>
-
-        <div style="display: flex; gap: 1.5em">
-          <a href="/writing"> Writing </a>
-          <a href="https://github.com/joodaloop/hugoloop"> Github </a>
-        </div>
+      <nav style="display: flex; gap: 1.5em; justify-content: space-between">
+        <a href="/"> SSSync </a>
+        <a href="https://github.com/joodaloop/sssync"> Github </a>
+        <!--<a href="https://github.com/joodaloop/sssync"> NPM </a>-->
       </nav>
 
       <div>{{ block "main" .}} {{ end }}</div>

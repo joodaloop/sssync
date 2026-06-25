@@ -1,6 +1,28 @@
+---
+title: Design Notes (June 2026)
+description: Working notes on pluggable syncers, storage, materializers, evictions, migrations, the fetch protocol, and the query DSL.
+---
+
 How i'm thinking about things rn
 
-## Sync groups (with shared data)
+## Undo-redo?
+
+Should be left upto the developer because it's too domain-specific.
+
+## Client-only events 
+
+Especially for input elements to use.
+
+## How to handle foreign key breaking/cascade?
+
+1. Partial local data means the client cannot enumerate all children.
+2. Delete may fail on the server, so local cascade might need rollback.
+3. Server business logic may do delete/null/archive/history, not a simple cascade.
+4. Other clients need ordered sync actions for the same child deletions.
+5. Pending mutations may reference the child rows.
+6. Reconnect/missed-packet recovery needs sync IDs for every authoritative change.
+7. Old clients may have different relationship metadata.
+8. Permissions may hide some children, so the client is not allowed to know them.
 
 ## Pluggable syncers
 
@@ -9,17 +31,26 @@ How i'm thinking about things rn
   - IndexedDB, with user-defined indexes
 - In-memory (API still async due to network requests)
 
-## Materializers can return
+## Materializers can return:
 - CREATE
 - UPDATE
 - DELETE
 
 Should they have access to the `db` object inside them? How can that be possible without allowing arbitrary code?
 
+> The lookup function takes the attribute as its first argument and the unique attribute value as its second argument.
+> 
+> When it is used in a transaction, the updates will be applied to the entity that has the unique value. If no entity has the value, then a new entity with a random id will be created with the value.
+
+I think lookup is only needed here because "unlink" is a special action for them? In my database, we would auto-casecade, right?
+
+What about a Counter type update?
+
 ## Evictions
 Models that don't have an associated `bootstraped: true` can be evicted through `db.evict(id)` that goes through all the relation sets it satisfies and invalidates them. Can be used to evict search results, old chat items, sort/limit queries, etc. 
 
-::Can't evict anything that is needed for rebase, what to do??::
+Q: ::Can't evict anything that is needed for rebase, what to do??:: 
+A: Queue the eviction and wait until there are no pending mutations to run it.
 
 ## Migrations
 Per-table is possible if evict is made feasible, otherwise blow away the full database.
@@ -53,7 +84,7 @@ For many-to-many relations:
 
 
 
-## Jazz
+## Notes from jazz.tools
 
 IndexScan → [Union] → Materialize → [PolicyFilter]
   → [ArraySubquery] → [Filter] → [Sort] → [LimitOffset]

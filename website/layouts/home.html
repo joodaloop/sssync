@@ -1,9 +1,21 @@
 {{ define "main" }}
-<h1>{{ .Title }}</h1>
+<h1>SSSync, a WIP library for building offline first web apps</h1>
 
 {{ .Content }}
 
-<br />
+<h2 style="margin-top: 2em">Docs</h2>
+
+<div class="page-list">
+  {{ range where .Site.Pages "Section" "docs" }}
+
+  <div>
+    <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+    <aside>{{ .Description }}</aside>
+  </div>
+  {{ end }}
+</div>
+
+<h2 style="margin-top: 2em">Notes</h2>
 
 <div class="page-list">
   {{ range .RegularPages.ByTitle }}

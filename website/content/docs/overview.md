@@ -1,4 +1,7 @@
-# SSSync is a library for building offline-capable apps
+---
+title: An Overview of the System
+description: High-level summary of the API surface (schemas, events, projectors, query DSL, and syncers)
+---
 
 It is opinionated when being so helps enforce robustness, and very flexible otherwise.
 - Rebasing the offline event queue each time a loader or puller runs
@@ -13,7 +16,6 @@ const sss = new SSSync({
   events: Events,
   projectors: Projectors,
   store, // solid-store, solid-ivm, react, react-legend, etc.
-  loaders: Loaders,
   puller?: Puller,
 })
 
