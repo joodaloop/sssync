@@ -1,6 +1,5 @@
 import type { Schema } from '@sssync/zero-schema'
 import type { QuerySpec } from '../../types'
-import type { RuntimeRow } from '../types'
 import type { RowRelationshipsIndex } from '../row-relationships-index'
 import type { RowTable } from '../row-table'
 import { rootTableFor } from '../utils'
@@ -11,12 +10,12 @@ import { SingleNode } from './single-node'
 import { TableNode } from './table-node'
 import { WhereNode } from './where-node'
 
-export function compilePipeline<TRow>(
+export function compilePipeline(
   schema: Schema,
-  tables: Record<string, RowTable<RuntimeRow>>,
+  tables: Record<string, RowTable>,
   rowRelationships: RowRelationshipsIndex,
   spec: QuerySpec,
-): QueryPipeline<TRow> {
+): QueryPipeline {
   const root = rootTableFor(spec)
   const rootTable = schema.tables[root]
   const rootRows = tables[root]
@@ -45,5 +44,5 @@ export function compilePipeline<TRow>(
     nodes.push(current)
   })
 
-  return new QueryPipeline<TRow>(nodes)
+  return new QueryPipeline(nodes)
 }

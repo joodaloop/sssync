@@ -1,7 +1,7 @@
 import type { ChangeListener, QueryNodeSnapshot, RuntimeRow } from '../types'
 import type { QueryNode } from './query-node'
 
-export class QueryPipeline<TRow = unknown> {
+export class QueryPipeline {
   readonly #nodes: QueryNode[]
 
   constructor(nodes: QueryNode[]) {
@@ -12,16 +12,16 @@ export class QueryPipeline<TRow = unknown> {
     return this.#nodes[this.#nodes.length - 1]
   }
 
-  rows(): readonly TRow[] {
-    return this.output().rows() as TRow[]
+  rows(): readonly RuntimeRow[] {
+    return this.output().rows()
   }
 
   nodes(): readonly QueryNodeSnapshot[] {
     return this.#nodes.map(node => node.snapshot())
   }
 
-  subscribe(listener: ChangeListener<TRow>): () => void {
-    return this.output().subscribe(listener as ChangeListener<RuntimeRow>)
+  subscribe(listener: ChangeListener<RuntimeRow>): () => void {
+    return this.output().subscribe(listener)
   }
 
   dispose() {

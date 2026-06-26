@@ -15,7 +15,7 @@ params:
 
 permalinks:
   # i prefer to have my posts be located at /post-name instead of /writing/post-name
-  writing: "/:contentbasename/"
+  docs: "/:contentbasename/"
 
 # prevents generation of a sitemap, to maintain plausible privacy for pages not linked to from the site
 disableKinds:

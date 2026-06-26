@@ -18,13 +18,13 @@ export class TableQuery<
   TTable extends TableName<TSchema>,
 > {
   readonly #schema: TSchema
-  readonly #table: TTable
+  readonly #table: string
   readonly #mode: QuerySpec['mode']
   readonly #stages: readonly QueryStage[]
 
   constructor(
     schema: TSchema,
-    table: TTable,
+    table: string,
     mode: QuerySpec['mode'] = { type: 'many' },
     stages: readonly QueryStage[] = [],
   ) {
@@ -58,13 +58,12 @@ export class TableQuery<
 
     const targetTable = relationship[relationship.length - 1].destSchema
 
-    return new TableQuery(
+    return new TableQuery<
+      TSchema,
+      TargetTableForRelationship<TSchema, TTable, TRelationship>
+    >(
       this.#schema,
-      targetTable as TargetTableForRelationship<
-        TSchema,
-        TTable,
-        TRelationship
-      >,
+      targetTable,
       this.#mode,
       [
         ...this.#stages,
@@ -104,12 +103,13 @@ export type QueryStore<TSchema extends Schema> = {
 
 export function createQueryStore<TSchema extends Schema>(
   schema: TSchema,
-): QueryStore<TSchema> {
-  const table = <TTable extends TableName<TSchema>>(tableName: TTable) =>
+): QueryStore<TSchema>
+export function createQueryStore(schema: Schema) {
+  const table = (tableName: string) =>
     new TableQuery(schema, tableName)
 
   return new Proxy(
-    { table } as QueryStore<TSchema>,
+    { table },
     {
       get(target, property, receiver) {
         if (property in target) {
@@ -117,7 +117,7 @@ export function createQueryStore<TSchema extends Schema>(
         }
 
         if (typeof property === 'string' && property in schema.tables) {
-          return table(property as TableName<TSchema>)
+          return table(property)
         }
 
         return undefined
@@ -128,7 +128,8 @@ export function createQueryStore<TSchema extends Schema>(
 
 export function query<TSchema extends Schema>(
   schema: TSchema,
-): QueryStore<TSchema> {
+): QueryStore<TSchema>
+export function query(schema: Schema) {
   return createQueryStore(schema)
 }
 

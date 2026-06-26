@@ -7,33 +7,25 @@ import { RowTable, type RuntimeTables } from './row-table'
 
 export class QueryRuntime<TSchema extends Schema> {
   readonly #schema: TSchema
-  readonly #tables: RuntimeTables<TSchema>
+  readonly #tables: RuntimeTables
   readonly #rowRelationships: RowRelationshipsIndex
 
   constructor(schema: TSchema) {
     this.#schema = schema
-    this.#tables = Object.fromEntries(
-      Object.entries(schema.tables).map(([name, table]) => [
-        name,
-        new RowTable(table),
-      ]),
-    ) as RuntimeTables<TSchema>
-    this.#rowRelationships = new RowRelationshipsIndex(
-      schema,
-      this.#tables as Record<string, RowTable<RuntimeRow>>,
-    )
+    this.#tables = createRuntimeTables(schema)
+    this.#rowRelationships = new RowRelationshipsIndex(schema, this.#tables)
   }
 
   table<TTable extends TableName<TSchema>>(
     table: TTable,
-  ): RowTable<RowFor<TSchema, TTable>> {
+  ): RowTable {
     return this.#tables[table]
   }
 
   add<TTable extends TableName<TSchema>>(
     table: TTable,
     row: RowFor<TSchema, TTable>,
-  ): RowChange<RowFor<TSchema, TTable>> {
+  ): RowChange<RuntimeRow> {
     return this.#tables[table].add(row)
   }
 
@@ -41,33 +33,33 @@ export class QueryRuntime<TSchema extends Schema> {
     table: TTable,
     id: Scalar | readonly Scalar[],
     patch: Partial<RowFor<TSchema, TTable>>,
-  ): RowChange<RowFor<TSchema, TTable>> {
+  ): RowChange<RuntimeRow> {
     return this.#tables[table].update(id, patch)
   }
 
   delete<TTable extends TableName<TSchema>>(
     table: TTable,
     id: Scalar | readonly Scalar[],
-  ): RowChange<RowFor<TSchema, TTable>> {
+  ): RowChange<RuntimeRow> {
     return this.#tables[table].delete(id)
   }
 
-  compile<TRow = unknown>(spec: QuerySpec): QueryPipeline<TRow> {
+  compile(spec: QuerySpec): QueryPipeline {
     return compilePipeline(this.#schema, this.#tables, this.#rowRelationships, spec)
   }
 
-  materialize<TRow = unknown>(spec: QuerySpec): readonly TRow[] {
-    const pipeline = this.compile<TRow>(spec)
+  materialize(spec: QuerySpec): readonly RuntimeRow[] {
+    const pipeline = this.compile(spec)
     const rows = pipeline.rows()
     pipeline.dispose()
     return rows
   }
 
-  subscribe<TRow>(
+  subscribe(
     spec: QuerySpec,
-    listener: (change: RowChange<TRow>) => void,
-  ): QuerySubscription<TRow> {
-    const pipeline = this.compile<TRow>(spec)
+    listener: (change: RowChange<RuntimeRow>) => void,
+  ): QuerySubscription {
+    const pipeline = this.compile(spec)
     const unsubscribe = pipeline.subscribe(listener)
 
     return {
@@ -85,4 +77,12 @@ export function createQueryRuntime<TSchema extends Schema>(
   schema: TSchema,
 ): QueryRuntime<TSchema> {
   return new QueryRuntime(schema)
+}
+
+function createRuntimeTables(schema: Schema): RuntimeTables {
+  const tables: Record<string, RowTable> = {}
+  for (const [name, table] of Object.entries(schema.tables)) {
+    tables[name] = new RowTable(table)
+  }
+  return tables
 }

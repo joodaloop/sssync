@@ -1,52 +1,53 @@
 import type {
   ComparableField,
   ComparisonOperator,
-  FieldName,
   FieldValue,
   Scalar,
+  ScalarField,
+  ScalarFieldValue,
   StringField,
   WhereExpression,
 } from './types'
 
 export class WhereBuilder<TRow> {
-  eq<TField extends FieldName<TRow>>(
+  eq<TField extends ScalarField<TRow>>(
     field: TField,
-    value: FieldValue<TRow, TField>,
+    value: ScalarFieldValue<TRow, TField>,
   ): WhereExpression {
     return comparison('eq', field, value)
   }
 
-  ne<TField extends FieldName<TRow>>(
+  ne<TField extends ScalarField<TRow>>(
     field: TField,
-    value: FieldValue<TRow, TField>,
+    value: ScalarFieldValue<TRow, TField>,
   ): WhereExpression {
     return comparison('ne', field, value)
   }
 
   gt<TField extends ComparableField<TRow>>(
     field: TField,
-    value: FieldValue<TRow, TField>,
+    value: FieldValue<TRow, TField> & number,
   ): WhereExpression {
     return comparison('gt', field, value)
   }
 
   gte<TField extends ComparableField<TRow>>(
     field: TField,
-    value: FieldValue<TRow, TField>,
+    value: FieldValue<TRow, TField> & number,
   ): WhereExpression {
     return comparison('gte', field, value)
   }
 
   lt<TField extends ComparableField<TRow>>(
     field: TField,
-    value: FieldValue<TRow, TField>,
+    value: FieldValue<TRow, TField> & number,
   ): WhereExpression {
     return comparison('lt', field, value)
   }
 
   lte<TField extends ComparableField<TRow>>(
     field: TField,
-    value: FieldValue<TRow, TField>,
+    value: FieldValue<TRow, TField> & number,
   ): WhereExpression {
     return comparison('lte', field, value)
   }
@@ -65,23 +66,23 @@ export class WhereBuilder<TRow> {
     return comparison('ilike', field, value)
   }
 
-  in<TField extends FieldName<TRow>>(
+  in<TField extends ScalarField<TRow>>(
     field: TField,
-    value: readonly FieldValue<TRow, TField>[],
+    value: readonly ScalarFieldValue<TRow, TField>[],
   ): WhereExpression {
     return comparison('in', field, value)
   }
 
-  is<TField extends FieldName<TRow>>(
+  is<TField extends ScalarField<TRow>>(
     field: TField,
-    value: FieldValue<TRow, TField> | null,
+    value: ScalarFieldValue<TRow, TField> | null,
   ): WhereExpression {
     return comparison('is', field, value)
   }
 
-  isNot<TField extends FieldName<TRow>>(
+  isNot<TField extends ScalarField<TRow>>(
     field: TField,
-    value: FieldValue<TRow, TField> | null,
+    value: ScalarFieldValue<TRow, TField> | null,
   ): WhereExpression {
     return comparison('isNot', field, value)
   }
@@ -102,12 +103,12 @@ export class WhereBuilder<TRow> {
 function comparison(
   op: ComparisonOperator,
   field: string,
-  value: unknown,
+  value: Scalar | readonly Scalar[],
 ): WhereExpression {
   return {
     type: 'comparison',
     op,
     field,
-    value: value as Scalar | readonly Scalar[],
+    value,
   }
 }

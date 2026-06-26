@@ -9,7 +9,7 @@ export abstract class QueryNode {
   readonly label: string
   readonly table: string
   readonly tableSchema: TableSchema
-  readonly rowTable: RowTable<RuntimeRow>
+  readonly rowTable: RowTable
   protected readonly ids = new Set<string>()
   readonly #listeners = new Set<ChangeListener<RuntimeRow>>()
   readonly #unsubscribes: (() => void)[] = []
@@ -20,7 +20,7 @@ export abstract class QueryNode {
     readonly label: string
     readonly table: string
     readonly tableSchema: TableSchema
-    readonly rowTable: RowTable<RuntimeRow>
+    readonly rowTable: RowTable
   }) {
     this.id = options.id
     this.type = options.type

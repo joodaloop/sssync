@@ -20,7 +20,7 @@ export class RelatedNode extends QueryNode {
     readonly schema: Schema
     readonly input: QueryNode
     readonly rowRelationships: RowRelationshipsIndex
-    readonly targetRows: RowTable<RuntimeRow>
+    readonly targetRows: RowTable
     readonly sourceTable: string
     readonly targetTable: string
     readonly relationshipName: string

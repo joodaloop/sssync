@@ -23,7 +23,7 @@ export class RowRelationshipPathIndex {
 
   readonly #schema: Schema
   readonly #sourceTableSchema: TableSchema
-  readonly #sourceTable: RowTable<RuntimeRow>
+  readonly #sourceTable: RowTable
   readonly #relationshipIndex: RelationshipIndex
   readonly #sourceIdsByKey = new Map<string, Set<string>>()
   readonly #listeners = new Set<(change: EdgeChange) => void>()
@@ -31,7 +31,7 @@ export class RowRelationshipPathIndex {
 
   constructor(options: {
     readonly schema: Schema
-    readonly tables: Record<string, RowTable<RuntimeRow>>
+    readonly tables: Record<string, RowTable>
     readonly sourceTable: string
     readonly relationshipName: string
     readonly relationship: Relationship
@@ -194,7 +194,7 @@ export class RowRelationshipPathIndex {
 export class RowRelationshipsIndex {
   readonly #paths = new Map<RelationshipPathKey, RowRelationshipPathIndex>()
 
-  constructor(schema: Schema, tables: Record<string, RowTable<RuntimeRow>>) {
+  constructor(schema: Schema, tables: Record<string, RowTable>) {
     for (const [sourceTable, relationships] of Object.entries(schema.relationships)) {
       for (const [relationshipName, relationship] of Object.entries(relationships)) {
         const key = relationshipPathKey(sourceTable, relationshipName)

@@ -43,7 +43,7 @@ function evaluateComparison(
     case 'ilike':
       return typeof left === 'string' && like(left, String(right), true)
     case 'in':
-      return Array.isArray(right) && right.includes(left as Scalar)
+      return Array.isArray(right) && isScalar(left) && right.includes(left)
     case 'is':
       return left === right
     case 'isNot':
@@ -51,6 +51,15 @@ function evaluateComparison(
     default:
       return false
   }
+}
+
+function isScalar(value: unknown): value is Scalar {
+  return (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  )
 }
 
 function like(value: string, pattern: string, caseInsensitive: boolean): boolean {

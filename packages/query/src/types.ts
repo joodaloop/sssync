@@ -27,6 +27,12 @@ export type FieldName<TRow> = keyof TRow & string
 
 export type FieldValue<TRow, TField extends FieldName<TRow>> = TRow[TField]
 
+export type ScalarField<TRow> = {
+  readonly [K in FieldName<TRow>]: NonNullable<TRow[K]> extends Scalar
+    ? K
+    : never
+}[FieldName<TRow>]
+
 export type ComparableField<TRow> = {
   readonly [K in FieldName<TRow>]: NonNullable<TRow[K]> extends number
     ? K
@@ -38,6 +44,11 @@ export type StringField<TRow> = {
     ? K
     : never
 }[FieldName<TRow>]
+
+export type ScalarFieldValue<
+  TRow,
+  TField extends ScalarField<TRow>,
+> = FieldValue<TRow, TField> & Scalar
 
 export type Scalar = string | number | boolean | null
 

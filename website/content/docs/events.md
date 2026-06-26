@@ -8,9 +8,9 @@ Writing data is done through events, these are named and versioned descriptions 
 {
   name: 'PostCreated_v1'
   data: {
-    id: 'random_id',
+    id: 'new_post_id',
     title: "Events & Projectors",
-    description: "An exaplanation of the event system at the heart of SSSync"
+    description: "An explanation of the event system at the heart of SSSync"
   }
   deprecated: true, // will raise a type error if you try to create this event in your code
 }
@@ -39,9 +39,8 @@ THese events are eventually sent to the backend in the form:
   name: 'v1_PostCreated'
   data: {
     title: "Events & Projectors"
-    description: "An exaplanation of the event system at the heart of SSSync"
+    description: "An explanation of the event system at the heart of SSSync"
   },
   id: "evt_01J...",
   time: "2026-06-22T10:15:30Z",
-  }
 }```

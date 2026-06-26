@@ -1,18 +1,18 @@
-import type { Schema, TableSchema } from '@sssync/zero-schema'
-import type { RowFor, Scalar, TableName } from '../types'
+import type { TableSchema } from '@sssync/zero-schema'
+import type { Scalar } from '../types'
 import type { ChangeListener, RowChange, RuntimeRow } from './types'
 import { primaryKeyToId, rowId } from './utils'
 
-export class RowTable<TRow extends RuntimeRow> {
+export class RowTable {
   readonly #schema: TableSchema
-  readonly #rows = new Map<string, TRow>()
-  readonly #listeners = new Set<ChangeListener<TRow>>()
+  readonly #rows = new Map<string, RuntimeRow>()
+  readonly #listeners = new Set<ChangeListener<RuntimeRow>>()
 
   constructor(schema: TableSchema) {
     this.#schema = schema
   }
 
-  add(row: TRow): RowChange<TRow> {
+  add(row: RuntimeRow): RowChange<RuntimeRow> {
     const id = rowId(this.#schema, row)
     if (this.#rows.has(id)) {
       throw new Error(`Row "${this.#schema.name}:${id}" already exists`)
@@ -24,14 +24,17 @@ export class RowTable<TRow extends RuntimeRow> {
     return change
   }
 
-  update(id: Scalar | readonly Scalar[], patch: Partial<TRow>): RowChange<TRow> {
+  update(
+    id: Scalar | readonly Scalar[],
+    patch: Partial<RuntimeRow>,
+  ): RowChange<RuntimeRow> {
     const key = primaryKeyToId(id)
     const old = this.#rows.get(key)
     if (!old) {
       throw new Error(`Row "${this.#schema.name}:${key}" does not exist`)
     }
 
-    const row = { ...old, ...patch } as TRow
+    const row = { ...old, ...patch }
     const nextKey = rowId(this.#schema, row)
     if (nextKey !== key) {
       throw new Error('Updating primary key fields is not supported')
@@ -43,7 +46,7 @@ export class RowTable<TRow extends RuntimeRow> {
     return change
   }
 
-  delete(id: Scalar | readonly Scalar[]): RowChange<TRow> {
+  delete(id: Scalar | readonly Scalar[]): RowChange<RuntimeRow> {
     const key = primaryKeyToId(id)
     const old = this.#rows.get(key)
     if (!old) {
@@ -56,11 +59,11 @@ export class RowTable<TRow extends RuntimeRow> {
     return change
   }
 
-  get(id: Scalar | readonly Scalar[]): TRow | undefined {
+  get(id: Scalar | readonly Scalar[]): RuntimeRow | undefined {
     return this.#rows.get(primaryKeyToId(id))
   }
 
-  rows(): readonly TRow[] {
+  rows(): readonly RuntimeRow[] {
     return [...this.#rows.values()]
   }
 
@@ -68,20 +71,18 @@ export class RowTable<TRow extends RuntimeRow> {
     return [...this.#rows.keys()]
   }
 
-  subscribe(listener: ChangeListener<TRow>): () => void {
+  subscribe(listener: ChangeListener<RuntimeRow>): () => void {
     this.#listeners.add(listener)
     return () => {
       this.#listeners.delete(listener)
     }
   }
 
-  #emit(change: RowChange<TRow>) {
+  #emit(change: RowChange<RuntimeRow>) {
     for (const listener of this.#listeners) {
       listener(change)
     }
   }
 }
 
-export type RuntimeTables<TSchema extends Schema> = {
-  readonly [TTable in TableName<TSchema>]: RowTable<RowFor<TSchema, TTable>>
-}
+export type RuntimeTables = Record<string, RowTable>

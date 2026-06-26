@@ -11,7 +11,7 @@ export class SingleNode extends QueryNode {
   constructor(
     id: string,
     table: TableSchema,
-    source: RowTable<RuntimeRow>,
+    source: RowTable,
     targetId: Scalar | readonly Scalar[],
   ) {
     super({

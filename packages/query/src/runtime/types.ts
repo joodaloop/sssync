@@ -21,8 +21,8 @@ export type RowDelta<TRow = unknown> =
 
 export type RowChange<TRow = unknown> = RowDelta<TRow>
 
-export type QuerySubscription<TRow> = {
-  readonly rows: () => readonly TRow[]
+export type QuerySubscription = {
+  readonly rows: () => readonly RuntimeRow[]
   readonly nodes: () => readonly QueryNodeSnapshot[]
   readonly unsubscribe: () => void
 }

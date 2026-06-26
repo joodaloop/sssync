@@ -11,7 +11,7 @@ export function dedupeRows(table: TableSchema, rows: readonly RuntimeRow[]): Run
 }
 
 export function rowId(table: TableSchema, row: RuntimeRow): string {
-  return primaryKeyToId(table.primaryKey.map(key => row[key] as Scalar))
+  return primaryKeyToId(table.primaryKey.map(key => scalarValue(row[key], key)))
 }
 
 export function primaryKeyToId(id: Scalar | readonly Scalar[]): string {
@@ -72,4 +72,17 @@ export function lookupMapKey(tableName: string, fields: readonly string[]): stri
 
 export function rootTableFor(spec: QuerySpec): string {
   return spec.stages.find(stage => stage.type === 'related')?.sourceTable ?? spec.table
+}
+
+function scalarValue(value: unknown, field: string): Scalar {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return value
+  }
+
+  throw new Error(`Primary key field "${field}" must be scalar`)
 }

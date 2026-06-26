@@ -13,7 +13,7 @@ import {
 
 export class RelationshipIndex {
   readonly #schema: Schema
-  readonly #tables: Record<string, RowTable<RuntimeRow>>
+  readonly #tables: Record<string, RowTable>
   readonly #edges: EdgeIndex[]
   readonly #listeners = new Set<(change: EdgeChange) => void>()
   readonly #sourceTable: string
@@ -27,7 +27,7 @@ export class RelationshipIndex {
 
   constructor(options: {
     readonly schema: Schema
-    readonly tables: Record<string, RowTable<RuntimeRow>>
+    readonly tables: Record<string, RowTable>
     readonly sourceTable: string
     readonly relationship: Relationship
   }) {
@@ -380,7 +380,7 @@ class EdgeIndex {
   readonly edgeIndex: number
   readonly sourceField: readonly string[]
   readonly #tableSchema: TableSchema
-  readonly #table: RowTable<RuntimeRow>
+  readonly #table: RowTable
   readonly #destField: readonly string[]
   readonly #destIdsBySourceKey = new Map<string, Set<string>>()
   readonly #unsubscribe: () => void
@@ -388,7 +388,7 @@ class EdgeIndex {
 
   constructor(options: {
     readonly schema: Schema
-    readonly table: RowTable<RuntimeRow>
+    readonly table: RowTable
     readonly tableName: string
     readonly edgeIndex: number
     readonly sourceField: readonly string[]

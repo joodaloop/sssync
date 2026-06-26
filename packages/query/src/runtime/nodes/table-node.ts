@@ -4,7 +4,7 @@ import type { RowTable } from '../row-table'
 import { QueryNode } from './query-node'
 
 export class TableNode extends QueryNode {
-  constructor(id: string, table: TableSchema, source: RowTable<RuntimeRow>) {
+  constructor(id: string, table: TableSchema, source: RowTable) {
     super({
       id,
       type: 'table',
