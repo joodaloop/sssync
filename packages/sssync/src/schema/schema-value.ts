@@ -1,15 +1,9 @@
+import type { JSONValue } from '../shared'
+
 /**
  * The allowed value types in schema definitions.
  */
 export type ValueType = 'string' | 'number' | 'boolean' | 'null' | 'json'
-
-export type JSONValue =
-  | null
-  | string
-  | number
-  | boolean
-  | readonly JSONValue[]
-  | { readonly [key: string]: JSONValue | undefined }
 
 /**
  * Schema value definition with optional custom type support.
@@ -58,3 +52,5 @@ export type SchemaValueToTSType<T extends SchemaValue | ValueType> =
       : T extends SchemaValueWithCustomType<infer V>
         ? V
         : TypeNameToTypeMap[ColumnTypeName<T>]
+
+export type { JSONValue }

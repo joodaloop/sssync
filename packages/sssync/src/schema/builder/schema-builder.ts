@@ -6,6 +6,7 @@ import type {
 } from '../table-schema'
 import type { Relationships } from './relationship-builder'
 import { type TableBuilderWithColumns } from './table-builder'
+import { hasOwn, mapAllEntries } from '../../shared'
 
 /**
  * Note: the keys of the `tables` and `relationships` parameters do not matter.
@@ -39,7 +40,7 @@ export function createSchema<
   const retRelationships: Record<string, Record<string, Relationship>> = {}
 
   options.tables.forEach(table => {
-    if (Object.prototype.hasOwnProperty.call(retTables, table.schema.name)) {
+    if (hasOwn(retTables, table.schema.name)) {
       throw new Error(
         `Table "${table.schema.name}" is defined more than once in the schema`,
       )
@@ -113,17 +114,21 @@ export function hashSchema(schema: {
 }
 
 function stableStringify(value: unknown): string {
+  return JSON.stringify(normalizeForHash(value))
+}
+
+function normalizeForHash(value: unknown): unknown {
   if (value === null || typeof value !== 'object') {
-    return JSON.stringify(value)
+    return value
   }
   if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(',')}]`
+    return value.map(normalizeForHash)
   }
-
   const object = value as Record<string, unknown>
-  return `{${Object.keys(object)
-    .filter(key => object[key] !== undefined && key !== 'hash')
-    .sort()
-    .map(key => `${JSON.stringify(key)}:${stableStringify(object[key])}`)
-    .join(',')}}`
+  return mapAllEntries(object, entries =>
+    entries
+      .filter(([key, val]) => key !== 'hash' && val !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([key, val]) => [key, normalizeForHash(val)]),
+  )
 }

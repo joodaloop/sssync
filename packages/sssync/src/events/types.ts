@@ -1,12 +1,7 @@
 import type { StandardSchemaV1 } from '../types'
+import type { JSONValue } from '../shared'
 
-export type JSONValue =
-  | string
-  | number
-  | boolean
-  | null
-  | { readonly [key: string]: JSONValue }
-  | readonly JSONValue[]
+export type { JSONValue } from '../shared'
 
 export type EventName = `${string}_v${number}`
 

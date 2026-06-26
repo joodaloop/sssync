@@ -1,5 +1,6 @@
 import type { JSONValue, SchemaValue, ValueType } from '../schema-value'
 import type { PrimaryKey, TableSchema } from '../table-schema'
+import { mapEntries } from '../../shared'
 
 type ColumnMap = Record<string, ColumnBuilder<SchemaValue>>
 type BuiltColumns<TColumns extends ColumnMap> = {
@@ -76,9 +77,10 @@ export class TableBuilder<TShape extends TableSchema> {
     columns: BuiltColumns<TColumns>
     primaryKey: TShape['primaryKey']
   }> {
-    const columnSchemas = Object.fromEntries(
-      Object.entries(columns).map(([k, v]) => [k, v.schema]),
-    ) as BuiltColumns<TColumns>
+    const columnSchemas = mapEntries(columns, (k, v) => [
+      k,
+      v.schema,
+    ]) as BuiltColumns<TColumns>
     return new TableBuilderWithColumns({
       ...this.#schema,
       columns: columnSchemas,
