@@ -1,24 +1,36 @@
-import type * as v from "valibot";
+import type { StandardSchemaV1 } from '../types'
 
-export type EventName = `v${number}_${string}`;
+export type JSONValue =
+  | string
+  | number
+  | boolean
+  | null
+  | { readonly [key: string]: JSONValue }
+  | readonly JSONValue[]
 
-export type EventSchema = v.GenericSchema;
+export type EventName = `${string}_v${number}`
 
-export type EventMap = Record<string, EventSchema>;
+export interface EventDefinition<
+  Name extends EventName = EventName,
+  Data extends StandardSchemaV1<unknown, JSONValue> = StandardSchemaV1<
+    unknown,
+    JSONValue
+  >,
+  Deprecated extends boolean | undefined = boolean | undefined,
+> {
+  name: Name
+  data: Data
+  deprecated?: Deprecated
+}
 
-export type EventArgs<S extends EventSchema> = v.InferInput<S>;
+export type EventSchema<E extends EventDefinition = EventDefinition> = E['data']
 
-export type EventPayload<S extends EventSchema> = v.InferOutput<S>;
+export type EventData<E extends EventDefinition> =
+  StandardSchemaV1.InferOutput<EventSchema<E>>
 
-type NoTransformEventSchema<S extends EventSchema> =
-  S extends v.GenericSchema<infer Input, infer Output>
-    ? [Input] extends [Output]
-      ? [Output] extends [Input]
-        ? S
-        : never
-      : never
-    : never;
+export type EventArgs<E extends EventDefinition> = EventData<E>
 
-export type NoTransformEventMap<Events extends EventMap> = {
-  [K in keyof Events]: NoTransformEventSchema<Events[K]>;
-};
+export type ActiveEventName<Events extends Record<string, EventDefinition>> = {
+  [K in keyof Events]: Events[K] extends { deprecated: true } ? never : K
+}[keyof Events] &
+  string
