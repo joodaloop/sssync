@@ -100,6 +100,9 @@ function checkRelationship(
 export function hashSchema(schema: {
   readonly tables: Record<string, TableSchema>
   readonly relationships?: Record<string, RelationshipsSchema> | undefined
+  // An existing `hash` is accepted but ignored (see `normalizeForHash`), so a
+  // full schema can be re-hashed without stripping its hash first.
+  readonly hash?: string | undefined
 }): string {
   const normalized = stableStringify({
     tables: schema.tables,

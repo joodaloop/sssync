@@ -54,7 +54,11 @@ describe('schema builder', () => {
       relationships: [issueRelationships],
     })
 
-    expect(schema.tables.issues).toEqual({
+    // `customType` is typed as the base type (e.g. `string`) so that
+    // `SchemaValueToTSType` can extract custom column types, but the builder
+    // stores `null` at runtime. Assert the runtime shape with the static type
+    // loosened to avoid that intentional divergence.
+    expect(schema.tables.issues as unknown).toEqual({
       name: 'issues',
       columns: {
         id: { type: 'string', optional: false, customType: null },

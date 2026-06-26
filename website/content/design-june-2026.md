@@ -5,6 +5,28 @@ description: Working notes on pluggable syncers, storage, materializers, evictio
 
 How i'm thinking about things rn
 
+## Event lifecycle
+
+Transactions progress through the following states during their lifecycle:
+
+pending: Initial state when a transaction is created and optimistic mutations can be applied
+
+persisting: Transaction is being persisted to the backend
+
+completed: Transaction has been successfully persisted and any backend changes have been synced back
+
+failed: An error was thrown while persisting or syncing back the transaction
+
+
+
+## Event compression
+
+Existing → New	Result	Description
+insert + update	insert	Keeps insert type, merges changes, empty original
+insert + delete	removed	Mutations cancel each other out
+update + delete	delete	Delete dominates
+update + update	update	Union changes, keep first original
+
 ## Undo-redo?
 
 Should be left upto the developer because it's too domain-specific.
