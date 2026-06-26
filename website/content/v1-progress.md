@@ -10,6 +10,7 @@ description: Todo list & progress tracking
 
 - [x] [Decide on an event schema format](https://github.com/joodaloop/sssync-beta/blob/80360dfddba47bd1c9bb33cabeb7b15798ae4072/website/content/docs/events.md)
 - [x] [Build type-safe event definitions, with a Standard Schema `data` field](https://github.com/joodaloop/sssync-beta/commit/15d512c14b0d23aa6c9fd88b18e7811a5b95fd55)
+- [x] [Switch over to using client mutators instead of the event/projector separation](https://github.com/joodaloop/sssync/commit/8230a567fbeb45c02e03815f82cc5f98ab6c4968)
 
 ## ~~Projectors~~
 - [ ] ~~Figure out a nice projector API that is easy to use across backend and frontend~~

@@ -30,6 +30,16 @@ const mutators = defineMutators(schema, defineMutator => ({
       tx.mutate.issues.update(args.id, { title: args.title })
     },
   ),
+  mutateSharedChangesObject: defineMutator(
+    v.object({
+      id: v.string(),
+    }),
+    ({ tx, args }) => {
+      const changes = { title: 'Initial title' }
+      tx.mutate.issues.update(args.id, changes)
+      changes.title = 'Mutated title'
+    },
+  ),
 }))
 
 describe('mutators', () => {
@@ -61,10 +71,14 @@ describe('mutators', () => {
   })
 
   test('applies a mutator and collects optimistic table mutations', async () => {
-    const mutations = await mutators.apply('updateIssueTitle', {
-      id: 'issue-1',
-      title: 'New title',
+    const envelope = mutators.parse({
+      name: 'updateIssueTitle',
+      args: {
+        id: 'issue-1',
+        title: 'New title',
+      },
     })
+    const mutations = await mutators.apply(envelope)
 
     expect(mutations).toEqual([
       {
@@ -72,6 +86,25 @@ describe('mutators', () => {
         table: 'issues',
         id: { id: 'issue-1' },
         changes: { title: 'New title' },
+      },
+    ])
+  })
+
+  test('snapshots update changes when collecting mutations', async () => {
+    const envelope = mutators.parse({
+      name: 'mutateSharedChangesObject',
+      args: {
+        id: 'issue-1',
+      },
+    })
+    const mutations = await mutators.apply(envelope)
+
+    expect(mutations).toEqual([
+      {
+        type: 'UPDATE',
+        table: 'issues',
+        id: { id: 'issue-1' },
+        changes: { title: 'Initial title' },
       },
     ])
   })

@@ -150,9 +150,8 @@ export type Mutators<
   },
 > = {
   parse: (input: unknown) => MutationEnvelope<Mutators<S, Definitions>>
-  apply: <const Name extends keyof Definitions & string>(
-    name: Name,
-    args: MutatorArgs<Definitions[Name]['args']>,
+  apply: (
+    envelope: MutationEnvelope<Mutators<S, Definitions>>,
   ) => Promise<readonly Mutation<S>[]>
 }
 

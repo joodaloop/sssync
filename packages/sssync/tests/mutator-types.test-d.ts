@@ -75,6 +75,11 @@ const parsed = mutators.parse({
   args: { id: 'issue-1', title: 'hello' },
 })
 
+mutators.apply(parsed)
+
+// @ts-expect-error apply accepts a parsed envelope, not separate name and args
+mutators.apply('updateIssueTitle', { id: 'issue-1', title: 'hello' })
+
 switch (parsed.name) {
   case 'updateIssueTitle': {
     const title: string = parsed.args.title

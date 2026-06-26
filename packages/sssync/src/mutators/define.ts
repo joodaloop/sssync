@@ -36,16 +36,33 @@ export function defineMutators<
 
   return {
     parse: input => parseEnvelope(definitions, input),
-    apply: async (name, args) => {
-      const mutations: Mutation<S>[] = []
-      const tx: MutatorTx<S> = {
-        mutate: createCollectingDb(schema, mutations),
-      }
-
-      await definitions[name].effect({ tx, args })
-      return mutations
-    },
+    apply: envelope => applyEnvelope(schema, definitions, envelope),
   }
+}
+
+async function applyEnvelope<
+  const S extends ClientDatabaseSchema,
+  const Definitions extends Record<string, AnyMutatorDefinition<S>>,
+>(
+  schema: S,
+  definitions: Definitions,
+  envelope: ParsedMutatorEnvelope<Definitions>,
+): Promise<readonly Mutation<S>[]> {
+  const definition = (definitions as Record<string, AnyMutatorDefinition<S>>)[
+    envelope.name
+  ]
+
+  if (!definition) {
+    throw new Error(`Unknown mutation "${envelope.name}"`)
+  }
+
+  const mutations: Mutation<S>[] = []
+  const tx: MutatorTx<S> = {
+    mutate: createCollectingDb(schema, mutations),
+  }
+
+  await definition.effect({ tx, args: envelope.args })
+  return mutations
 }
 
 function parseEnvelope<
@@ -123,7 +140,7 @@ function createCollectingDb<const S extends ClientDatabaseSchema>(
           type: 'UPDATE' as const,
           table: tableName,
           id: idOf(id) as IdOf<typeof table>,
-          changes,
+          changes: { ...changes },
         } as Mutation<S>
         mutations.push(mutation)
         return mutation
