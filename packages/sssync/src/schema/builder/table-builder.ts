@@ -1,5 +1,10 @@
-import type { ReadonlyJSONValue, SchemaValue } from './schema-value';
-import type { PrimaryKey, TableSchema } from './table-schema';
+import type { JSONValue, SchemaValue, ValueType } from '../schema-value'
+import type { PrimaryKey, TableSchema } from '../table-schema'
+
+type ColumnMap = Record<string, ColumnBuilder<SchemaValue>>
+type BuiltColumns<TColumns extends ColumnMap> = {
+  readonly [K in keyof TColumns]: TColumns[K]['schema']
+}
 
 /* oxlint-disable @typescript-eslint/no-explicit-any */
 export function table<TName extends string>(name: TName) {
@@ -7,7 +12,7 @@ export function table<TName extends string>(name: TName) {
     name,
     columns: {},
     primaryKey: [] as any as PrimaryKey,
-  });
+  })
 }
 
 export function string<T extends string = string>() {
@@ -15,7 +20,7 @@ export function string<T extends string = string>() {
     type: 'string',
     optional: false,
     customType: null as unknown as T,
-  });
+  })
 }
 
 export function number<T extends number = number>() {
@@ -23,7 +28,7 @@ export function number<T extends number = number>() {
     type: 'number',
     optional: false,
     customType: null as unknown as T,
-  });
+  })
 }
 
 export function boolean<T extends boolean = boolean>() {
@@ -31,15 +36,15 @@ export function boolean<T extends boolean = boolean>() {
     type: 'boolean',
     optional: false,
     customType: null as unknown as T,
-  });
+  })
 }
 
-export function json<T extends ReadonlyJSONValue = ReadonlyJSONValue>() {
+export function json<T extends JSONValue = JSONValue>() {
   return new ColumnBuilder({
     type: 'json',
     optional: false,
     customType: null as unknown as T,
-  });
+  })
 }
 
 export function enumeration<T extends string>() {
@@ -47,7 +52,7 @@ export function enumeration<T extends string>() {
     type: 'string',
     optional: false,
     customType: null as unknown as T,
-  });
+  })
 }
 
 export const column = {
@@ -56,105 +61,78 @@ export const column = {
   boolean,
   json,
   enumeration,
-};
+}
 
 export class TableBuilder<TShape extends TableSchema> {
-  readonly #schema: TShape;
+  readonly #schema: TShape
   constructor(schema: TShape) {
-    this.#schema = schema;
+    this.#schema = schema
   }
 
-  from<ServerName extends string>(serverName: ServerName) {
-    return new TableBuilder<TShape>({
-      ...this.#schema,
-      // Strip the "public." schema if specified, as tables in the upstream
-      // "public" schema are created without the schema prefix on the replica.
-      serverName: serverName.startsWith('public.')
-        ? serverName.substring('public.'.length)
-        : serverName,
-    });
-  }
-
-  columns<const TColumns extends Record<string, ColumnBuilder<SchemaValue>>>(
+  columns<const TColumns extends ColumnMap>(
     columns: TColumns,
   ): TableBuilderWithColumns<{
-    name: TShape['name'];
-    columns: { [K in keyof TColumns]: TColumns[K]['schema'] };
-    primaryKey: TShape['primaryKey'];
+    name: TShape['name']
+    columns: BuiltColumns<TColumns>
+    primaryKey: TShape['primaryKey']
   }> {
     const columnSchemas = Object.fromEntries(
       Object.entries(columns).map(([k, v]) => [k, v.schema]),
-    ) as { [K in keyof TColumns]: TColumns[K]['schema'] };
+    ) as BuiltColumns<TColumns>
     return new TableBuilderWithColumns({
       ...this.#schema,
       columns: columnSchemas,
-    }) as any;
+    }) as any
   }
 }
 
 export class TableBuilderWithColumns<TShape extends TableSchema> {
-  readonly #schema: TShape;
+  readonly #schema: TShape
 
   constructor(schema: TShape) {
-    this.#schema = schema;
+    this.#schema = schema
   }
 
-  primaryKey<TPKColNames extends (keyof TShape['columns'])[]>(
+  primaryKey<TPKColNames extends (keyof TShape['columns'] & string)[]>(
     ...pkColumnNames: TPKColNames
   ) {
     return new TableBuilderWithColumns({
       ...this.#schema,
       primaryKey: pkColumnNames,
-    });
+    })
   }
 
   get schema() {
-    return this.#schema;
+    return this.#schema
   }
 
   build() {
+    // We can probably get the type system to throw an error if primaryKey is not called
+    // before passing the schema to createSchema
+    // Till then --
     if (this.#schema.primaryKey.length === 0) {
-      throw new Error(`Table "${this.#schema.name}" is missing a primary key`);
+      throw new Error(`Table "${this.#schema.name}" is missing a primary key`)
     }
-    const names = new Set<string>();
-    for (const [col, { serverName }] of Object.entries(this.#schema.columns)) {
-      const name = serverName ?? col;
-      if (names.has(name)) {
-        throw new Error(
-          `Table "${
-            this.#schema.name
-          }" has multiple columns referencing "${name}"`,
-        );
-      }
-      names.add(name);
-    }
-    return this.#schema;
+    return this.#schema
   }
 }
 
 class ColumnBuilder<TShape extends SchemaValue<any>> {
-  readonly #schema: TShape;
+  readonly #schema: TShape
   constructor(schema: TShape) {
-    this.#schema = schema;
-  }
-
-  from<ServerName extends string>(serverName: ServerName) {
-    return new ColumnBuilder<TShape & { serverName: string }>({
-      ...this.#schema,
-      serverName,
-    });
+    this.#schema = schema
   }
 
   optional(): ColumnBuilder<Omit<TShape, 'optional'> & { optional: true }> {
     return new ColumnBuilder({
       ...this.#schema,
       optional: true,
-    });
+    })
   }
 
   get schema() {
-    return this.#schema;
+    return this.#schema
   }
 }
 
-export type { ColumnBuilder };
+export type { ColumnBuilder }

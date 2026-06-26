@@ -1,46 +1,54 @@
 /**
  * The allowed value types in schema definitions.
  */
-export type ValueType = 'string' | 'number' | 'boolean' | 'null' | 'json';
+export type ValueType = 'string' | 'number' | 'boolean' | 'null' | 'json'
+
+export type JSONValue =
+  | null
+  | string
+  | number
+  | boolean
+  | readonly JSONValue[]
+  | { readonly [key: string]: JSONValue | undefined }
 
 /**
  * Schema value definition with optional custom type support.
  */
 export type SchemaValue<T = unknown> =
   | {
-      type: ValueType;
-      serverName?: string | undefined;
-      optional?: boolean | undefined;
+      type: ValueType
+      optional?: boolean | undefined
     }
-  | SchemaValueWithCustomType<T>;
+  | SchemaValueWithCustomType<T>
 
 export type SchemaValueWithCustomType<T> = {
-  type: ValueType;
-  serverName?: string | undefined;
-  optional?: boolean | undefined;
-  customType: T;
-};
+  type: ValueType
+  optional?: boolean | undefined
+  customType: T
+}
 
 export type TypeNameToTypeMap = {
-  string: string;
-  number: number;
-  boolean: boolean;
-  null: null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  json: any;
-};
+  string: string
+  number: number
+  boolean: boolean
+  null: null
+  json: JSONValue
+}
 
 export type ColumnTypeName<T extends SchemaValue | ValueType> =
-  T extends SchemaValue ? T['type'] : T;
+  T extends SchemaValue ? T['type'] : T
 
 /**
  * Given a schema value, return the TypeScript type.
+ *
+ * This allows us to create the correct return type for a
+ * query that has a selection.
  */
 export type SchemaValueToTSType<T extends SchemaValue | ValueType> =
   T extends ValueType
     ? TypeNameToTypeMap[T]
     : T extends {
-          optional: true;
+          optional: true
         }
       ?
           | (T extends SchemaValueWithCustomType<infer V>
@@ -49,16 +57,4 @@ export type SchemaValueToTSType<T extends SchemaValue | ValueType> =
           | null
       : T extends SchemaValueWithCustomType<infer V>
         ? V
-        : TypeNameToTypeMap[ColumnTypeName<T>];
-
-export type ReadonlyJSONValue =
-  | null
-  | string
-  | boolean
-  | number
-  | ReadonlyArray<ReadonlyJSONValue>
-  | ReadonlyJSONObject;
-
-export type ReadonlyJSONObject = {
-  readonly [key: string]: ReadonlyJSONValue | undefined;
-};
+        : TypeNameToTypeMap[ColumnTypeName<T>]
