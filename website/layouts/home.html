@@ -9,7 +9,9 @@
   {{ range where .Site.Pages "Section" "docs" }}
 
   <div>
-    <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+    <strong>
+      <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+    </strong>
     <aside>{{ .Description }}</aside>
   </div>
   {{ end }}
@@ -20,7 +22,9 @@
 <div class="page-list">
   {{ range .RegularPages.ByTitle }}
   <div>
-    <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+    <strong>
+      <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+    </strong>
     <aside>{{ .Description }}</aside>
   </div>
   {{ end }}
