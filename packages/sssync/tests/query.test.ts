@@ -57,102 +57,91 @@ const issueRelationships = relationships(issues, ({ many, one }) => ({
   ),
 }))
 
-const commentRelationships = relationships(comments, ({ one }) => ({
-  issue: one({
-    sourceField: ['issueId'],
-    destField: ['id'],
-    destSchema: issues,
-  }),
-}))
-
 const schema = createSchema({
   tables: [issues, comments, users, memberships],
-  relationships: [issueRelationships, commentRelationships],
+  relationships: [issueRelationships],
 })
 
 describe('query store', () => {
-  test('builds query descriptors with canonical keys', () => {
+  test('builds all-query descriptors', () => {
     const db = store(schema)
 
-    expect(db.issues.all().key).toBe('issues')
-    expect(db.issues.one('issue-1').key).toBe('issues:issue-1')
-    expect(db.issues.one('issue-1').comments.key).toBe(
-      'issues:issue-1:comments',
-    )
+    expect(db.query('issues')).toEqual({
+      key: 'issues',
+      accessKeys: ['issues'],
+      plan: {
+        kind: 'all',
+        table: 'issues',
+      },
+    })
   })
 
-  test('records all and one query plans', () => {
+  test('builds one-query descriptors', () => {
     const db = store(schema)
 
-    expect(db.issues.all().plan).toEqual({
-      kind: 'all',
-      table: 'issues',
+    expect(db.query('issues', { id: 'issue-1' })).toEqual({
+      key: 'issues:issue-1',
+      accessKeys: ['issues:issue-1'],
+      plan: {
+        kind: 'one',
+        table: 'issues',
+        id: 'issue-1',
+        include: [],
+      },
     })
-    expect(db.issues.one('issue-1').plan).toEqual({
-      kind: 'one',
-      table: 'issues',
+  })
+
+  test('builds include-query descriptors with compact access keys', () => {
+    const db = store(schema)
+
+    expect(
+      db.query('issues', {
+        id: 'issue-1',
+        include: ['comments', 'owner'],
+      }),
+    ).toEqual({
+      key: 'issues:issue-1?include=comments,owner',
+      accessKeys: [
+        'issues:issue-1',
+        'issues:issue-1:comments',
+        'issues:issue-1:owner',
+      ],
+      plan: {
+        kind: 'one',
+        table: 'issues',
+        id: 'issue-1',
+        include: ['comments', 'owner'],
+      },
+    })
+  })
+
+  test('does not store relationship metadata on include queries', () => {
+    const db = store(schema)
+    const query = db.query('issues', {
       id: 'issue-1',
+      include: ['assignedUsers'],
     })
-  })
 
-  test('records one-hop relation plans', () => {
-    const db = store(schema)
-    const commentsQuery = db.issues.one('issue-1').comments
-
-    expect(commentsQuery.plan).toEqual({
-      kind: 'relation',
-      parent: {
+    expect(query).toEqual({
+      key: 'issues:issue-1?include=assignedUsers',
+      accessKeys: ['issues:issue-1', 'issues:issue-1:assignedUsers'],
+      plan: {
         kind: 'one',
         table: 'issues',
         id: 'issue-1',
+        include: ['assignedUsers'],
       },
-      sourceTable: 'issues',
-      relation: 'comments',
-      destTable: 'comments',
-      cardinality: 'many',
-      relationship: schema.relationships.issues.comments,
     })
+    expect('relationship' in query.plan).toBe(false)
   })
 
-  test('records junction relation plans without dropping either hop', () => {
+  test('serializes composite ids in canonical key order', () => {
     const db = store(schema)
-    const assignedUsersQuery = db.issues.one('issue-1').assignedUsers
 
-    expect(assignedUsersQuery.key).toBe('issues:issue-1:assignedUsers')
-    expect(assignedUsersQuery.plan).toEqual({
-      kind: 'relation',
-      parent: {
-        kind: 'one',
-        table: 'issues',
-        id: 'issue-1',
-      },
-      sourceTable: 'issues',
-      relation: 'assignedUsers',
-      destTable: 'users',
-      cardinality: 'many',
-      relationship: schema.relationships.issues.assignedUsers,
-    })
-    expect(assignedUsersQuery.plan.relationship).toHaveLength(2)
-  })
-
-  test('allows nested relation descriptors through one relations', () => {
-    const db = store(schema)
-    const nested = db.comments.one('comment-1').issue.comments
-
-    expect(nested.key).toBe('comments:comment-1:issue:comments')
-    expect(nested.plan.kind).toBe('relation')
-    expect(nested.plan.parent).toEqual({
-      kind: 'relation',
-      parent: {
-        kind: 'one',
-        table: 'comments',
-        id: 'comment-1',
-      },
-      sourceTable: 'comments',
-      relation: 'issue',
-      destTable: 'issues',
-      cardinality: 'one',
-      relationship: schema.relationships.comments.issue,
-    })
+    expect(
+      db.query('memberships', {
+        id: { issueId: 'issue-1', userId: 'user-1' },
+      }).key,
+    ).toBe('memberships:issueId=issue-1,userId=user-1')
   })
 })

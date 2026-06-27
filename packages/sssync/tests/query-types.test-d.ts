@@ -57,30 +57,14 @@ const issueRelationships = relationships(issues, ({ many, one }) => ({
   ),
 }))
 
-const commentRelationships = relationships(comments, ({ one }) => ({
-  issue: one({
-    sourceField: ['issueId'],
-    destField: ['id'],
-    destSchema: issues,
-  }),
-}))
-
-const userRelationships = relationships(users, ({ many }) => ({
-  issues: many({
-    sourceField: ['id'],
-    destField: ['ownerId'],
-    destSchema: issues,
-  }),
-}))
-
 const schema = createSchema({
   tables: [issues, comments, users, memberships],
-  relationships: [issueRelationships, commentRelationships, userRelationships],
+  relationships: [issueRelationships],
 })
 
 const db = store(schema)
 
-const allIssues = db.issues.all()
+const allIssues = db.query('issues')
 const allIssuesQuery: Query<
   readonly {
     id: string
@@ -100,59 +84,75 @@ const allIssueRows: AllIssueRows = [
 ]
 allIssueRows
 
-const issue = db.issues.one('issue-1')
+const issue = db.query('issues', { id: 'issue-1' })
 type IssueRow = QueryValue<typeof issue>
 const maybeIssue: IssueRow = undefined
 maybeIssue
 
-const commentsForIssue = db.issues.one('issue-1').comments
-type CommentsForIssue = QueryValue<typeof commentsForIssue>
-const commentRows: CommentsForIssue = [
-  {
-    id: 'comment-1',
-    issueId: 'issue-1',
-    body: 'Nice',
-  },
-]
-commentRows
+const issueWithComments = db.query('issues', {
+  id: 'issue-1',
+  include: ['comments'],
+})
+type IssueWithComments = QueryValue<typeof issueWithComments>
+const maybeIssueWithComments: IssueWithComments = {
+  id: 'issue-1',
+  title: 'Hello',
+  ownerId: null,
+  comments: [
+    {
+      id: 'comment-1',
+      issueId: 'issue-1',
+      body: 'Nice',
+    },
+  ],
+}
+maybeIssueWithComments
 
-const owner = db.issues.one('issue-1').owner
-type Owner = QueryValue<typeof owner>
-const maybeOwner: Owner = { id: 'user-1', name: 'Ada' }
-maybeOwner
+const issueWithOwner = db.query('issues', {
+  id: 'issue-1',
+  include: ['owner'],
+})
+type IssueWithOwner = QueryValue<typeof issueWithOwner>
+const maybeIssueWithOwner: IssueWithOwner = {
+  id: 'issue-1',
+  title: 'Hello',
+  ownerId: 'user-1',
+  owner: { id: 'user-1', name: 'Ada' },
+}
+maybeIssueWithOwner
 
-const assignedUsers = db.issues.one('issue-1').assignedUsers
-type AssignedUsers = QueryValue<typeof assignedUsers>
-const assignedUserRows: AssignedUsers = [{ id: 'user-1', name: 'Ada' }]
-assignedUserRows
-const assignedUsersFirstHopDest: 'memberships' =
-  assignedUsers.plan.relationship[0].destSchema
-const assignedUsersSecondHopDest: 'users' =
-  assignedUsers.plan.relationship[1].destSchema
-assignedUsersFirstHopDest
-assignedUsersSecondHopDest
+const issueWithAssignedUsers = db.query('issues', {
+  id: 'issue-1',
+  include: ['assignedUsers'],
+})
+type IssueWithAssignedUsers = QueryValue<typeof issueWithAssignedUsers>
+const maybeIssueWithAssignedUsers: IssueWithAssignedUsers = {
+  id: 'issue-1',
+  title: 'Hello',
+  ownerId: null,
+  assignedUsers: [{ id: 'user-1', name: 'Ada' }],
+}
+maybeIssueWithAssignedUsers
 
-const nestedComments = db.comments.one('comment-1').issue.comments
-type NestedComments = QueryValue<typeof nestedComments>
-const nestedCommentRows: NestedComments = []
-nestedCommentRows
-
-db.memberships.one({ issueId: 'issue-1', userId: 'user-1' })
+db.query('memberships', { id: { issueId: 'issue-1', userId: 'user-1' } })
 
 // @ts-expect-error table names come from the schema
-db.missing
+db.query('missing')
 
-// @ts-expect-error table query only exposes known methods
-db.issues.missing()
-
-// @ts-expect-error one() id type comes from the primary key
-db.issues.one(123)
+// @ts-expect-error one-query id type comes from the primary key
+db.query('issues', { id: 123 })
 
 // @ts-expect-error composite primary keys require every key column
-db.memberships.one({ issueId: 'issue-1' })
+db.query('memberships', { id: { issueId: 'issue-1' } })
 
-// @ts-expect-error relation names come from schema.relationships.issues
-db.issues.one('issue-1').missingRelation
+// @ts-expect-error include names come from schema.relationships.issues
+db.query('issues', { id: 'issue-1', include: ['missingRelation'] })
 
-// @ts-expect-error all() returns a collection query, not a row query
-db.issues.all().comments
+// @ts-expect-error include requires a row id
+db.query('issues', { include: ['comments'] })
+
+db.query('memberships', {
+  id: { issueId: 'issue-1', userId: 'user-1' },
+  // @ts-expect-error memberships has no relationships in this schema
+  include: ['issues'],
+})

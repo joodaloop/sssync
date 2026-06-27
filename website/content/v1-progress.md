@@ -17,6 +17,7 @@ description: Todo list & progress tracking
 - [ ] ~~Build type-safe projectors that connect **events** and **schema** in a SSSync client~~
 
 ## Query DSL
+- [x] Finalise design for query builder
 - [ ] Design types w.r.t. `hydrate` vs. simple access
 - [ ] Decide how relationship indexes will be represented in-memory
 

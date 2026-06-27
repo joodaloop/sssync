@@ -7,12 +7,11 @@ import type {
 import type {
   Cardinality,
   ClientDatabaseSchema,
-  Relationship,
 } from '../schema/table-schema'
 
 declare const queryValue: unique symbol
 
-export type RelationshipTables<S extends ClientDatabaseSchema> = {
+type RelationshipTables<S extends ClientDatabaseSchema> = {
   [K in keyof S['relationships'] as string extends K
     ? never
     : K]: S['relationships'][K]
@@ -57,93 +56,81 @@ type RelationshipCardinality<R> =
     ? C
     : never
 
+type RelationValue<
+  S extends ClientDatabaseSchema,
+  Name extends TableName<S>,
+  RelName extends RelationName<S, Name>,
+> =
+  RelationshipDestination<RelationshipFor<S, Name, RelName>> extends infer Dest
+    ? Dest extends TableName<S>
+      ? RelationshipCardinality<
+          RelationshipFor<S, Name, RelName>
+        > extends 'many'
+        ? readonly RowOf<Tables<S>[Dest]>[]
+        : RowOf<Tables<S>[Dest]> | undefined
+      : never
+    : never
+
+export type RowWithIncludes<
+  S extends ClientDatabaseSchema,
+  Name extends TableName<S>,
+  Include extends readonly RelationName<S, Name>[],
+> = RowOf<Tables<S>[Name]> & {
+  readonly [RelName in Include[number]]: RelationValue<S, Name, RelName>
+}
+
+export type QueryOptions<
+  S extends ClientDatabaseSchema,
+  Name extends TableName<S>,
+  Include extends readonly RelationName<S, Name>[] = readonly [],
+> = {
+  readonly id: IdInputOf<Tables<S>[Name]>
+  readonly include?: Include | undefined
+}
+
 export type AllQueryPlan<Name extends string = string> = {
   readonly kind: 'all'
   readonly table: Name
 }
 
-export type OneQueryPlan<Name extends string = string> = {
+export type OneQueryPlan<
+  Name extends string = string,
+  Include extends readonly string[] = readonly string[],
+> = {
   readonly kind: 'one'
   readonly table: Name
   readonly id: unknown
+  readonly include: Include
 }
 
-export type RelationQueryPlan<
-  SourceName extends string = string,
-  RelName extends string = string,
-  DestName extends string = string,
-  C extends Cardinality = Cardinality,
-  R extends Relationship = Relationship,
-> = {
-  readonly kind: 'relation'
-  readonly parent: QueryPlan
-  readonly sourceTable: SourceName
-  readonly relation: RelName
-  readonly destTable: DestName
-  readonly cardinality: C
-  readonly relationship: R
-}
-
-export type QueryPlan = AllQueryPlan | OneQueryPlan | RelationQueryPlan
+export type QueryPlan = AllQueryPlan | OneQueryPlan
 
 export type Query<T, Plan extends QueryPlan = QueryPlan> = {
   readonly key: string
+  readonly accessKeys: readonly string[]
   readonly plan: Plan
   readonly [queryValue]?: readonly [T]
 }
 
 export type QueryValue<Q> = Q extends Query<infer T> ? T : never
 
-export type RelationQueries<
-  S extends ClientDatabaseSchema,
-  Name extends TableName<S>,
-> = {
-  readonly [RelName in RelationName<S, Name>]: RelationQuery<
-    S,
-    Name,
-    RelName
+export type QueryFn<S extends ClientDatabaseSchema> = {
+  <Name extends TableName<S>>(
+    table: Name,
+  ): Query<readonly RowOf<Tables<S>[Name]>[], AllQueryPlan<Name>>
+
+  <
+    Name extends TableName<S>,
+    const Include extends readonly RelationName<S, Name>[] = readonly [],
+  >(
+    table: Name,
+    options: QueryOptions<S, Name, Include>,
+  ): Query<
+    RowWithIncludes<S, Name, Include> | undefined,
+    OneQueryPlan<Name, Include>
   >
 }
 
-export type RowQuery<
-  S extends ClientDatabaseSchema,
-  Name extends TableName<S>,
-  Plan extends QueryPlan = OneQueryPlan<Name>,
-> = Query<RowOf<Tables<S>[Name]> | undefined, Plan> &
-  RelationQueries<S, Name>
-
-export type RelationQuery<
-  S extends ClientDatabaseSchema,
-  Name extends TableName<S>,
-  RelName extends RelationName<S, Name>,
-> =
-  RelationshipFor<S, Name, RelName> extends infer R
-    ? R extends Relationship
-      ? RelationshipDestination<R> extends infer Dest
-        ? Dest extends TableName<S>
-          ? RelationshipCardinality<R> extends 'many'
-            ? Query<
-                readonly RowOf<Tables<S>[Dest]>[],
-                RelationQueryPlan<Name, RelName, Dest, 'many', R>
-              >
-            : RowQuery<
-                S,
-                Dest,
-                RelationQueryPlan<Name, RelName, Dest, 'one', R>
-              >
-          : never
-        : never
-      : never
-    : never
-
-export type TableQuery<
-  S extends ClientDatabaseSchema,
-  Name extends TableName<S>,
-> = {
-  all(): Query<readonly RowOf<Tables<S>[Name]>[], AllQueryPlan<Name>>
-  one(id: IdInputOf<Tables<S>[Name]>): RowQuery<S, Name>
-}
-
 export type QueryStore<S extends ClientDatabaseSchema> = {
-  readonly [Name in TableName<S>]: TableQuery<S, Name>
+  query: QueryFn<S>
 }
