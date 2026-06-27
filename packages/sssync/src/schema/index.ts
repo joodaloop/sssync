@@ -19,7 +19,7 @@ export type {
 export type {
   Cardinality,
   ClientDatabaseSchema,
-  LastInTuple,
+  // LastInTuple,
   Relationship,
   RelationshipsSchema,
   TableMap,
@@ -34,3 +34,4 @@ export type {
   TypeNameToTypeMap,
   ValueType,
 } from './schema-value'
+export type { IdInputOf, IdOf, RowOf, TableName, Tables } from './infer'

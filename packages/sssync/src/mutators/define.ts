@@ -1,10 +1,9 @@
 import type { ClientDatabaseSchema } from '../schema/table-schema'
+import type { IdInputOf, IdOf } from '../schema/infer'
 import type { StandardSchemaV1 } from '../types'
 import type {
   AnyMutatorDefinition,
   DefineMutator,
-  IdInputOf,
-  IdOf,
   InsertOf,
   Mutation,
   MutationDb,

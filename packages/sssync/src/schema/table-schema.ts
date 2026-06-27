@@ -31,13 +31,13 @@ export type Relationship =
   | readonly [Connection]
   | readonly [Connection, Connection]
 
-export type LastInTuple<T extends Relationship> = T extends readonly [infer L]
-  ? L
-  : T extends readonly [unknown, infer L]
-    ? L
-    : T extends readonly [unknown, unknown, infer L]
-      ? L
-      : never
+// export type LastInTuple<T extends Relationship> = T extends readonly [infer L]
+//   ? L
+//   : T extends readonly [unknown, infer L]
+//     ? L
+//     : T extends readonly [unknown, unknown, infer L]
+//       ? L
+//       : never
 
 /**
  * Top-level schema definition.

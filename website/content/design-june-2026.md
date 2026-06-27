@@ -17,8 +17,6 @@ completed: Transaction has been successfully persisted and any backend changes h
 
 failed: An error was thrown while persisting or syncing back the transaction
 
-
-
 ## Event compression
 
 Existing → New	Result	Description
