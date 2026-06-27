@@ -101,6 +101,38 @@ describe('Bootstrap', () => {
     }
   })
 
+  test('concurrent loads share one in-flight request and result', async () => {
+    let release: () => void = () => {}
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const fetchMock = mockFetch(async () => {
+      await gate
+      return jsonResponse({ data: [validRow] })
+    })
+    const bootstrap = new Bootstrap(schema, '/bootstrap', notSatisfied, () => {})
+
+    const a = bootstrap.load('issues')
+    const b = bootstrap.load('issues')
+
+    release()
+    const [rowsA, rowsB] = await Promise.all([a, b])
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(rowsA).toEqual([validRow])
+    expect(rowsB).toBe(rowsA)
+  })
+
+  test('a fresh load after one settles fetches again', async () => {
+    const fetchMock = mockFetch(() => jsonResponse({ data: [validRow] }))
+    const bootstrap = new Bootstrap(schema, '/bootstrap', notSatisfied, () => {})
+
+    await bootstrap.load('issues')
+    await bootstrap.load('issues')
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
   test('checks satisfaction with the requested model name', async () => {
     mockFetch(() => jsonResponse({ data: [validRow] }))
     const checkStatus = mock(async () => undefined)

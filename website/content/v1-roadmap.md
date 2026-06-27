@@ -18,7 +18,7 @@ description: Todo list & progress tracking
 - [ ] Build system for relationship indexes
 
 ## Network requests
-- [ ] Build bootstrap lifecycle manager
+- [x] [Build bootstrap lifecycle manager](https://github.com/joodaloop/sssync/commit/fb47175bf0f13d76d9d0c43247ca3a65e3d3f694)
 - [x] [Design batch loader that dedupes query satisfactions and validates responses](https://github.com/joodaloop/sssync/commit/a96a3bfef518a3c44f3be8f6470fa5ba5dfa4fbc)
 
 ## Store

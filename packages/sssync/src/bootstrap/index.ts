@@ -11,9 +11,14 @@ export type StatusChange = {
   readonly error?: string
 }
 
+type LoadResult = Promise<readonly unknown[] | undefined>
+
 export class Bootstrap {
   // One row validator per table, derived from the schema's write columns.
   private readonly rowValidators: Record<string, ReturnType<typeof rowSchemaFor>>
+  // In-flight loads keyed by model. Recorded synchronously in `load` so
+  // concurrent calls share one fetch instead of racing past `checkStatus`.
+  private readonly inflight = new Map<string, LoadResult>()
 
   constructor(
     private readonly schema: ClientDatabaseSchema,
@@ -34,23 +39,35 @@ export class Bootstrap {
   }
 
   // Fetches every row for `modelName` via `GET /bootstrap?model=<name>`,
-  // expecting `{ data: rows[] }`. Skips models already satisfied or in flight
-  // per `checkStatus`. Marks the model 'pending' while in flight, then
-  // 'success' only once all rows validate against the write schema, or 'error'
-  // (with a message) on any failure.
-  load = async (modelName: string): Promise<readonly unknown[] | undefined> => {
-    const validator = this.rowValidators[modelName]
-    if (!validator) {
+  // expecting `{ data: rows[] }`. Concurrent loads for the same model share one
+  // in-flight request and resolve to the same rows. Returns undefined for an
+  // unknown model or one already satisfied per `checkStatus`.
+  //
+  // Synchronous on purpose: the in-flight lookup happens before any await, so
+  // two back-to-back calls can't both get past it.
+  load = (modelName: string): LoadResult => {
+    const existing = this.inflight.get(modelName)
+    if (existing) return existing
+
+    if (!this.rowValidators[modelName]) {
       this.changeStatus({
         name: modelName,
         status: 'error',
         error: `Unknown model "${modelName}"`,
       })
-      return undefined
+      return Promise.resolve(undefined)
     }
 
-    // Skip if already bootstrapped ('success') or in flight ('pending'); the
-    // 'pending' mark below makes a concurrent load see this one and bail.
+    const run = this.run(modelName)
+    this.inflight.set(modelName, run)
+    return run.finally(() => this.inflight.delete(modelName))
+  }
+
+  private async run(modelName: string): Promise<readonly unknown[] | undefined> {
+    const validator = this.rowValidators[modelName]
+
+    // Skip if already bootstrapped ('success') or being bootstrapped by another
+    // session/tab ('pending'); the in-flight map handles same-instance dedupe.
     const existing = await this.checkStatus(modelName)
     if (existing === 'success' || existing === 'pending') return undefined
 
