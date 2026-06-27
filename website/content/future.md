@@ -3,6 +3,7 @@ title: Future Ideas
 description: Long-term plans
 ---
 
+- Hydration and SSR
 - Eviction
 - Partial migrations
 - Give materializers access to the database

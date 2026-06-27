@@ -1,5 +1,5 @@
 ---
-title: 1.0 Roadmap
+title: v1.0 Roadmap
 description: Todo list & progress tracking
 ---
 
@@ -23,7 +23,6 @@ description: Todo list & progress tracking
 ## Network requests
 - [ ] Build bootstrap lifecycle manager
 - [ ] Design batch loader
-- [ ] Figure out how this will work during SSR
 
 ## Storage
 - [ ] Build an IndexedDB database management system
