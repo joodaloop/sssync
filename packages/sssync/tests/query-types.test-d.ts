@@ -1,5 +1,10 @@
 import { column, createSchema, relationships, table } from '../src/schema'
-import { store, type Query, type QueryValue } from '../src/query'
+import {
+  store,
+  type Query,
+  type QueryDetails,
+  type QueryValue,
+} from '../src/query'
 
 const issues = table('issues')
   .columns({
@@ -64,7 +69,7 @@ const schema = createSchema({
 
 const db = store(schema)
 
-const allIssues = db.query('issues')
+const allIssues = db.all('issues')
 const allIssuesQuery: Query<
   readonly {
     id: string
@@ -73,6 +78,21 @@ const allIssuesQuery: Query<
   }[]
 > = allIssues
 allIssuesQuery
+
+const readyDetails: QueryDetails = { status: 'ready' }
+readyDetails
+
+const errorDetails: QueryDetails = {
+  status: 'error',
+  error: new Error('Query failed'),
+}
+errorDetails
+
+const badDetails: QueryDetails = {
+  // @ts-expect-error query details only describe resolved or errored resources
+  status: 'pending',
+}
+badDetails
 
 type AllIssueRows = QueryValue<typeof allIssues>
 const allIssueRows: AllIssueRows = [
@@ -84,12 +104,12 @@ const allIssueRows: AllIssueRows = [
 ]
 allIssueRows
 
-const issue = db.query('issues', { id: 'issue-1' })
+const issue = db.one('issues', { id: 'issue-1' })
 type IssueRow = QueryValue<typeof issue>
 const maybeIssue: IssueRow = undefined
 maybeIssue
 
-const issueWithComments = db.query('issues', {
+const issueWithComments = db.one('issues', {
   id: 'issue-1',
   include: ['comments'],
 })
@@ -108,7 +128,7 @@ const maybeIssueWithComments: IssueWithComments = {
 }
 maybeIssueWithComments
 
-const issueWithOwner = db.query('issues', {
+const issueWithOwner = db.one('issues', {
   id: 'issue-1',
   include: ['owner'],
 })
@@ -121,7 +141,7 @@ const maybeIssueWithOwner: IssueWithOwner = {
 }
 maybeIssueWithOwner
 
-const issueWithAssignedUsers = db.query('issues', {
+const issueWithAssignedUsers = db.one('issues', {
   id: 'issue-1',
   include: ['assignedUsers'],
 })
@@ -134,24 +154,24 @@ const maybeIssueWithAssignedUsers: IssueWithAssignedUsers = {
 }
 maybeIssueWithAssignedUsers
 
-db.query('memberships', { id: { issueId: 'issue-1', userId: 'user-1' } })
+db.one('memberships', { id: { issueId: 'issue-1', userId: 'user-1' } })
 
 // @ts-expect-error table names come from the schema
-db.query('missing')
+db.all('missing')
 
 // @ts-expect-error one-query id type comes from the primary key
-db.query('issues', { id: 123 })
+db.one('issues', { id: 123 })
 
 // @ts-expect-error composite primary keys require every key column
-db.query('memberships', { id: { issueId: 'issue-1' } })
+db.one('memberships', { id: { issueId: 'issue-1' } })
 
 // @ts-expect-error include names come from schema.relationships.issues
-db.query('issues', { id: 'issue-1', include: ['missingRelation'] })
+db.one('issues', { id: 'issue-1', include: ['missingRelation'] })
 
 // @ts-expect-error include requires a row id
-db.query('issues', { include: ['comments'] })
+db.one('issues', { include: ['comments'] })
 
-db.query('memberships', {
+db.one('memberships', {
   id: { issueId: 'issue-1', userId: 'user-1' },
   // @ts-expect-error memberships has no relationships in this schema
   include: ['issues'],

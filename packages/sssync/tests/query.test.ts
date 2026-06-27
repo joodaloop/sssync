@@ -66,7 +66,7 @@ describe('query store', () => {
   test('builds all-query descriptors', () => {
     const db = store(schema)
 
-    expect(db.query('issues')).toEqual({
+    expect(db.all('issues')).toEqual({
       key: 'issues',
       accessKeys: ['issues'],
       plan: {
@@ -79,7 +79,7 @@ describe('query store', () => {
   test('builds one-query descriptors', () => {
     const db = store(schema)
 
-    expect(db.query('issues', { id: 'issue-1' })).toEqual({
+    expect(db.one('issues', { id: 'issue-1' })).toEqual({
       key: 'issues:issue-1',
       accessKeys: ['issues:issue-1'],
       plan: {
@@ -95,7 +95,7 @@ describe('query store', () => {
     const db = store(schema)
 
     expect(
-      db.query('issues', {
+      db.one('issues', {
         id: 'issue-1',
         include: ['comments', 'owner'],
       }),
@@ -117,7 +117,7 @@ describe('query store', () => {
 
   test('does not store relationship metadata on include queries', () => {
     const db = store(schema)
-    const query = db.query('issues', {
+    const query = db.one('issues', {
       id: 'issue-1',
       include: ['assignedUsers'],
     })
@@ -139,7 +139,7 @@ describe('query store', () => {
     const db = store(schema)
 
     expect(
-      db.query('memberships', {
+      db.one('memberships', {
         id: { issueId: 'issue-1', userId: 'user-1' },
       }).key,
     ).toBe('memberships:issueId=issue-1,userId=user-1')

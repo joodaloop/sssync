@@ -8,20 +8,23 @@ export function store<const S extends ClientDatabaseSchema>(
   schema: S,
 ): QueryStore<S> {
   return {
-    query: (
-      table: string,
-      options?: { id: unknown; include?: readonly string[] },
-    ) => {
+    all: (table: string) => {
       if (!schema.tables[table]) {
         throw new Error(`Unknown table "${table}"`)
       }
 
-      if (!options) {
-        return createQuery({
-          key: table,
-          accessKeys: [table],
-          plan: { kind: 'all', table },
-        })
+      return createQuery({
+        key: table,
+        accessKeys: [table],
+        plan: { kind: 'all', table },
+      })
+    },
+    one: (
+      table: string,
+      options: { id: unknown; include?: readonly string[] },
+    ) => {
+      if (!schema.tables[table]) {
+        throw new Error(`Unknown table "${table}"`)
       }
 
       const include = options.include ?? []

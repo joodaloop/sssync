@@ -18,8 +18,7 @@ description: Todo list & progress tracking
 
 ## Query DSL
 - [x] Finalise design for query builder
-- [ ] Design types w.r.t. `hydrate` vs. simple access
-- [ ] Decide how relationship indexes will be represented in-memory
+- [x] Decide how relationship indexes will be represented in-memory
 
 ## Network requests
 - [ ] Build bootstrap lifecycle manager
@@ -32,3 +31,7 @@ description: Todo list & progress tracking
 ## Cross-tab coordination
 - [ ] Decide how data will be queued and flushed
 - [ ] Add a `schema-changed` Broadcast Channel message
+
+## Solid.js integration
+- Add a `useSSS` hook to access the global SSSync instance (boostrapping, mutating, etc)
+- Build a `useSSSData` hook to run queries

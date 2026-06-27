@@ -25,12 +25,12 @@ function IssueList(){
 }
 ```
 
-Accessing a single item (and it's relations):
+Accessing a single item (and relations of an item):
 ```tsx
 // React
 function IssueItem(){
   const user = useSync("users", {id: "id-me"}) // Promise<Issue | undefined>>
-  const issue = useSync("issues", {id: "id-123", relation: "comments"}) // Promise<Issue | undefined & {comments: Comment[]>>
+  const issue = useSync("issues", {id: "id-123", relations: ["comments"]}) // Promise<Issue | undefined & {comments: Comment[]>>
   return (
     <Suspense fallback="Loading issue details...">
       {(issue && user) && <div>Dear {user.firstName}, {issue.title} has {issue.comments.length} comments</div>}
@@ -41,7 +41,7 @@ function IssueItem(){
 // Solid
 function IssueItem(){
   const user = useSync("users", {id: "id-me"}) // useResource<Issue | undefined>>
-  const issue = useSync("issues", {id: "id-123", relation: "comments"}) // useResource<Issue | undefined & {comments: Comment[]>>
+  const issue = useSync("issues", {id: "id-123", relations: ["comments"]}) // useResource<Issue | undefined & {comments: Comment[]>>
   return (
     <Suspense fallback="Loading issue details...">
       <Show when={user() && issue()}
@@ -50,6 +50,5 @@ function IssueItem(){
   )
 }
 ```
-
 
 These queries are used to construct requests to the server, in the format outlined in the [The SSSync Server Protocol](/server) page.

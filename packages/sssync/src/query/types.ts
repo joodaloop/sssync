@@ -79,7 +79,7 @@ export type RowWithIncludes<
   readonly [RelName in Include[number]]: RelationValue<S, Name, RelName>
 }
 
-export type QueryOptions<
+export type OneQueryOptions<
   S extends ClientDatabaseSchema,
   Name extends TableName<S>,
   Include extends readonly RelationName<S, Name>[] = readonly [],
@@ -105,6 +105,10 @@ export type OneQueryPlan<
 
 export type QueryPlan = AllQueryPlan | OneQueryPlan
 
+export type QueryDetails =
+  | { readonly status: 'ready' }
+  | { readonly status: 'error'; readonly error: Error }
+
 export type Query<T, Plan extends QueryPlan = QueryPlan> = {
   readonly key: string
   readonly accessKeys: readonly string[]
@@ -114,23 +118,24 @@ export type Query<T, Plan extends QueryPlan = QueryPlan> = {
 
 export type QueryValue<Q> = Q extends Query<infer T> ? T : never
 
-export type QueryFn<S extends ClientDatabaseSchema> = {
-  <Name extends TableName<S>>(
-    table: Name,
-  ): Query<readonly RowOf<Tables<S>[Name]>[], AllQueryPlan<Name>>
+export type AllQueryFn<S extends ClientDatabaseSchema> = <
+  Name extends TableName<S>,
+>(
+  table: Name,
+) => Query<readonly RowOf<Tables<S>[Name]>[], AllQueryPlan<Name>>
 
-  <
-    Name extends TableName<S>,
-    const Include extends readonly RelationName<S, Name>[] = readonly [],
-  >(
-    table: Name,
-    options: QueryOptions<S, Name, Include>,
-  ): Query<
-    RowWithIncludes<S, Name, Include> | undefined,
-    OneQueryPlan<Name, Include>
-  >
-}
+export type OneQueryFn<S extends ClientDatabaseSchema> = <
+  Name extends TableName<S>,
+  const Include extends readonly RelationName<S, Name>[] = readonly [],
+>(
+  table: Name,
+  options: OneQueryOptions<S, Name, Include>,
+) => Query<
+  RowWithIncludes<S, Name, Include> | undefined,
+  OneQueryPlan<Name, Include>
+>
 
 export type QueryStore<S extends ClientDatabaseSchema> = {
-  query: QueryFn<S>
+  all: AllQueryFn<S>
+  one: OneQueryFn<S>
 }

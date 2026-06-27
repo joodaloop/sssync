@@ -1,9 +1,11 @@
 export { store } from './store'
 export type {
+  AllQueryFn,
   AllQueryPlan,
+  OneQueryFn,
+  OneQueryOptions,
   Query,
-  QueryFn,
-  QueryOptions,
+  QueryDetails,
   QueryPlan,
   QueryStore,
   QueryValue,
