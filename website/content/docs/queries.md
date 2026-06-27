@@ -4,23 +4,32 @@ title: Querying data
 
 Accessing all items in a collection:
 ```tsx
-// React
-function IssueList(){
-  const issues = useSync("issues")
+// React: returns a tuple
+function IssueList() {
+  const [issues, pending] = SSS.useAll("issues")
+  // issues: Issue[]        — empty [] until ready (or undefined; see note)
+  // pending: boolean       — true on initial load, false once authoritative
+  if (pending) return <Spinner />
+
   return (
     <div>
-      {issues.elements.map(issue => <div> issue.title </div>)}
+      {issues.map((issue) => (
+        <div key={issue.id}>{issue.title}</div>
+      ))}
     </div>
   )
 }
 
-// Solid
-function IssueList(){
-  const issues = useSync("issues")
+// Solid: returns an async memo accessor
+function IssueList() {
+  const issues = SSS.useAll("issues")
+  // issues: () => Issue[]   — async memo accessor; reading it suspends until ready
   return (
-    <For each={issues()}>
-      {(issue) => (<div> issue.title </div>)}
-    </For>
+    <Loading fallback={<Spinner />}>
+      <For each={issues()}>
+        {(issue) => <div>{issue.title}</div>}
+      </For>
+    </Loading>
   )
 }
 ```
@@ -29,24 +38,33 @@ Accessing a single item (and relations of an item):
 ```tsx
 // React
 function IssueItem(){
-  const user = useSync("users", {id: "id-me"}) // Promise<Issue | undefined>>
-  const issue = useSync("issues", {id: "id-123", relations: ["comments"]}) // Promise<Issue | undefined & {comments: Comment[]>>
-  return (
-    <Suspense fallback="Loading issue details...">
-      {(issue && user) && <div>Dear {user.firstName}, {issue.title} has {issue.comments.length} comments</div>}
-    </Suspense>
-  )
+  const [user, userPending] = SSS.useOne("users", { id: "id-me" })
+  // user: User | undefined
+  const [issue, issuePending] = SSS.useOne("issues", { id: "id-123", relations: ["comments"] })
+  // issue: (Issue & { comments: Comment[] }) | undefined
+
+  if (userPending || issuePending) return <Spinner />
+  if (!user || !issue) return null // not-found (resolved but absent)
+
+  return <div>Dear {user.firstName}, {issue.title} has {issue.comments.length} comments</div>
 }
 
 // Solid
-function IssueItem(){
-  const user = useSync("users", {id: "id-me"}) // useResource<Issue | undefined>>
-  const issue = useSync("issues", {id: "id-123", relations: ["comments"]}) // useResource<Issue | undefined & {comments: Comment[]>>
+function IssueItem() {
+  const user = SSS.useOne("users", { id: "id-me" })
+  // useOne returns an async memo accessor: () => User | undefined
+  const issue = SSS.useOne("issues", { id: "id-123", relations: ["comments"] })
+  // () => (Issue & { comments: Comment[] }) | undefined
+
   return (
-    <Suspense fallback="Loading issue details...">
-      <Show when={user() && issue()}
-      {<div>Dear {user().firstName}, {issue().title} has {issue().comments.length} comments</div>}
-    </Suspense>
+    <Loading fallback={<Spinner />}>
+      <Show when={user() && issue()} fallback={<div>Not found</div>}>
+        <div>
+          Dear {user()!.firstName}, {issue()!.title} has{" "}
+          {issue()!.comments.length} comments
+        </div>
+      </Show>
+    </Loading>
   )
 }
 ```
