@@ -4,12 +4,12 @@ description: Todo list & progress tracking
 ---
 
 ## Schema
-- [x] [Copy over code from Zero Schema so that we can drop that dependency and gain flexibility if needed in the future](https://github.com/joodaloop/sssync-beta/commit/dcffe4bb57ab88fe9d021634e394943c82f6b098)
+- [x] [Copy over code from Zero Schema so that we can drop that dependency and gain flexibility if needed in the future](https://github.com/joodaloop/sssync/commit/dcffe4bb57ab88fe9d021634e394943c82f6b098)
 
 ## ~~Events~~ Mutators
 
-- [x] [Decide on an event schema format](https://github.com/joodaloop/sssync-beta/blob/80360dfddba47bd1c9bb33cabeb7b15798ae4072/website/content/docs/events.md)
-- [x] [Build type-safe event definitions, with a Standard Schema `data` field](https://github.com/joodaloop/sssync-beta/commit/15d512c14b0d23aa6c9fd88b18e7811a5b95fd55)
+- [x] [Decide on an event schema format](https://github.com/joodaloop/sssync/blob/80360dfddba47bd1c9bb33cabeb7b15798ae4072/website/content/docs/events.md)
+- [x] [Build type-safe event definitions, with a Standard Schema `data` field](https://github.com/joodaloop/sssync/commit/15d512c14b0d23aa6c9fd88b18e7811a5b95fd55)
 - [x] [Switch over to using mutators instead of the event/projector separation](https://github.com/joodaloop/sssync/commit/8230a567fbeb45c02e03815f82cc5f98ab6c4968)
 - [ ] Build log of mutations (optional persistence)
 
@@ -19,7 +19,7 @@ description: Todo list & progress tracking
 
 ## Network requests
 - [ ] Build bootstrap lifecycle manager
-- [ ] Design batch loader
+- [x] Design batch loader that dedupes query satisfactions and validates responses
 
 ## Store
 - [ ] Design APIs to write to the store

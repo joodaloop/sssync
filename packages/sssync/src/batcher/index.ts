@@ -1,0 +1,141 @@
+import * as v from 'valibot'
+
+import { rowSchemaFor } from '../schema/row-schema'
+import type { ClientDatabaseSchema } from '../schema/table-schema'
+
+export type ResolvedItem = {
+  readonly modelName: string
+  readonly id: string
+  readonly relation?: string
+}
+
+export type MergedRequest = {
+  readonly modelName: string
+  readonly id: string
+  readonly relations: readonly string[]
+}
+
+export type ResolvedBatch = {
+  readonly items: readonly ResolvedItem[]
+  readonly success: boolean
+}
+
+// Collapses requests for the same model + id into a single payload entry,
+// gathering all of their relations into one array. A bare-row request and its
+// related-relation requests for the same id go out as one request.
+export function mergeRequests(items: readonly ResolvedItem[]): MergedRequest[] {
+  const merged = new Map<
+    string,
+    { modelName: string; id: string; relations: string[] }
+  >()
+
+  for (const item of items) {
+    const key = `${item.modelName}***${item.id}`
+    let entry = merged.get(key)
+    if (!entry) {
+      entry = { modelName: item.modelName, id: item.id, relations: [] }
+      merged.set(key, entry)
+    }
+    if (item.relation && !entry.relations.includes(item.relation)) {
+      entry.relations.push(item.relation)
+    }
+  }
+
+  return [...merged.values()]
+}
+
+export class Batcher {
+  readonly wait = 100
+  readonly inflight = new Set<string>()
+  readonly pending = new Map<string, ResolvedItem>()
+  // One row validator per table, derived from the schema's write columns.
+  private readonly rowValidators: Record<string, ReturnType<typeof rowSchemaFor>>
+  timer: ReturnType<typeof setTimeout> | undefined
+
+  constructor(
+    private readonly schema: ClientDatabaseSchema,
+    private readonly batchURL: string,
+    private readonly resolve: (batch: ResolvedBatch) => void,
+  ) {
+    this.rowValidators = Object.fromEntries(
+      Object.entries(schema.tables).map(([name, table]) => [
+        name,
+        rowSchemaFor(table),
+      ]),
+    )
+  }
+
+  // Validates the server payload of `{ modelName: rows }` against each table's
+  // write schema. Returns false on an unknown model or any invalid row.
+  private validatePayload(payload: unknown): boolean {
+    if (payload === null || typeof payload !== 'object') {
+      console.warn('Batch response was not an object of rows')
+      return false
+    }
+
+    for (const [modelName, rows] of Object.entries(payload)) {
+      const validator = this.rowValidators[modelName]
+      if (!validator) {
+        console.warn(`Batch response referenced unknown model "${modelName}"`)
+        return false
+      }
+      if (!Array.isArray(rows)) {
+        console.warn(`Rows for model "${modelName}" were not an array`)
+        return false
+      }
+      for (const row of rows) {
+        const result = v.safeParse(validator, row)
+        if (!result.success) {
+          const message = result.issues.map(issue => issue.message).join('; ')
+          console.warn(`Invalid "${modelName}" row: ${message}`)
+          return false
+        }
+      }
+    }
+
+    return true
+  }
+
+  request(item: ResolvedItem) {
+    const key = cacheKeyForQuery(item)
+    if (this.pending.has(key)) return
+    if(this.inflight.has(key)) return
+    this.pending.set(key, item)
+    this.timer ??= setTimeout(this.flush, this.wait)
+  }
+
+  flush = async () => {
+    this.timer = undefined
+    const entries = [...this.pending]
+    if (entries.length === 0) return
+    this.pending.clear()
+
+    const items = entries.map(([, item]) => item)
+    entries.forEach(([k]) => this.inflight.add(k))
+    try {
+      const res = await fetch(this.batchURL, {
+        method: 'POST',
+        body: JSON.stringify(mergeRequests(items)),
+      })
+      if (!res.ok) {
+        throw new Error(`Batch fetch failed: ${res.status} ${res.statusText}`)
+      }
+      // Only report success if every incoming row passes its write schema.
+      const valid = this.validatePayload(await res.json())
+      // The resolver expands a relation item into its bare row, so resolving the
+      // fetched items also resolves any bare rows we subsumed into them.
+      this.resolve({ items, success: valid })
+    } catch {
+      // Unblock waiters so a failed batch doesn't leave its requests hanging.
+      this.resolve({ items, success: false })
+    } finally {
+      // Clear only this batch's keys; a concurrent flush may still own others.
+      entries.forEach(([k]) => this.inflight.delete(k))
+    }
+  }
+}
+
+
+function cacheKeyForQuery(item: ResolvedItem) {
+  return item.relation ? `${item.modelName}***${item.id}***${item.relation}` : `${item.modelName}***${item.id}`
+}
