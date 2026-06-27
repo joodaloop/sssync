@@ -19,7 +19,7 @@ description: Todo list & progress tracking
 
 ## Network requests
 - [ ] Build bootstrap lifecycle manager
-- [x] Design batch loader that dedupes query satisfactions and validates responses
+- [x] [Design batch loader that dedupes query satisfactions and validates responses](https://github.com/joodaloop/sssync/commit/a96a3bfef518a3c44f3be8f6470fa5ba5dfa4fbc)
 
 ## Store
 - [ ] Design APIs to write to the store
