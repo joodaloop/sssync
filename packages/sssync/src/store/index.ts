@@ -34,6 +34,7 @@ export type Stores<S extends ClientDatabaseSchema> = {
 export class Store<S extends ClientDatabaseSchema> {
   // One Map per table, keyed by the row's primary key.
   readonly tables: Stores<S>
+  readonly deleted: Map<string, null> = new Map()
 
   constructor(private readonly schema: S) {
     this.tables = Object.fromEntries(
@@ -48,7 +49,7 @@ export class Store<S extends ClientDatabaseSchema> {
   store(mutations: readonly Mutation<S>[], isFromMutator: boolean) {
     for (const mutation of mutations) {
       const table = this.tables[mutation.table as TableName<S>] as Map<
-        unknown,
+        string,
         RowOf<TableSchema>
       >
       if (!table) {
@@ -69,7 +70,9 @@ export class Store<S extends ClientDatabaseSchema> {
           break
         }
         case 'DELETE': {
-          table.delete(this.keyFor(mutation.table, mutation.id))
+          const key = this.keyFor(mutation.table, mutation.id)
+          table.delete(key)
+          this.deleted.set(key, null)
           break
         }
       }
@@ -83,7 +86,7 @@ export class Store<S extends ClientDatabaseSchema> {
   addIfNotExist(inserts: readonly Insert<S>[]) {
     for (const insert of inserts) {
       const table = this.tables[insert.table as TableName<S>] as Map<
-        unknown,
+        string,
         RowOf<TableSchema>
       >
       if (!table) {
@@ -91,14 +94,14 @@ export class Store<S extends ClientDatabaseSchema> {
       }
 
       const key = this.keyFor(insert.table, insert.data)
-      if (table.get(key) == null) {
+      if (table.get(key) == null || this.deleted.has(key)) {
         table.set(key, insert.data)
       }
     }
   }
 
   // Derives the Map key from a row or id object in primary-key order.
-  private keyFor(tableName: string, record: Record<string, unknown>): unknown {
+  private keyFor(tableName: string, record: Record<string, unknown>): string {
     return primaryKeyFor(this.schema.tables[tableName], record)
   }
 }
