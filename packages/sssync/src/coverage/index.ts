@@ -4,31 +4,57 @@ import { cacheKeyForItem, type ResolvedItem } from '../shared'
 
 export type Coverage = 'success' | 'error'
 
+type Pending = {
+  readonly promise: Promise<Coverage>
+  readonly resolve: (coverage: Coverage) => void
+}
+
 // Tracks which items have been fetched by driving a Batcher and recording the
 // outcome of each resolved item keyed by its cache key.
 export class CoverageTracker {
   readonly coverage = new Map<string, Coverage>()
+  // In-flight requests keyed by cache key, settled when the batcher resolves.
+  private readonly pending = new Map<string, Pending>()
   private readonly batcher: Batcher
 
   constructor(schema: ClientDatabaseSchema, batchURL: string) {
     this.batcher = new Batcher(schema, batchURL, this.resolveItems)
   }
 
-  // Queues an item to be fetched. Mirrors `Batcher.request`.
-  request(item: ResolvedItem) {
+  // Requests coverage for `item`:
+  // - returns 'success' synchronously if already covered,
+  // - returns the in-flight promise if a request (or retry) is underway,
+  // - otherwise fetches — a fresh item, or a retry of a prior 'error' — and
+  //   returns a promise resolving to the outcome.
+  request(item: ResolvedItem): Coverage | Promise<Coverage> {
+    const key = cacheKeyForItem(item)
+
+    if (this.coverage.get(key) === 'success') return 'success'
+
+    const inflight = this.pending.get(key)
+    if (inflight) return inflight.promise
+
+    let resolve!: (coverage: Coverage) => void
+    const promise = new Promise<Coverage>(res => {
+      resolve = res
+    })
+    this.pending.set(key, { promise, resolve })
     this.batcher.request(item)
+    return promise
   }
 
-  // The current coverage of `item`, or undefined if it hasn't resolved yet.
-  statusOf(item: ResolvedItem): Coverage | undefined {
-    return this.coverage.get(cacheKeyForItem(item))
-  }
-
-  // Handed to the batcher as its resolver; records each item's outcome.
+  // Handed to the batcher as its resolver; records each item's outcome and
+  // settles any promise waiting on it.
   private resolveItems = (batch: ResolvedBatch) => {
     const result: Coverage = batch.success ? 'success' : 'error'
     for (const item of batch.items) {
-      this.coverage.set(cacheKeyForItem(item), result)
+      const key = cacheKeyForItem(item)
+      this.coverage.set(key, result)
+      const pending = this.pending.get(key)
+      if (pending) {
+        this.pending.delete(key)
+        pending.resolve(result)
+      }
     }
   }
 }

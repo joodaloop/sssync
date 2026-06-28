@@ -33,7 +33,7 @@ description: Todo list & progress tracking
 ## Putting it all together
 - [ ] Figure out how to play well with SSR
 - [ ] Connect query layer with the coverage tracker
-- [x] Connect the coverage tracker with the batch loader
+- [x] [Connect the coverage tracker with the batch loader](https://github.com/joodaloop/sssync/commit/54d199d3d9bc435ca532ada96fa653bedccee3fe)
 - [ ] Connect batch loader with the store
 - [ ] Coordinate the startup sequence (check for database, create if needed)
 - [ ] Connect mutations rebasing to store
