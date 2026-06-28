@@ -2,12 +2,7 @@ import * as v from 'valibot'
 
 import { rowSchemaFor } from '../schema/row-schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
-
-export type ResolvedItem = {
-  readonly modelName: string
-  readonly id: string
-  readonly relation?: string
-}
+import { cacheKeyForItem, type ResolvedItem } from '../shared'
 
 export type MergedRequest = {
   readonly modelName: string
@@ -97,7 +92,7 @@ export class Batcher {
   }
 
   request(item: ResolvedItem) {
-    const key = cacheKeyForQuery(item)
+    const key = cacheKeyForItem(item)
     if (this.pending.has(key)) return
     if(this.inflight.has(key)) return
     this.pending.set(key, item)
@@ -133,9 +128,4 @@ export class Batcher {
       entries.forEach(([k]) => this.inflight.delete(k))
     }
   }
-}
-
-
-function cacheKeyForQuery(item: ResolvedItem) {
-  return item.relation ? `${item.modelName}***${item.id}***${item.relation}` : `${item.modelName}***${item.id}`
 }

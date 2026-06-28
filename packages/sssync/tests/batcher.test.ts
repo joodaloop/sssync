@@ -8,12 +8,7 @@ import {
   test,
 } from 'bun:test'
 
-import {
-  Batcher,
-  mergeRequests,
-  type ResolvedBatch,
-  type ResolvedItem,
-} from '../src/batcher'
+import { Batcher, mergeRequests, type ResolvedBatch } from '../src/batcher'
 import { column, createSchema, table } from '../src/schema'
 
 const issues = table('issues')

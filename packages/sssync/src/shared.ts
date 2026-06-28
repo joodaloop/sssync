@@ -34,6 +34,18 @@ export function hasOwn(obj: object, key: PropertyKey): boolean {
   return Object.prototype.hasOwnProperty.call(obj, key)
 }
 
+export type ResolvedItem = {
+  readonly modelName: string
+  readonly id: string
+  readonly relation?: string
+}
+
+export function cacheKeyForItem(item: ResolvedItem) {
+  return item.relation
+    ? `${item.modelName}***${item.id}***${item.relation}`
+    : `${item.modelName}***${item.id}`
+}
+
 /** The values that can be represented in JSON */
 export type JSONValue =
   | null

@@ -26,14 +26,16 @@ description: Todo list & progress tracking
 - [ ] Build an IndexedDB database management system
 
 ## Cross-tab coordination
-- [ ] Decide how data will be queued and flushed
-- [ ] Add a `schema-changed` Broadcast Channel message
+- [ ] Decide how mutations will be queued and flushed
+- [ ] Add a `schema-changed` Broadcast Channel coordinator
+- [ ] Add a `store-updated` Broadcast Channel coordinator
 
 ## Putting it all together
 - [ ] Figure out how to play well with SSR
-- [ ] Connect query layer with batch loader
-- [ ] Connect batch loader with storage
-- [ ] Coordinate the startup sequence (check database, set up store, bootstrap)
+- [ ] Connect query layer with the coverage tracker
+- [x] Connect the coverage tracker with the batch loader
+- [ ] Connect batch loader with the store
+- [ ] Coordinate the startup sequence (check for database, create if needed)
 - [ ] Connect mutations rebasing to store
 
 ## Integrations
