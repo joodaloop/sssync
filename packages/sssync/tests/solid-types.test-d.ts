@@ -35,7 +35,7 @@ const schema = createSchema({
 
 const mutators = defineMutators(schema, () => ({}))
 
-const sync = new SSSync({ schema, mutators, batchURL: '/batch', bootstrapURL: '/bootstrap' })
+const sync = new SSSync({ schema, mutators, batchURL: '/batch', bootstrapURL: '/bootstrap', storage: null })
 
 // `.all` and `.one` are fully typed straight off the instance.
 const allIssuesQuery = sync.all('issues')
@@ -48,7 +48,7 @@ allIssues
 
 // --- createSSSContext returns a typed provider/hook set ---------------------
 
-const main = createSSSContext({ schema, mutators, batchURL: '/batch', bootstrapURL: '/bootstrap' })
+const main = createSSSContext({ schema, mutators, batchURL: '/batch', bootstrapURL: '/bootstrap', storage: null })
 const typed = main.useSSS()
 
 const issueWithCommentsQuery = typed().one('issues', {
@@ -128,6 +128,7 @@ const admin = createSSSContext({
   mutators: adminMutators,
   batchURL: '/batch',
   bootstrapURL: '/bootstrap',
+  storage: null,
 })
 
 const [usersValue] = admin.useAll('users')

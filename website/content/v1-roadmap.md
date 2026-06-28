@@ -15,14 +15,18 @@ description: Todo list & progress tracking
 
 ## Query DSL
 - [x] [Finalise design for query builder](https://github.com/joodaloop/sssync/commit/3e255be4fd00f77772a3ee91b83d3dd02c0c10e7)
-- [ ] Build system for relationship indexes
+- [ ] Build system for subscriptions
+- [ ] Make sure upates to queries are batched before revealing to the UI
 
 ## Network requests
 - [x] [Build bootstrap lifecycle manager](https://github.com/joodaloop/sssync/commit/fb47175bf0f13d76d9d0c43247ca3a65e3d3f694)
 - [x] [Design batch loader that dedupes query satisfactions and validates responses](https://github.com/joodaloop/sssync/commit/a96a3bfef518a3c44f3be8f6470fa5ba5dfa4fbc)
 
 ## Store
-- [ ] Design APIs to write to the store
+- [ ] Design APIs to write to the store from:
+  - [ ] Mutations
+  - [ ] Syncers
+  - [x] Batch/bootstrap
 - [ ] Build an IndexedDB database management system
 
 ## Cross-tab coordination
@@ -31,7 +35,8 @@ description: Todo list & progress tracking
 - [ ] Add a `store-updated` Broadcast Channel coordinator
 
 ## Putting it all together
-- [ ] Figure out how to play well with SSR
+- [ ] Figure out how to play well with SSR:
+  1. Make IDB storage purely pluggable
 - [ ] Connect query layer with the coverage tracker
 - [x] [Connect the coverage tracker with the batch loader](https://github.com/joodaloop/sssync/commit/54d199d3d9bc435ca532ada96fa653bedccee3fe)
 - [ ] Connect batch loader with the store

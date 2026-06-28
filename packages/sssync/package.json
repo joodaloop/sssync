@@ -1,11 +1,13 @@
 {
   "name": "@sssync/sssync",
   "type": "module",
+  "sideEffects": false,
   "scripts": {
     "test": "bun test tests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "idb": "^8.0.3",
     "solid-js": "2.0.0-beta.0",
     "valibot": "^1.4.0"
   },

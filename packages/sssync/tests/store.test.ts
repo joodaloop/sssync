@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import { Store } from '../src/store'
+import type { Insert } from '../src/store'
 import { column, createSchema, table } from '../src/schema'
 import type { Mutation } from '../src/mutators'
 
@@ -17,7 +18,7 @@ const schema = createSchema({ tables: [issues] })
 
 type S = typeof schema
 
-const row = (id: string, title: string): Mutation<S> => ({
+const row = (id: string, title: string): Insert<S> => ({
   type: 'INSERT',
   table: 'issues',
   data: { id, title, priority: 1, done: false },
@@ -75,6 +76,48 @@ describe('Store', () => {
     ], false)
 
     expect(store.tables.issues.has('["1"]')).toBe(false)
+  })
+})
+
+describe('Store.addIfNotExist', () => {
+  test('adds rows that are currently absent', () => {
+    const store = new Store(schema)
+    store.addIfNotExist([row('1', 'First'), row('2', 'Second')])
+
+    expect(store.tables.issues.size).toBe(2)
+    expect(store.tables.issues.get('["1"]')).toEqual({
+      id: '1',
+      title: 'First',
+      priority: 1,
+      done: false,
+    })
+  })
+
+  test('does not clobber an existing row at the same key', () => {
+    const store = new Store(schema)
+    store.store([row('1', 'First')], true)
+    store.addIfNotExist([row('1', 'Replacement')])
+
+    expect(store.tables.issues.size).toBe(1)
+    expect(store.tables.issues.get('["1"]')?.title).toBe('First')
+  })
+
+  test('fills in only the missing rows of a mixed batch', () => {
+    const store = new Store(schema)
+    store.store([row('1', 'First')], true)
+    store.addIfNotExist([row('1', 'Replacement'), row('2', 'Second')])
+
+    expect(store.tables.issues.get('["1"]')?.title).toBe('First')
+    expect(store.tables.issues.get('["2"]')?.title).toBe('Second')
+  })
+
+  test('throws on an unknown table', () => {
+    const store = new Store(schema)
+    expect(() =>
+      store.addIfNotExist([
+        { type: 'INSERT', table: 'nope', data: {} } as never,
+      ]),
+    ).toThrow('Unknown table "nope"')
   })
 })
 

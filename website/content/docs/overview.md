@@ -11,12 +11,38 @@ It is opinionated when being so helps enforce robustness, and very flexible othe
 The core SSSync class looks like:
 ```ts
 const sss = new SSSync({
-  id: string, 
+  /**
+     * A unique identifier for the user.
+     *
+     * Omit this, or set to `null`, for logged-out clients.
+     *
+     * Each userID gets its own client-side storage so that the app can switch
+     * between users without losing state.
+     */
+  id: string | null, 
   schema: Tables,
-  events: Events,
-  projectors: Projectors,
-  store, // solid-store, solid-ivm, react, react-legend, etc.
-  puller?: Puller,
+  mutators: Mutators,
+  storage: null | IDBStorage,
+  /**
+     * Distinguishes the storage used by this Zero instance from that of other
+     * instances with the same userID. Useful in the case where the app wants to
+     * have multiple Zero instances for the same user for different parts of the
+     * app.
+     */
+  storageKey?: 
+  mutationURL: "/mutate"
+  /**
+    * Custom headers to include in mutation requests sent to your API server.
+    */
+  mutateHeaders?: Record<string, string> | undefined;
+  batchURL: "/batch",
+  /**
+     * Custom headers to include in query requests sent to your API server.
+  */  
+  batchHeaders?: Record<string, string> | undefined;
+
+  bootstrapURL: "/bootstrap",
+  handleErrors: (Error) => void
 })
 
 const {data, err} = sss.commit('eventName', eventArgs)

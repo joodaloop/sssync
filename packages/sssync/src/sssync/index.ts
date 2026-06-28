@@ -13,6 +13,7 @@ import type { AnyMutatorDefinition, Mutators } from '../mutators'
 import { Store } from '../store'
 import { CoverageTracker } from '../coverage'
 import { Bootstrap, type BootstrapStatus } from '../bootstrap'
+import type { IDBStorage } from '../idb/types'
 
 /** Arguments for a single-row query: the row id plus relations to include. */
 export type OneArgs<
@@ -32,6 +33,7 @@ export type SSSyncOptions<
   readonly mutators: Mutators<S, Definitions>
   readonly batchURL: string
   readonly bootstrapURL: string
+  readonly storage: null | IDBStorage
 }
 
 /**
@@ -57,12 +59,14 @@ export class SSSync<
   readonly #rows: Store<S>
   readonly #coverage: CoverageTracker
   readonly #bootstrap: Bootstrap
+  readonly #storage: null | IDBStorage
   // Per-model bootstrap status, backing the Bootstrap's checkStatus/changeStatus.
   readonly #bootstrapStatus = new Map<string, BootstrapStatus>()
 
   constructor(options: SSSyncOptions<S, Definitions>) {
     this.schema = options.schema
     this.mutators = options.mutators
+    this.#storage = options.storage
     this.#store = store(options.schema)
     this.#rows = new Store(options.schema)
     this.#coverage = new CoverageTracker(options.schema, options.batchURL)

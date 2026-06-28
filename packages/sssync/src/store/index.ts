@@ -3,8 +3,19 @@ import type {
   ClientDatabaseSchema,
   TableSchema,
 } from '../schema/table-schema'
-import type { Mutation } from '../mutators/types'
+import type { InsertMutation, Mutation } from '../mutators/types'
 import { primaryKeyFor } from '../shared'
+
+/**
+ * An INSERT mutation for any table in the schema. Distributes over every table
+ * name so that once `table` is fixed, `data` is constrained to that table's row.
+ */
+export type Insert<S extends ClientDatabaseSchema> =
+  TableName<S> extends infer Name
+    ? Name extends TableName<S>
+      ? InsertMutation<Name, Tables<S>[Name]>
+      : never
+    : never
 
 /**
  * The Map key for a row, encoded from the schema's primary-key values.
@@ -61,6 +72,27 @@ export class Store<S extends ClientDatabaseSchema> {
           table.delete(this.keyFor(mutation.table, mutation.id))
           break
         }
+      }
+    }
+  }
+
+  // Applies a batch of INSERTs, but only fills in rows that are currently
+  // absent: an insert is skipped when a non-null row already exists at its key.
+  // Used to seed the store without clobbering existing (e.g. locally mutated)
+  // rows.
+  addIfNotExist(inserts: readonly Insert<S>[]) {
+    for (const insert of inserts) {
+      const table = this.tables[insert.table as TableName<S>] as Map<
+        unknown,
+        RowOf<TableSchema>
+      >
+      if (!table) {
+        throw new Error(`Unknown table "${insert.table}"`)
+      }
+
+      const key = this.keyFor(insert.table, insert.data)
+      if (table.get(key) == null) {
+        table.set(key, insert.data)
       }
     }
   }
