@@ -200,6 +200,21 @@ describe('schema validation', () => {
     ).toThrow('Table "missingPrimaryKey" is missing a primary key')
   })
 
+  test('throws when a primary key column is json', () => {
+    expect(() =>
+      createSchema({
+        tables: [
+          table('widgets')
+            .columns({
+              id: column.json(),
+              name: column.string(),
+            })
+            .primaryKey('id'),
+        ],
+      }),
+    ).toThrow('Primary key column "widgets"."id" cannot be json')
+  })
+
   test('throws when a table is defined more than once', () => {
     expect(() =>
       createSchema({

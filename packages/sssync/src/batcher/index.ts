@@ -2,11 +2,11 @@ import * as v from 'valibot'
 
 import { rowSchemaFor } from '../schema/row-schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
-import { cacheKeyForItem, type ResolvedItem } from '../shared'
+import { cacheKeyForItem, rowKeyForItem, type ResolvedItem } from '../shared'
 
 export type MergedRequest = {
   readonly modelName: string
-  readonly id: string
+  readonly id: unknown
   readonly relations: readonly string[]
 }
 
@@ -21,11 +21,11 @@ export type ResolvedBatch = {
 export function mergeRequests(items: readonly ResolvedItem[]): MergedRequest[] {
   const merged = new Map<
     string,
-    { modelName: string; id: string; relations: string[] }
+    { modelName: string; id: unknown; relations: string[] }
   >()
 
   for (const item of items) {
-    const key = `${item.modelName}***${item.id}`
+    const key = rowKeyForItem(item)
     let entry = merged.get(key)
     if (!entry) {
       entry = { modelName: item.modelName, id: item.id, relations: [] }

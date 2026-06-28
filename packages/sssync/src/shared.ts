@@ -1,3 +1,5 @@
+import type { TableSchema } from './schema/table-schema'
+
 export function mapValues<T extends Record<string, unknown>, U>(
   input: T,
   mapper: (value: T[keyof T]) => U,
@@ -36,14 +38,84 @@ export function hasOwn(obj: object, key: PropertyKey): boolean {
 
 export type ResolvedItem = {
   readonly modelName: string
-  readonly id: string
+  readonly id: unknown
   readonly relation?: string
+  readonly key: string
+}
+
+export function tupleKey(parts: readonly unknown[]): string {
+  return JSON.stringify(parts)
+}
+
+export function primaryKeyValues(
+  table: TableSchema,
+  idOrRow: unknown,
+): readonly unknown[] {
+  if (table.primaryKey.length === 1) {
+    const key = table.primaryKey[0]
+    if (idOrRow !== null && typeof idOrRow === 'object' && key in idOrRow) {
+      return [(idOrRow as Record<string, unknown>)[key]]
+    }
+    return [idOrRow]
+  }
+
+  if (idOrRow === null || typeof idOrRow !== 'object' || Array.isArray(idOrRow)) {
+    throw new Error(
+      `Composite primary key for table "${table.name}" requires an object`,
+    )
+  }
+
+  const record = idOrRow as Record<string, unknown>
+  for (const key of table.primaryKey) {
+    if (!(key in record)) {
+      throw new Error(
+        `Composite primary key for table "${table.name}" is missing "${key}"`,
+      )
+    }
+  }
+  return table.primaryKey.map(key => record[key])
+}
+
+export function primaryKeyFor(table: TableSchema, idOrRow: unknown): string {
+  return tupleKey(primaryKeyValues(table, idOrRow))
+}
+
+export function resolvedItemFor(
+  table: TableSchema,
+  item: {
+    readonly modelName: string
+    readonly id: unknown
+    readonly relation?: string
+  },
+): ResolvedItem {
+  return {
+    ...item,
+    key: primaryKeyFor(table, item.id),
+  }
 }
 
 export function cacheKeyForItem(item: ResolvedItem) {
-  return item.relation
-    ? `${item.modelName}***${item.id}***${item.relation}`
-    : `${item.modelName}***${item.id}`
+  return tupleKey([item.modelName, item.key, item.relation ?? null])
+}
+
+export function rowKeyForItem(item: ResolvedItem) {
+  return tupleKey([item.modelName, item.key])
+}
+
+export function coveredKeysForItem(item: ResolvedItem): readonly string[] {
+  const ownKey = cacheKeyForItem(item)
+  if (!item.relation) {
+    return [ownKey]
+  }
+
+  return [
+    cacheKeyForItem({
+      modelName: item.modelName,
+      id: item.id,
+      key: item.key,
+    }),
+    ownKey,
+  ]
 }
 
 /** The values that can be represented in JSON */

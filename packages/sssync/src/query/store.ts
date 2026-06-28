@@ -1,8 +1,6 @@
-import type {
-  ClientDatabaseSchema,
-  TableSchema,
-} from '../schema/table-schema'
+import type { ClientDatabaseSchema } from '../schema/table-schema'
 import type { Query, QueryPlan, QueryStore } from './types'
+import { primaryKeyFor } from '../shared'
 
 export function store<const S extends ClientDatabaseSchema>(
   schema: S,
@@ -28,7 +26,10 @@ export function store<const S extends ClientDatabaseSchema>(
       }
 
       const include = options.include ?? []
-      const baseKey = `${table}:${serializeId(schema.tables[table], options.id)}`
+      const baseKey = `${table}:${primaryKeyFor(
+        schema.tables[table],
+        options.id,
+      )}`
 
       return createQuery({
         key: keyWithIncludes(baseKey, include),
@@ -61,19 +62,4 @@ function keyWithIncludes(baseKey: string, include: readonly string[]) {
   }
 
   return `${baseKey}?include=${[...include].sort().join(',')}`
-}
-
-function serializeId(table: TableSchema, id: unknown): string {
-  if (table.primaryKey.length === 1) {
-    return serializeKeyPart(id)
-  }
-
-  const idObject = id as Record<string, unknown>
-  return table.primaryKey
-    .map(field => `${field}=${serializeKeyPart(idObject[field])}`)
-    .join(',')
-}
-
-function serializeKeyPart(value: unknown): string {
-  return typeof value === 'string' ? value : JSON.stringify(value)
 }

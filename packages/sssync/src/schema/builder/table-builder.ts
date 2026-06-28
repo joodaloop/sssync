@@ -115,6 +115,14 @@ export class TableBuilderWithColumns<TShape extends TableSchema> {
     if (this.#schema.primaryKey.length === 0) {
       throw new Error(`Table "${this.#schema.name}" is missing a primary key`)
     }
+    for (const columnName of this.#schema.primaryKey) {
+      const column = this.#schema.columns[columnName]
+      if (column.type === 'json') {
+        throw new Error(
+          `Primary key column "${this.#schema.name}"."${columnName}" cannot be json`,
+        )
+      }
+    }
     return this.#schema
   }
 }

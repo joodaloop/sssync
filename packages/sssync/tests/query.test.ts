@@ -80,8 +80,8 @@ describe('query store', () => {
     const db = store(schema)
 
     expect(db.one('issues', { id: 'issue-1' })).toEqual({
-      key: 'issues:issue-1',
-      accessKeys: ['issues:issue-1'],
+      key: 'issues:["issue-1"]',
+      accessKeys: ['issues:["issue-1"]'],
       plan: {
         kind: 'one',
         table: 'issues',
@@ -100,11 +100,11 @@ describe('query store', () => {
         include: ['comments', 'owner'],
       }),
     ).toEqual({
-      key: 'issues:issue-1?include=comments,owner',
+      key: 'issues:["issue-1"]?include=comments,owner',
       accessKeys: [
-        'issues:issue-1',
-        'issues:issue-1:comments',
-        'issues:issue-1:owner',
+        'issues:["issue-1"]',
+        'issues:["issue-1"]:comments',
+        'issues:["issue-1"]:owner',
       ],
       plan: {
         kind: 'one',
@@ -123,8 +123,8 @@ describe('query store', () => {
     })
 
     expect(query).toEqual({
-      key: 'issues:issue-1?include=assignedUsers',
-      accessKeys: ['issues:issue-1', 'issues:issue-1:assignedUsers'],
+      key: 'issues:["issue-1"]?include=assignedUsers',
+      accessKeys: ['issues:["issue-1"]', 'issues:["issue-1"]:assignedUsers'],
       plan: {
         kind: 'one',
         table: 'issues',
@@ -142,6 +142,24 @@ describe('query store', () => {
       db.one('memberships', {
         id: { issueId: 'issue-1', userId: 'user-1' },
       }).key,
-    ).toBe('memberships:issueId=issue-1,userId=user-1')
+    ).toBe('memberships:["issue-1","user-1"]')
+  })
+
+  test('throws when a composite id is not an object', () => {
+    const db = store(schema)
+
+    expect(() =>
+      db.one('memberships', { id: 'issue-1' } as never),
+    ).toThrow('Composite primary key for table "memberships" requires an object')
+  })
+
+  test('throws when a composite id is missing a primary key column', () => {
+    const db = store(schema)
+
+    expect(() =>
+      db.one('memberships', { id: { issueId: 'issue-1' } } as never),
+    ).toThrow(
+      'Composite primary key for table "memberships" is missing "userId"',
+    )
   })
 })

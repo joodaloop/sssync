@@ -1,6 +1,10 @@
 import { Batcher, type ResolvedBatch } from '../batcher'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
-import { cacheKeyForItem, type ResolvedItem } from '../shared'
+import {
+  cacheKeyForItem,
+  coveredKeysForItem,
+  type ResolvedItem,
+} from '../shared'
 
 export type Coverage = 'success' | 'error'
 
@@ -38,7 +42,12 @@ export class CoverageTracker {
     const promise = new Promise<Coverage>(res => {
       resolve = res
     })
-    this.pending.set(key, { promise, resolve })
+    const pending = { promise, resolve }
+    for (const coveredKey of coveredKeysForItem(item)) {
+      if (!this.pending.has(coveredKey)) {
+        this.pending.set(coveredKey, pending)
+      }
+    }
     this.batcher.request(item)
     return promise
   }
@@ -48,12 +57,13 @@ export class CoverageTracker {
   private resolveItems = (batch: ResolvedBatch) => {
     const result: Coverage = batch.success ? 'success' : 'error'
     for (const item of batch.items) {
-      const key = cacheKeyForItem(item)
-      this.coverage.set(key, result)
-      const pending = this.pending.get(key)
-      if (pending) {
-        this.pending.delete(key)
-        pending.resolve(result)
+      for (const key of coveredKeysForItem(item)) {
+        this.coverage.set(key, result)
+        const pending = this.pending.get(key)
+        if (pending) {
+          this.pending.delete(key)
+          pending.resolve(result)
+        }
       }
     }
   }
