@@ -39,7 +39,7 @@ type SondaResource = {
 type SondaReport = { resources: SondaResource[] }
 
 const pkgs = readdirSync(PACKAGES_DIR, { withFileTypes: true })
-  .filter(d => d.isDirectory() && d.name !== 'vendored')
+  .filter(d => d.isDirectory())
   .map(d => join(PACKAGES_DIR, d.name))
 
 const summary: Array<{ pkg: string; raw: number; gz: number; top: Array<[string, number, number]> }> = []

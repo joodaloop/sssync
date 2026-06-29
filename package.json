@@ -1,14 +1,15 @@
 {
   "name": "sssync-beta",
   "private": true,
-  "workspaces": [
-    "packages/*",
-    "packages/vendored/*"
-  ],
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
   "scripts": {
-    "size": "bun run scripts/bundle-size.ts"
+    "size": "node --experimental-strip-types scripts/bundle-size.ts",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
+    "esbuild": "^0.28.1",
     "sonda": "^0.11.1",
     "vite": "^8.0.13"
   }

@@ -1,9 +1,7 @@
 import * as v from 'valibot'
 import { defineMutators } from '../src/mutators'
 import { column, createSchema, table } from '../src/schema'
-import { Stats } from '../src/stats'
-import { Observable, type BatchStats } from '../src/shared'
-import type { BootstrapsSnapshot } from '../src/bootstrap'
+import { SSSync } from '../src/sssync'
 
 const issues = table('issues')
   .columns({
@@ -34,10 +32,14 @@ const mutators = defineMutators(schema, defineMutator => ({
   ),
 }))
 
-const bootstrapRegistry = new Observable<BootstrapsSnapshot<typeof schema>>({})
-const batches = new Observable<BatchStats>({ pending: [], inflight: [] })
-
-const stats = new Stats({ bootstraps: bootstrapRegistry, batches, mutators })
+const sync = new SSSync({
+  schema,
+  mutators,
+  batchURL: '/batch',
+  bootstrapURL: '/bootstrap',
+  storage: null,
+})
+const stats = sync.stats
 
 const bootstraps = stats.bootstraps.get()
 
@@ -84,3 +86,16 @@ const badQueueItem = {
   args: { id: 'issue-1', title: 'hello' },
 } satisfies (typeof queue)[number]
 badQueueItem
+
+sync.report({
+  source: 'bootstrap',
+  key: 'issues',
+  message: 'failed',
+  retryable: true,
+})
+
+const error = sync.errors.get()[0]
+if (error) {
+  const timestamp: number = error.timestamp
+  timestamp
+}
