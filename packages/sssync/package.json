@@ -7,6 +7,7 @@
     "./schema/*": "./src/schema/*.ts"
   },
   "scripts": {
+    "check:exports": "publint --pack false",
     "test": "bun test tests",
     "typecheck": "tsc --noEmit"
   },

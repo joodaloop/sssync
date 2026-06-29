@@ -6,6 +6,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "check:exports": "publint --pack false",
     "test": "tsc --noEmit",
     "typecheck": "tsc --noEmit"
   },

@@ -4,12 +4,23 @@
   "type": "module",
   "packageManager": "pnpm@11.7.0",
   "scripts": {
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm check:exports",
+    "check:exports": "pnpm -r --if-present check:exports",
+    "check:unused": "knip --no-exit-code",
+    "format": "oxfmt . --write",
+    "format:check": "oxfmt . --check",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
     "size": "node --experimental-strip-types scripts/bundle-size.ts",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
     "esbuild": "^0.28.1",
+    "knip": "^6.23.0",
+    "oxfmt": "^0.56.0",
+    "oxlint": "^1.71.0",
+    "publint": "^0.3.21",
     "sonda": "^0.11.1",
     "vite": "^8.0.13"
   }

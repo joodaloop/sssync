@@ -55,3 +55,16 @@ description: Todo list & progress tracking
 ## ~~Projectors~~
 - [ ] ~~Figure out a nice projector API that is easy to use across backend and frontend~~
 - [ ] ~~Build type-safe projectors that connect **events** and **schema** in a SSSync client~~
+
+## Future
+
+- Go through https://github.com/rocicorp/replicache/releases and implement all useful features.
+- Eviction
+- Partial migrations
+- Give materializers access to the database
+- Figure out a syncgroups abstraction (with shared data)
+- Add IVM for `where` queries (`store.issues.where(q => q.eq("status", "open"))`) to the query language, with `sorted-btree` for indexing.
+  - gte
+  - lte
+  - eq
+  - in
