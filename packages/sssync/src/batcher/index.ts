@@ -9,6 +9,8 @@ export type ResolvedBatch = {
   readonly success: boolean
 }
 
+export type BatchResponse = Readonly<Record<string, readonly Record<string, unknown>[]>>
+
 // Collapses requests for the same model + id into a single payload entry,
 // gathering all of their relations into one array. A bare-row request and its
 // related-relation requests for the same id go out as one request.
@@ -42,6 +44,7 @@ export class Batcher {
     private readonly schema: ClientDatabaseSchema,
     private readonly batchURL: string,
     private readonly batches: Observable<BatchStats>,
+    private readonly addIfNotExist: (response: BatchResponse) => void,
     private readonly resolve: (batch: ResolvedBatch) => void,
   ) {
     this.rowValidators = Object.fromEntries(
@@ -49,29 +52,29 @@ export class Batcher {
     )
   }
 
-  // Validates the server payload of `{ modelName: rows }` against each table's
-  // write schema. Returns false on an unknown model or any invalid row.
-  private validatePayload(payload: unknown): boolean {
-    if (payload === null || typeof payload !== 'object') {
+  // Validates the server payload of `{ tableName: rows }` against each table's
+  // write schema. Returns false on an unknown table or any invalid row.
+  private validatePayload(payload: unknown): payload is BatchResponse {
+    if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
       console.warn('Batch response was not an object of rows')
       return false
     }
 
-    for (const [modelName, rows] of Object.entries(payload)) {
-      const validator = this.rowValidators[modelName]
+    for (const [tableName, rows] of Object.entries(payload)) {
+      const validator = this.rowValidators[tableName]
       if (!validator) {
-        console.warn(`Batch response referenced unknown model "${modelName}"`)
+        console.warn(`Batch response referenced unknown table "${tableName}"`)
         return false
       }
       if (!Array.isArray(rows)) {
-        console.warn(`Rows for model "${modelName}" were not an array`)
+        console.warn(`Rows for table "${tableName}" were not an array`)
         return false
       }
       for (const row of rows) {
         const result = safeValidate(validator, row)
         if (!result.success) {
           const message = result.issues.map(issue => issue.message).join('; ')
-          console.warn(`Invalid "${modelName}" row: ${message}`)
+          console.warn(`Invalid "${tableName}" row: ${message}`)
           return false
         }
       }
@@ -107,7 +110,11 @@ export class Batcher {
         throw new Error(`Batch fetch failed: ${res.status} ${res.statusText}`)
       }
       // Only report success if every incoming row passes its write schema.
-      const valid = this.validatePayload(await res.json())
+      const payload = await res.json()
+      const valid = this.validatePayload(payload)
+      // Seed the validated rows into the store before resolving, so waiters see
+      // the data the moment their request settles. Invalid payloads are skipped.
+      if (valid) this.addIfNotExist(payload)
       // The resolver expands a relation item into its bare row, so resolving the
       // fetched items also resolves any bare rows we subsumed into them.
       this.resolve({ items, success: valid })

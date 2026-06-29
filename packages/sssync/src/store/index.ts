@@ -1,14 +1,9 @@
-import type { InsertMutation, Mutation } from '../mutators/types'
+import type { Mutation } from '../mutators/types'
 import type { RowOf, TableName, Tables } from '../schema/infer'
 import type { ClientDatabaseSchema, TableSchema } from '../schema/table-schema'
 import { primaryKeyFor } from '../shared'
 
-/**
- * An INSERT mutation for any table in the schema. Distributes over every table
- * name so that once `table` is fixed, `data` is constrained to that table's row.
- */
-export type Insert<S extends ClientDatabaseSchema> =
-  TableName<S> extends infer Name ? (Name extends TableName<S> ? InsertMutation<Name, Tables<S>[Name]> : never) : never
+export type RowsByTable = Readonly<Record<string, readonly Record<string, unknown>[]>>
 
 /**
  * The Map key for a row, encoded from the schema's primary-key values.
@@ -69,20 +64,21 @@ export class Store<S extends ClientDatabaseSchema> {
     }
   }
 
-  // Applies a batch of INSERTs, but only fills in rows that are currently
-  // absent: an insert is skipped when a non-null row already exists at its key.
-  // Used to seed the store without clobbering existing (e.g. locally mutated)
-  // rows.
-  addIfNotExist(inserts: readonly Insert<S>[]) {
-    for (const insert of inserts) {
-      const table = this.tables[insert.table as TableName<S>] as Map<string, RowOf<TableSchema>>
+  // Adds rows from a table-keyed response, but only fills in rows that are
+  // currently absent. Used to seed the store without clobbering existing
+  // (e.g. locally mutated) rows.
+  addIfNotExist(rowsByTable: RowsByTable) {
+    for (const [tableName, rows] of Object.entries(rowsByTable)) {
+      const table = this.tables[tableName as TableName<S>] as Map<string, RowOf<TableSchema>>
       if (!table) {
-        throw new Error(`Unknown table "${insert.table}"`)
+        throw new Error(`Unknown table "${tableName}"`)
       }
 
-      const key = this.keyFor(insert.table, insert.data)
-      if (table.get(key) === undefined || this.deleted.has(key)) {
-        table.set(key, insert.data)
+      for (const row of rows) {
+        const key = this.keyFor(tableName, row)
+        if (table.get(key) === undefined || this.deleted.has(key)) {
+          table.set(key, row)
+        }
       }
     }
   }

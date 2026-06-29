@@ -16,8 +16,9 @@ import type {
 import type { IdInputOf, RowOf, TableName, Tables } from '../schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import { Observable } from '../shared'
-import type { BatchStats, ReadonlyObservable, WorkError } from '../shared'
+import type { BatchStats, ReadonlyObservable } from '../shared'
 import { Store } from '../store'
+import type { SyncError } from '../errors'
 
 /** Arguments for a single-row query: the row id plus relations to include. */
 export type OneArgs<
@@ -66,7 +67,7 @@ export class SSSync<
     readonly batches: ReadonlyObservable<BatchStats>
     readonly mutationQueue: ReadonlyObservable<readonly MutationEnvelope<Mutators<S, Definitions>>[]>
     readonly queries: ReadonlyObservable<Readonly<Record<string, QueryDetails>>>
-    readonly errors: ReadonlyObservable<readonly WorkError[]>
+    readonly errors: ReadonlyObservable<readonly SyncError[]>
   }
   readonly #store: QueryStore<S>
   readonly #rows: Store<S>
@@ -78,7 +79,7 @@ export class SSSync<
   readonly #batches: Observable<BatchStats>
   readonly #mutationQueue: Observable<readonly MutationEnvelope<Mutators<S, Definitions>>[]>
   readonly #queries: Observable<Readonly<Record<string, QueryDetails>>>
-  readonly #errors: Observable<readonly WorkError[]>
+  readonly #errors: Observable<readonly SyncError[]>
   readonly #maxErrors: number
 
   constructor(options: SSSyncOptions<S, Definitions>) {
@@ -92,7 +93,7 @@ export class SSSync<
     this.#bootstraps = new Observable<BootstrapsSnapshot<S>>({})
     this.#mutationQueue = new Observable<readonly MutationEnvelope<Mutators<S, Definitions>>[]>([])
     this.#queries = new Observable<Readonly<Record<string, QueryDetails>>>({})
-    this.#errors = new Observable<readonly WorkError[]>([])
+    this.#errors = new Observable<readonly SyncError[]>([])
     this.#maxErrors = 100
     this.stats = {
       isPersistent: this.#isPersistent,
@@ -102,7 +103,9 @@ export class SSSync<
       queries: this.#queries,
       errors: this.#errors,
     }
-    this.#coverage = new CoverageTracker(options.schema, options.batchURL, this.#batches)
+    this.#coverage = new CoverageTracker(options.schema, options.batchURL, this.#batches, response =>
+      this.#rows.addIfNotExist(response),
+    )
     this.#bootstrap = new Bootstrap(options.schema, options.bootstrapURL, this.#bootstraps)
   }
 
@@ -126,12 +129,12 @@ export class SSSync<
     return this.#queries
   }
 
-  get errors(): ReadonlyObservable<readonly WorkError[]> {
+  get errors(): ReadonlyObservable<readonly SyncError[]> {
     return this.#errors
   }
 
-  report(error: Omit<WorkError, 'timestamp'>): void {
-    this.#errors.set([{ ...error, timestamp: Date.now() }, ...this.#errors.get()].slice(0, this.#maxErrors))
+  report(error: SyncError): void {
+    this.#errors.set([error, ...this.#errors.get()].slice(0, this.#maxErrors))
   }
 
   all<Name extends TableName<S>>(table: Name): Query<readonly RowOf<Tables<S>[Name]>[], AllQueryPlan<Name>> {

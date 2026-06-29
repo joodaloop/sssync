@@ -1,6 +1,6 @@
 # Bundle sizes
 
-Generated: 2026-06-29T21:02:22.563Z
+Generated: 2026-06-29T21:02:59.344Z
 Bundler: Vite (Rolldown) + Sonda. Deps bundled in, minified, ESM.
 
 ## Summary

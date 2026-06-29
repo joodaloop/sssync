@@ -1,5 +1,5 @@
 import { Batcher } from '../batcher'
-import type { ResolvedBatch } from '../batcher'
+import type { BatchResponse, ResolvedBatch } from '../batcher'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import { cacheKeyForItem, coveredKeysForItem } from '../shared'
 import type { BatchStats, Observable, ResolvedItem } from '../shared'
@@ -19,8 +19,13 @@ export class CoverageTracker {
   private readonly pending = new Map<string, Pending>()
   private readonly batcher: Batcher
 
-  constructor(schema: ClientDatabaseSchema, batchURL: string, batches: Observable<BatchStats>) {
-    this.batcher = new Batcher(schema, batchURL, batches, this.resolveItems)
+  constructor(
+    schema: ClientDatabaseSchema,
+    batchURL: string,
+    batches: Observable<BatchStats>,
+    addIfNotExist: (response: BatchResponse) => void = () => {},
+  ) {
+    this.batcher = new Batcher(schema, batchURL, batches, addIfNotExist, this.resolveItems)
   }
 
   // Requests coverage for `item`:
