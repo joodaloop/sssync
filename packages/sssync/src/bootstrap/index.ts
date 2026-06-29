@@ -1,9 +1,8 @@
-import * as v from 'valibot'
-
 import { rowSchemaFor } from '../schema/row-schema'
 import type { TableName } from '../schema/infer'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import type { Observable } from '../shared'
+import { safeValidate } from '../json-validator'
 
 export type BootstrapStatus = 'pending' | 'success' | 'error'
 
@@ -126,7 +125,7 @@ function validateData(
   }
 
   for (const row of data) {
-    const result = v.safeParse(validator, row)
+    const result = safeValidate(validator, row)
     if (!result.success) {
       const message = result.issues.map(issue => issue.message).join('; ')
       throw new Error(`Invalid row: ${message}`)

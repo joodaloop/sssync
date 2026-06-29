@@ -1,15 +1,15 @@
-import * as v from 'valibot'
+import { safeValidate, type Validator } from '../json-validator'
 
-export type ChannelHandler<S extends v.GenericSchema> = (
-  message: v.InferOutput<S>,
+export type ChannelHandler<S extends Validator<unknown>> = (
+  message: S extends Validator<infer Output> ? Output : never,
 ) => void
 
-export interface ChannelListener<S extends v.GenericSchema> {
+export interface ChannelListener<S extends Validator<unknown>> {
   handle(handler: ChannelHandler<S>): () => void
   close(): void
 }
 
-export function listenChannel<S extends v.GenericSchema>(
+export function listenChannel<S extends Validator<unknown>>(
   sssyncId: string,
   name: string,
   schema: S,
@@ -19,13 +19,13 @@ export function listenChannel<S extends v.GenericSchema>(
   return {
     handle(handler) {
       const listener = (event: MessageEvent<unknown>) => {
-        const parsed = v.safeParse(schema, event.data)
+        const parsed = safeValidate(schema, event.data)
         if (!parsed.success) {
           console.warn(`Invalid ${name} channel message:`, parsed.issues)
           return
         }
 
-        handler(parsed.output)
+        handler(parsed.output as S extends Validator<infer Output> ? Output : never)
       }
 
       channel.addEventListener('message', listener)

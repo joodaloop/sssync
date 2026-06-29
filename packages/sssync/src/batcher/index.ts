@@ -1,5 +1,3 @@
-import * as v from 'valibot'
-
 import { rowSchemaFor } from '../schema/row-schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import {
@@ -10,6 +8,7 @@ import {
   type ResolvedItem,
 } from '../shared'
 import type { Observable } from '../shared'
+import { safeValidate } from '../json-validator'
 
 export type { MergedRequest } from '../shared'
 
@@ -83,7 +82,7 @@ export class Batcher {
         return false
       }
       for (const row of rows) {
-        const result = v.safeParse(validator, row)
+        const result = safeValidate(validator, row)
         if (!result.success) {
           const message = result.issues.map(issue => issue.message).join('; ')
           console.warn(`Invalid "${modelName}" row: ${message}`)

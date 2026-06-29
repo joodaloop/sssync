@@ -1,29 +1,28 @@
-import * as v from 'valibot'
-
 import type { SchemaValue, ValueType } from './schema-value'
 import type { TableSchema } from './table-schema'
+import * as j from '../json-validator'
 
-type RowValidator = v.GenericSchema<Record<string, unknown>>
+type RowValidator = j.Validator<Record<string, unknown>>
 
 function baseSchemaFor(type: ValueType) {
   switch (type) {
     case 'string':
-      return v.string()
+      return j.string()
     case 'number':
-      return v.number()
+      return j.number()
     case 'boolean':
-      return v.boolean()
+      return j.boolean()
     case 'null':
-      return v.null()
+      return j.nullValue()
     case 'json':
-      return v.unknown()
+      return j.unknown()
   }
 }
 
 function columnSchema(column: SchemaValue) {
   const base = baseSchemaFor(column.type)
   // `optional` columns are nullable (see SchemaValueToTSType).
-  return column.optional ? v.nullable(base) : base
+  return column.optional ? j.nullable(base) : base
 }
 
 /**
@@ -34,5 +33,5 @@ export function rowSchemaFor(table: TableSchema): RowValidator {
   const entries = Object.entries(table.columns).map(
     ([name, column]) => [name, columnSchema(column)] as const,
   )
-  return v.object(Object.fromEntries(entries))
+  return j.object(Object.fromEntries(entries))
 }

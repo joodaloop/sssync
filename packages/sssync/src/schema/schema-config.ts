@@ -1,6 +1,6 @@
-import * as v from 'valibot'
+import * as j from '../json-validator'
 
-const valueTypeSchema = v.picklist([
+const valueTypeSchema = j.picklist([
   'string',
   'number',
   'boolean',
@@ -8,38 +8,35 @@ const valueTypeSchema = v.picklist([
   'json',
 ] as const)
 
-const fieldListSchema = v.pipe(
-  v.array(v.pipe(v.string(), v.minLength(1))),
-  v.minLength(1),
-)
+const fieldListSchema = j.minLength(j.array(j.minLength(j.string(), 1)), 1)
 
-export const schemaValueSchema = v.object({
+export const schemaValueSchema = j.object({
   type: valueTypeSchema,
-  optional: v.optional(v.boolean()),
-  customType: v.optional(v.unknown()),
+  optional: j.optional(j.boolean()),
+  customType: j.optional(j.unknown()),
 })
 
-export const tableSchemaSchema = v.object({
-  name: v.string(),
-  columns: v.record(v.string(), schemaValueSchema),
+export const tableSchemaSchema = j.object({
+  name: j.string(),
+  columns: j.record(j.string(), schemaValueSchema),
   primaryKey: fieldListSchema,
 })
 
-const relationshipPart = v.object({
+const relationshipPart = j.object({
   sourceField: fieldListSchema,
   destField: fieldListSchema,
-  destSchema: v.string(),
-  cardinality: v.picklist(['one', 'many'] as const),
+  destSchema: j.string(),
+  cardinality: j.picklist(['one', 'many'] as const),
 })
 
-export const relationshipSchema = v.union([
-  v.tuple([relationshipPart]),
-  v.tuple([relationshipPart, relationshipPart]),
+export const relationshipSchema = j.union([
+  j.tuple([relationshipPart]),
+  j.tuple([relationshipPart, relationshipPart]),
 ])
 
-export const schemaSchema = v.object({
-  tables: v.record(v.string(), tableSchemaSchema),
-  relationships: v.optional(
-    v.record(v.string(), v.record(v.string(), relationshipSchema)),
+export const schemaSchema = j.object({
+  tables: j.record(j.string(), tableSchemaSchema),
+  relationships: j.optional(
+    j.record(j.string(), j.record(j.string(), relationshipSchema)),
   ),
 })
