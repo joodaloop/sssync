@@ -16,6 +16,8 @@ function baseSchemaFor(type: ValueType) {
       return j.nullValue()
     case 'json':
       return j.unknown()
+    default:
+      throw new Error(`Unknown column type: ${String(type)}`)
   }
 }
 

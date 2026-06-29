@@ -51,7 +51,7 @@ export function safeValidate<Output>(
 export function string(): Validator<string> {
   return validator((value, path) => {
     if (typeof value !== 'string') {
-      throw issue(path, `Expected string but received ${describe(value)}`)
+      throw issueError(path, `Expected string but received ${describe(value)}`)
     }
     return value
   })
@@ -60,7 +60,7 @@ export function string(): Validator<string> {
 export function number(): Validator<number> {
   return validator((value, path) => {
     if (typeof value !== 'number') {
-      throw issue(path, `Expected number but received ${describe(value)}`)
+      throw issueError(path, `Expected number but received ${describe(value)}`)
     }
     return value
   })
@@ -69,7 +69,7 @@ export function number(): Validator<number> {
 export function boolean(): Validator<boolean> {
   return validator((value, path) => {
     if (typeof value !== 'boolean') {
-      throw issue(path, `Expected boolean but received ${describe(value)}`)
+      throw issueError(path, `Expected boolean but received ${describe(value)}`)
     }
     return value
   })
@@ -78,7 +78,7 @@ export function boolean(): Validator<boolean> {
 export function nullValue(): Validator<null> {
   return validator((value, path) => {
     if (value !== null) {
-      throw issue(path, `Expected null but received ${describe(value)}`)
+      throw issueError(path, `Expected null but received ${describe(value)}`)
     }
     return value
   })
@@ -91,7 +91,7 @@ export function unknown(): Validator<unknown> {
 export function literal<const Value extends string | number | boolean | null>(expected: Value): Validator<Value> {
   return validator((value, path) => {
     if (value !== expected) {
-      throw issue(path, `Expected ${JSON.stringify(expected)} but received ${describe(value)}`)
+      throw issueError(path, `Expected ${JSON.stringify(expected)} but received ${describe(value)}`)
     }
     return value as Value
   })
@@ -102,7 +102,7 @@ export function picklist<const Values extends readonly [unknown, ...unknown[]]>(
 ): Validator<Values[number]> {
   return validator((value, path) => {
     if (!values.includes(value)) {
-      throw issue(path, `Expected one of ${values.map(String).join(', ')} but received ${describe(value)}`)
+      throw issueError(path, `Expected one of ${values.map(String).join(', ')} but received ${describe(value)}`)
     }
     return value as Values[number]
   })
@@ -119,7 +119,7 @@ export function nullable<Output>(schema: Validator<Output>): Validator<Output | 
 export function array<Output>(item: Validator<Output>): Validator<readonly Output[]> {
   return validator((value, path) => {
     if (!Array.isArray(value)) {
-      throw issue(path, `Expected array but received ${describe(value)}`)
+      throw issueError(path, `Expected array but received ${describe(value)}`)
     }
     return value.map((entry, index) => run(item, entry, [...path, index]))
   })
@@ -132,7 +132,7 @@ export function minLength<Output extends { readonly length: number }>(
   return validator((value, path) => {
     const output = run(schema, value, path)
     if (output.length < length) {
-      throw issue(path, `Expected length to be at least ${length}`)
+      throw issueError(path, `Expected length to be at least ${length}`)
     }
     return output
   })
@@ -145,7 +145,7 @@ export function object<const Shape extends Record<string, Validator<unknown>>>(
 }> {
   return validator((value, path) => {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-      throw issue(path, `Expected object but received ${describe(value)}`)
+      throw issueError(path, `Expected object but received ${describe(value)}`)
     }
 
     const input = value as Record<string, unknown>
@@ -166,7 +166,7 @@ export function record<Output>(
 ): Validator<Readonly<Record<string, Output>>> {
   return validator((input, path) => {
     if (input === null || typeof input !== 'object' || Array.isArray(input)) {
-      throw issue(path, `Expected object record but received ${describe(input)}`)
+      throw issueError(path, `Expected object record but received ${describe(input)}`)
     }
     const output: Record<string, Output> = {}
     for (const [entryKey, entryValue] of Object.entries(input)) {
@@ -184,7 +184,7 @@ export function tuple<const Items extends readonly Validator<unknown>[]>(
 }> {
   return validator((value, path) => {
     if (!Array.isArray(value) || value.length !== items.length) {
-      throw issue(path, `Expected tuple of length ${items.length}`)
+      throw issueError(path, `Expected tuple of length ${items.length}`)
     }
     return items.map((item, index) => run(item, value[index], [...path, index])) as any
   })
@@ -207,7 +207,7 @@ export function union<const Options extends readonly Validator<unknown>[]>(
   })
 }
 
-function run<Output>(schema: Validator<Output>, value: unknown, path: readonly PropertyKey[]): Output {
+function run<Output>(schema: Validator<Output>, value: unknown, _path: readonly PropertyKey[]): Output {
   const result = schema['~standard'].validate(value)
   if (result instanceof Promise) {
     throw new Error('Async schemas are not supported')
@@ -224,7 +224,7 @@ class ValidationError extends Error {
   }
 }
 
-function issue(path: readonly PropertyKey[], message: string): ValidationError {
+function issueError(path: readonly PropertyKey[], message: string): ValidationError {
   return new ValidationError({ message, path: pathFor(path) })
 }
 

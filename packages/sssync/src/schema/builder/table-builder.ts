@@ -1,5 +1,5 @@
 import { mapEntries } from '../../shared'
-import type { JSONValue, SchemaValue, ValueType } from '../schema-value'
+import type { JSONValue, SchemaValue } from '../schema-value'
 import type { PrimaryKey, TableSchema } from '../table-schema'
 
 type ColumnMap = Record<string, ColumnBuilder<SchemaValue>>
@@ -111,8 +111,8 @@ export class TableBuilderWithColumns<TShape extends TableSchema> {
       throw new Error(`Table "${this.#schema.name}" is missing a primary key`)
     }
     for (const columnName of this.#schema.primaryKey) {
-      const column = this.#schema.columns[columnName]
-      if (column.type === 'json') {
+      const col = this.#schema.columns[columnName]
+      if (col.type === 'json') {
         throw new Error(`Primary key column "${this.#schema.name}"."${columnName}" cannot be json`)
       }
     }

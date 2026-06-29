@@ -35,6 +35,20 @@ type UseOneResult<
   Relations extends readonly RelationName<S, Name>[],
 > = UseQueryResult<Query<RowWithIncludes<S, Name, Relations> | undefined, OneQueryPlan<Name, Relations>>>
 
+function useResolvedQuery<Q extends Query<any>>(build: () => Q): UseQueryResult<Q> {
+  const result = createMemo(() => {
+    const query = build()
+
+    return {
+      query,
+      value: undefined as QueryValue<Q>,
+      details: { status: 'ready' } as QueryDetails,
+    }
+  })
+
+  return [() => result().value, () => result().details] as const
+}
+
 /**
  * Creates an isolated Solid context for one SSSync configuration.
  *
@@ -79,20 +93,6 @@ export function createSSSContext<
     }
 
     return sync
-  }
-
-  function useResolvedQuery<Q extends Query<any>>(build: () => Q): UseQueryResult<Q> {
-    const result = createMemo(() => {
-      const query = build()
-
-      return {
-        query,
-        value: undefined as QueryValue<Q>,
-        details: { status: 'ready' } as QueryDetails,
-      }
-    })
-
-    return [() => result().value, () => result().details] as const
   }
 
   function useAll<Name extends TableName<S>>(table: Name): UseAllResult<S, Name> {

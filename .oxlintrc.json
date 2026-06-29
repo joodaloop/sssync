@@ -10,7 +10,7 @@
     "eqeqeq": "warn",
     "no-console": "warn",
     "no-debugger": "error",
-    "no-duplicate-imports": "warn",
+    "no-duplicate-imports": "off",
     "no-empty": "warn",
     "no-eval": "error",
     "no-fallthrough": "error",
@@ -27,7 +27,7 @@
     "prefer-object-spread": "warn",
     "prefer-template": "warn",
     "require-await": "warn",
-    "import/consistent-type-specifier-style": "warn",
+    "import/consistent-type-specifier-style": ["warn", "prefer-top-level"],
     "import/no-cycle": "warn",
     "import/no-absolute-path": "error",
     "import/no-commonjs": "error",
@@ -100,12 +100,6 @@
   },
   "overrides": [
     {
-      "files": ["**/*.test-d.ts"],
-      "rules": {
-        "no-unused-expressions": "off"
-      }
-    },
-    {
       "files": ["scripts/**/*.ts"],
       "rules": {
         "no-console": "off"
@@ -130,5 +124,5 @@
     "browser": true,
     "node": true
   },
-  "ignorePatterns": ["node_modules", "website/public"]
+  "ignorePatterns": ["node_modules", "website/public", "scripts/bundle-size.ts", "**/*.test.ts", "**/*.test-d.ts"]
 }

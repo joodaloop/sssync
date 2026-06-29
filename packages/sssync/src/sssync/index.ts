@@ -2,11 +2,17 @@ import { Bootstrap } from '../bootstrap'
 import type { BootstrapsSnapshot } from '../bootstrap'
 import { CoverageTracker } from '../coverage'
 import type { IDBStorage } from '../idb/types'
-import type { AnyMutatorDefinition, Mutators } from '../mutators'
-import type { MutationEnvelope } from '../mutators'
+import type { AnyMutatorDefinition, MutationEnvelope, Mutators } from '../mutators'
 import { store } from '../query'
-import type { AllQueryPlan, OneQueryPlan, Query, QueryStore, RelationName, RowWithIncludes } from '../query'
-import type { QueryDetails } from '../query'
+import type {
+  AllQueryPlan,
+  OneQueryPlan,
+  Query,
+  QueryDetails,
+  QueryStore,
+  RelationName,
+  RowWithIncludes,
+} from '../query'
 import type { IdInputOf, RowOf, TableName, Tables } from '../schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import { Observable } from '../shared'

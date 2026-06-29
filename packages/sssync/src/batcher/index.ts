@@ -2,8 +2,7 @@ import { safeValidate } from '../json-validator'
 import { rowSchemaFor } from '../schema/row-schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import { cacheKeyForItem, rowKeyForItem } from '../shared'
-import type { BatchStats, MergedRequest, ResolvedItem } from '../shared'
-import type { Observable } from '../shared'
+import type { BatchStats, MergedRequest, Observable, ResolvedItem } from '../shared'
 
 export type ResolvedBatch = {
   readonly items: readonly ResolvedItem[]

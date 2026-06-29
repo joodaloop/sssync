@@ -75,7 +75,7 @@ export type MutatorDefinition<S extends ClientDatabaseSchema, Args extends Mutat
   effect: MutatorEffect<S, Args>
 }
 
-export type AnyMutatorDefinition<S extends ClientDatabaseSchema = ClientDatabaseSchema> = {
+export type AnyMutatorDefinition<_S extends ClientDatabaseSchema = ClientDatabaseSchema> = {
   args: MutatorArgsSchema
   effect: (context: any) => void | Promise<void>
 }

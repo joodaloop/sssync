@@ -13,7 +13,7 @@ export type Insert<S extends ClientDatabaseSchema> =
 /**
  * The Map key for a row, encoded from the schema's primary-key values.
  */
-export type RowKeyOf<T extends TableSchema> = string
+export type RowKeyOf<_T extends TableSchema> = string
 
 /** One in-memory table: rows keyed by their primary key. */
 export type TableStore<T extends TableSchema> = Map<RowKeyOf<T>, RowOf<T>>
@@ -37,9 +37,9 @@ export class Store<S extends ClientDatabaseSchema> {
 
   // Applies a batch of mutations in order. INSERT replaces the row at its key,
   // UPDATE merges changes into the existing row (no-op if absent), and DELETE
-  // removes it. `isFromMutator` marks whether this batch comes from a local
+  // removes it. `_isFromMutator` marks whether this batch comes from a local
   // mutator (an optimistic write) rather than the server.
-  store(mutations: readonly Mutation<S>[], isFromMutator: boolean) {
+  store(mutations: readonly Mutation<S>[], _isFromMutator: boolean) {
     for (const mutation of mutations) {
       const table = this.tables[mutation.table as TableName<S>] as Map<string, RowOf<TableSchema>>
       if (!table) {
@@ -81,7 +81,7 @@ export class Store<S extends ClientDatabaseSchema> {
       }
 
       const key = this.keyFor(insert.table, insert.data)
-      if (table.get(key) == null || this.deleted.has(key)) {
+      if (table.get(key) === undefined || this.deleted.has(key)) {
         table.set(key, insert.data)
       }
     }

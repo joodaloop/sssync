@@ -107,11 +107,11 @@ export function relationships<TSource extends TableSchema, TRelationships extend
   table: TableBuilderWithColumns<TSource>,
   cb: (connects: { many: ManyConnector<TSource>; one: OneConnector<TSource> }) => TRelationships,
 ): { name: TSource['name']; relationships: TRelationships } {
-  const relationships = cb({ many, one } as any)
+  const built = cb({ many, one } as any)
 
   return {
     name: table.schema.name,
-    relationships,
+    relationships: built,
   }
 }
 
