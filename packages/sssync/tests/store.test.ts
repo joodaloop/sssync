@@ -34,7 +34,7 @@ describe('Store', () => {
 
   test('stores INSERT rows keyed by primary key', () => {
     const store = new Store(schema)
-    store.store([row('1', 'First'), row('2', 'Second')], true)
+    store.applyMutation([row('1', 'First'), row('2', 'Second')])
 
     expect(store.tables.issues.size).toBe(2)
     expect(store.tables.issues.get('["1"]')).toEqual({
@@ -47,9 +47,8 @@ describe('Store', () => {
 
   test('UPDATE merges changes into an existing row', () => {
     const store = new Store(schema)
-    store.store(
+    store.applyMutation(
       [row('1', 'First'), { type: 'UPDATE', table: 'issues', id: { id: '1' }, changes: { done: true } }],
-      false,
     )
 
     expect(store.tables.issues.get('["1"]')).toEqual({
@@ -62,16 +61,155 @@ describe('Store', () => {
 
   test('UPDATE for a missing row is a no-op', () => {
     const store = new Store(schema)
-    store.store([{ type: 'UPDATE', table: 'issues', id: { id: '99' }, changes: { done: true } }], false)
+    store.applyMutation([{ type: 'UPDATE', table: 'issues', id: { id: '99' }, changes: { done: true } }])
 
     expect(store.tables.issues.has('["99"]')).toBe(false)
   })
 
   test('DELETE removes the row', () => {
     const store = new Store(schema)
-    store.store([row('1', 'First'), { type: 'DELETE', table: 'issues', id: { id: '1' } }], false)
+    store.applyMutation([row('1', 'First'), { type: 'DELETE', table: 'issues', id: { id: '1' } }])
 
     expect(store.tables.issues.has('["1"]')).toBe(false)
+  })
+
+  test('reads a row from a table by id', () => {
+    const store = new Store(schema)
+    store.applyMutation([row('1', 'First')])
+
+    expect(store.getRowFromTable('issues', '1')).toEqual({
+      id: '1',
+      title: 'First',
+      priority: 1,
+      done: false,
+    })
+  })
+
+  test('publishes collapsed row changes from mutation batches', () => {
+    const store = new Store(schema)
+    const received: unknown[] = []
+    store.subscribeToRowChanges(changes => received.push(changes))
+
+    store.applyMutation(
+      [
+        row('1', 'First'),
+        {
+          type: 'UPDATE',
+          table: 'issues',
+          id: { id: '1' },
+          changes: { done: true },
+        },
+      ],
+    )
+
+    expect(received).toEqual([
+      [
+        {
+          type: 'insert',
+          table: 'issues',
+          key: '["1"]',
+          row: { id: '1', title: 'First', priority: 1, done: true },
+        },
+      ],
+    ])
+  })
+
+  test('does not publish when a mutation batch has no final visible change', () => {
+    const store = new Store(schema)
+    const received: unknown[] = []
+    store.subscribeToRowChanges(changes => received.push(changes))
+
+    store.applyMutation(
+      [
+        row('1', 'First'),
+        {
+          type: 'UPDATE',
+          table: 'issues',
+          id: { id: '1' },
+          changes: { done: true },
+        },
+        {
+          type: 'DELETE',
+          table: 'issues',
+          id: { id: '1' },
+        },
+      ],
+    )
+
+    expect(received).toEqual([])
+  })
+
+  test('publishes only changed fields for an existing row update', () => {
+    const store = new Store(schema)
+    store.applyMutation([row('1', 'First')])
+    const received: unknown[] = []
+    store.subscribeToRowChanges(changes => received.push(changes))
+
+    store.applyMutation(
+      [
+        {
+          type: 'UPDATE',
+          table: 'issues',
+          id: { id: '1' },
+          changes: { done: true, title: 'Renamed' },
+        },
+      ],
+    )
+
+    expect(received).toEqual([
+      [
+        {
+          type: 'update',
+          table: 'issues',
+          key: '["1"]',
+          changes: { title: 'Renamed', done: true },
+        },
+      ],
+    ])
+  })
+
+  test('publishes a single remove when an existing row is updated then deleted', () => {
+    const store = new Store(schema)
+    store.applyMutation([row('1', 'First')])
+    const received: unknown[] = []
+    store.subscribeToRowChanges(changes => received.push(changes))
+
+    store.applyMutation(
+      [
+        {
+          type: 'UPDATE',
+          table: 'issues',
+          id: { id: '1' },
+          changes: { done: true },
+        },
+        {
+          type: 'DELETE',
+          table: 'issues',
+          id: { id: '1' },
+        },
+      ],
+    )
+
+    expect(received).toEqual([
+      [
+        {
+          type: 'remove',
+          table: 'issues',
+          key: '["1"]',
+        },
+      ],
+    ])
+  })
+
+  test('does not publish no-op updates', () => {
+    const store = new Store(schema)
+    store.applyMutation([row('1', 'First')])
+    const received: unknown[] = []
+    store.subscribeToRowChanges(changes => received.push(changes))
+
+    store.applyMutation([{ type: 'UPDATE', table: 'issues', id: { id: '1' }, changes: { done: false } }])
+
+    expect(received).toEqual([])
   })
 })
 
@@ -91,7 +229,7 @@ describe('Store.addIfNotExist', () => {
 
   test('does not clobber an existing row at the same key', () => {
     const store = new Store(schema)
-    store.store([row('1', 'First')], true)
+    store.applyMutation([row('1', 'First')])
     store.addIfNotExist({ issues: [rowData('1', 'Replacement')] })
 
     expect(store.tables.issues.size).toBe(1)
@@ -100,11 +238,36 @@ describe('Store.addIfNotExist', () => {
 
   test('fills in only the missing rows of a mixed batch', () => {
     const store = new Store(schema)
-    store.store([row('1', 'First')], true)
+    store.applyMutation([row('1', 'First')])
     store.addIfNotExist({ issues: [rowData('1', 'Replacement'), rowData('2', 'Second')] })
 
     expect(store.tables.issues.get('["1"]')?.title).toBe('First')
     expect(store.tables.issues.get('["2"]')?.title).toBe('Second')
+  })
+
+  test('publishes row changes for newly added rows', () => {
+    const store = new Store(schema)
+    const received: unknown[] = []
+    store.subscribeToRowChanges(changes => received.push(changes))
+
+    store.addIfNotExist({ issues: [rowData('1', 'First'), rowData('2', 'Second')] })
+
+    expect(received).toEqual([
+      [
+        {
+          type: 'insert',
+          table: 'issues',
+          key: '["1"]',
+          row: { id: '1', title: 'First', priority: 1, done: false },
+        },
+        {
+          type: 'insert',
+          table: 'issues',
+          key: '["2"]',
+          row: { id: '2', title: 'Second', priority: 1, done: false },
+        },
+      ],
+    ])
   })
 
   test('throws on an unknown table', () => {
@@ -133,7 +296,7 @@ describe('Store with composite keys', () => {
       table: 'labels',
       data: { issueId: '1', name: 'bug', color: 'red' },
     }
-    store.store([insert], false)
+    store.applyMutation([insert])
 
     expect(store.tables.labels.size).toBe(1)
     expect(store.tables.labels.get('["1","bug"]')).toEqual({
@@ -145,7 +308,7 @@ describe('Store with composite keys', () => {
 
   test('UPDATE and DELETE target the same composite key', () => {
     const store = new Store(compositeSchema)
-    store.store(
+    store.applyMutation(
       [
         {
           type: 'INSERT',
@@ -159,12 +322,11 @@ describe('Store with composite keys', () => {
           changes: { color: 'green' },
         },
       ],
-      false,
     )
 
     expect(store.tables.labels.get('["1","bug"]')?.color).toBe('green')
 
-    store.store(
+    store.applyMutation(
       [
         {
           type: 'DELETE',
@@ -172,7 +334,6 @@ describe('Store with composite keys', () => {
           id: { issueId: '1', name: 'bug' },
         },
       ],
-      false,
     )
 
     expect(store.tables.labels.has('["1","bug"]')).toBe(false)

@@ -39,6 +39,7 @@ description: Todo list & progress tracking
 - [ ] Figure out how to play well with SSR:
   1. Make IDB storage purely pluggable
 - [ ] Connect query layer with the coverage tracker
+- [x] [Connect bootstrap layer to store](https://github.com/joodaloop/sssync/commit/208bb9e729cbeec807de16a06ce0782234bf3fa5)
 - [x] [Connect the coverage tracker with the batch loader](https://github.com/joodaloop/sssync/commit/54d199d3d9bc435ca532ada96fa653bedccee3fe)
 - [x] [Connect batch loader with the store](https://github.com/joodaloop/sssync/commit/14e178c136b6ddbfe431a6a00076394d405f57d4)
 - [ ] Coordinate the startup sequence (check for database, create if needed)

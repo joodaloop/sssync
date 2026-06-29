@@ -1,5 +1,6 @@
 import type { IdInputOf, RowOf, TableName, Tables } from '../schema/infer'
 import type { Cardinality, ClientDatabaseSchema } from '../schema/table-schema'
+import type { GetRowFromTable, SubscribeToRowChanges } from '../store'
 
 declare const queryValue: unique symbol
 
@@ -103,6 +104,13 @@ export type OneQueryFn<S extends ClientDatabaseSchema> = <
 ) => Query<RowWithIncludes<S, Name, Include> | undefined, OneQueryPlan<Name, Include>>
 
 export type QueryStore<S extends ClientDatabaseSchema> = {
+  readonly getRowFromTable: GetRowFromTable<S>
+  readonly subscribeToRowChanges: SubscribeToRowChanges
   all: AllQueryFn<S>
   one: OneQueryFn<S>
+}
+
+export type QueryStoreSource<S extends ClientDatabaseSchema> = {
+  readonly getRowFromTable: GetRowFromTable<S>
+  readonly subscribeToRowChanges: SubscribeToRowChanges
 }

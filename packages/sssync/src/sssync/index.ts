@@ -87,8 +87,11 @@ export class SSSync<
     this.mutators = options.mutators
     this.#storage = options.storage
     this.#isPersistent = new Observable(options.storage !== null)
-    this.#store = store(options.schema)
     this.#rows = new Store(options.schema)
+    this.#store = store(options.schema, {
+      getRowFromTable: this.#rows.getRowFromTable,
+      subscribeToRowChanges: this.#rows.subscribeToRowChanges,
+    })
     this.#batches = new Observable<BatchStats>({ pending: [], inflight: [] })
     this.#bootstraps = new Observable<BootstrapsSnapshot<S>>({})
     this.#mutationQueue = new Observable<readonly MutationEnvelope<Mutators<S, Definitions>>[]>([])

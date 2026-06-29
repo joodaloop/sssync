@@ -8,6 +8,7 @@ export type {
   QueryDetails,
   QueryPlan,
   QueryStore,
+  QueryStoreSource,
   QueryValue,
   RelationName,
   RowWithIncludes,

@@ -1,6 +1,6 @@
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import { primaryKeyFor } from '../shared'
-import type { Query, QueryPlan, QueryStore } from './types'
+import type { Query, QueryPlan, QueryStore, QueryStoreSource } from './types'
 
 /**
  * UI rendering libraries will often provide a utility for batching multiple
@@ -27,8 +27,20 @@ import type { Query, QueryPlan, QueryStore } from './types'
  * Implementations must always call `applyViewUpdates` synchronously.
  */
 
-export function store<const S extends ClientDatabaseSchema>(schema: S): QueryStore<S> {
+function emptySourceFor<S extends ClientDatabaseSchema>(): QueryStoreSource<S> {
   return {
+    getRowFromTable: () => undefined,
+    subscribeToRowChanges: () => () => {},
+  }
+}
+
+export function store<const S extends ClientDatabaseSchema>(
+  schema: S,
+  source: QueryStoreSource<S> = emptySourceFor<S>(),
+): QueryStore<S> {
+  return {
+    getRowFromTable: source.getRowFromTable,
+    subscribeToRowChanges: source.subscribeToRowChanges,
     all: (table: string) => {
       // Table names are statically typed at the call site, so a missing table
       // can't occur in practice. Kept as a reminder of the runtime boundary.
