@@ -1,6 +1,7 @@
 import * as v from 'valibot'
 
-import { defineMutators, type MutationEnvelope } from '../src/mutators'
+import { defineMutators } from '../src/mutators';
+import type { MutationEnvelope } from '../src/mutators';
 import { column, createSchema, table } from '../src/schema'
 
 const issues = table('issues')
@@ -70,10 +71,10 @@ const parsed = mutators.parse({
   args: { id: 'issue-1', title: 'hello' },
 })
 
-mutators.apply(parsed)
+void mutators.apply(parsed)
 
 // @ts-expect-error apply accepts a parsed envelope, not separate name and args
-mutators.apply('updateIssueTitle', { id: 'issue-1', title: 'hello' })
+void mutators.apply('updateIssueTitle', { id: 'issue-1', title: 'hello' })
 
 switch (parsed.name) {
   case 'updateIssueTitle': {

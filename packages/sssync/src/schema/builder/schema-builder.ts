@@ -1,7 +1,7 @@
 import { hasOwn, mapAllEntries } from '../../shared'
 import type { ClientDatabaseSchema, Relationship, RelationshipsSchema, TableSchema } from '../table-schema'
 import type { Relationships } from './relationship-builder'
-import { type TableBuilderWithColumns } from './table-builder'
+import type { TableBuilderWithColumns } from './table-builder'
 
 /**
  * Note: the keys of the `tables` and `relationships` parameters do not matter.
@@ -112,7 +112,7 @@ function normalizeForHash(value: unknown): unknown {
   return mapAllEntries(object, entries =>
     entries
       .filter(([key, val]) => key !== 'hash' && val !== undefined)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([key, val]) => [key, normalizeForHash(val)]),
   )
 }

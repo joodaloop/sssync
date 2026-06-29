@@ -50,7 +50,7 @@ export declare namespace StandardSchemaV1 {
     /** Validates unknown input values. */
     readonly validate: (
       value: unknown,
-      options?: StandardSchemaV1.Options | undefined,
+      options?: StandardSchemaV1.Options,
     ) => Result<Output> | Promise<Result<Output>>
   }
 

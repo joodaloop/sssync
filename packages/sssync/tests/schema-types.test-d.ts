@@ -1,4 +1,5 @@
-import { column, createSchema, relationships, table, type SchemaValueToTSType } from '../src/schema'
+import { column, createSchema, relationships, table } from '../src/schema';
+import type { SchemaValueToTSType } from '../src/schema';
 
 const issues = table('issues')
   .columns({

@@ -1,10 +1,9 @@
 import { safeValidate } from '../json-validator'
 import { rowSchemaFor } from '../schema/row-schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
-import { cacheKeyForItem, rowKeyForItem, type BatchStats, type MergedRequest, type ResolvedItem } from '../shared'
+import { cacheKeyForItem, rowKeyForItem } from '../shared';
+import type { BatchStats, MergedRequest, ResolvedItem } from '../shared';
 import type { Observable } from '../shared'
-
-export type { MergedRequest } from '../shared'
 
 export type ResolvedBatch = {
   readonly items: readonly ResolvedItem[]
@@ -88,7 +87,7 @@ export class Batcher {
     if (this.inflight.has(key)) return
     this.pending.set(key, item)
     this.publish()
-    this.timer ??= setTimeout(this.flush, this.wait)
+    this.timer ??= setTimeout(() => void this.flush(), this.wait)
   }
 
   flush = async () => {

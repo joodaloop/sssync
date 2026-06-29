@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 
 import { CoverageTracker } from '../src/coverage'
 import { column, createSchema, table } from '../src/schema'
-import { type BatchStats, cacheKeyForItem, Observable, resolvedItemFor, type ResolvedItem } from '../src/shared'
+import { cacheKeyForItem, Observable, resolvedItemFor } from '../src/shared';
+import type { BatchStats, ResolvedItem } from '../src/shared';
 
 const status = (tracker: CoverageTracker, item: ResolvedItem) => tracker.coverage.get(cacheKeyForItem(item))
 
@@ -67,8 +68,8 @@ describe('CoverageTracker', () => {
     const issue = item('1')
     expect(status(tracker, issue)).toBeUndefined()
 
-    tracker.request(issue)
-    tracker.request(item('1', 'comments'))
+    void tracker.request(issue)
+    void tracker.request(item('1', 'comments'))
     await tracker['batcher'].flush()
 
     expect(status(tracker, issue)).toBe('success')
@@ -80,7 +81,7 @@ describe('CoverageTracker', () => {
     const tracker = new CoverageTracker(schema, '/batch', batchStats())
 
     const issue = item('1')
-    tracker.request(issue)
+    void tracker.request(issue)
     await tracker['batcher'].flush()
 
     expect(status(tracker, issue)).toBe('error')
@@ -91,7 +92,7 @@ describe('CoverageTracker', () => {
     const tracker = new CoverageTracker(schema, '/batch', batchStats())
 
     const issue = item('1')
-    tracker.request(issue)
+    void tracker.request(issue)
     await tracker['batcher'].flush()
 
     expect(status(tracker, issue)).toBe('error')
@@ -113,7 +114,7 @@ describe('CoverageTracker', () => {
     const tracker = new CoverageTracker(schema, '/batch', batchStats())
     const issue = item('1')
 
-    tracker.request(issue)
+    void tracker.request(issue)
     await tracker['batcher'].flush()
 
     expect(tracker.request(issue)).toBe('success')
@@ -153,7 +154,7 @@ describe('CoverageTracker', () => {
     mockFetch(() => jsonResponse({ issues: [validRow] }))
     const tracker = new CoverageTracker(schema, '/batch', batchStats())
 
-    tracker.request(item('1'))
+    void tracker.request(item('1'))
     await tracker['batcher'].flush()
 
     // Same model+id but a different relation has not been covered.

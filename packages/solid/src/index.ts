@@ -10,8 +10,10 @@ import type {
 } from '@sssync/sssync/query'
 import type { RowOf, TableName, Tables } from '@sssync/sssync/schema'
 import type { ClientDatabaseSchema } from '@sssync/sssync/schema/table-schema'
-import { SSSync, type OneArgs, type SSSyncOptions } from '@sssync/sssync/sssync'
-import { createContext, createMemo, useContext, type Accessor, type JSX } from 'solid-js'
+import { SSSync } from '@sssync/sssync/sssync';
+import type { OneArgs, SSSyncOptions } from '@sssync/sssync/sssync';
+import { createContext, createMemo, useContext } from 'solid-js';
+import type { Accessor, JSX } from 'solid-js';
 
 export type SSSProviderProps<Sync extends SSSync<any, any>> = {
   readonly sync?: Sync | Accessor<Sync>

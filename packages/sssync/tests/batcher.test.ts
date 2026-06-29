@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
 
-import { Batcher, mergeRequests, type ResolvedBatch } from '../src/batcher'
+import { Batcher, mergeRequests } from '../src/batcher';
+import type { ResolvedBatch } from '../src/batcher';
 import { column, createSchema, table } from '../src/schema'
-import { Observable, resolvedItemFor, type BatchStats } from '../src/shared'
+import { Observable, resolvedItemFor } from '../src/shared';
+import type { BatchStats } from '../src/shared';
 
 const issues = table('issues')
   .columns({

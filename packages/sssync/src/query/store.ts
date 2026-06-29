@@ -75,5 +75,5 @@ function keyWithIncludes(baseKey: string, include: readonly string[]) {
     return baseKey
   }
 
-  return `${baseKey}?include=${[...include].sort().join(',')}`
+  return `${baseKey}?include=${[...include].toSorted().join(',')}`
 }

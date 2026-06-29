@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 
-import { Bootstrap, type BootstrapsSnapshot, type BootstrapStatus, type StatusChange } from '../src/bootstrap'
+import { Bootstrap } from '../src/bootstrap';
+import type { BootstrapsSnapshot, BootstrapStatus, StatusChange } from '../src/bootstrap';
 import { column, createSchema, table } from '../src/schema'
 import { Observable } from '../src/shared'
 

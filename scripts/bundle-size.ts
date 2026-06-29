@@ -98,7 +98,7 @@ for (const pkg of pkgs) {
 
   const top = report.resources
     .filter(r => r.kind === 'chunk')
-    .sort((a, b) => b.uncompressed - a.uncompressed)
+    .toSorted((a, b) => b.uncompressed - a.uncompressed)
     .slice(0, 15)
     .map(r => [r.name, r.uncompressed, r.gzip ?? 0] as [string, number, number])
 
