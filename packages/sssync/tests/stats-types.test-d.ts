@@ -36,6 +36,7 @@ const mutators = defineMutators(schema, defineMutator => ({
 const sync = new SSSync({
   schema,
   mutators,
+  schemaVersion: 1,
   batchURL: '/batch',
   bootstrapURL: '/bootstrap',
   storage: null,

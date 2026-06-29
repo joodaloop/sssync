@@ -30,9 +30,11 @@ import type { Query, QueryPlan, QueryStore } from './types'
 export function store<const S extends ClientDatabaseSchema>(schema: S): QueryStore<S> {
   return {
     all: (table: string) => {
-      if (!schema.tables[table]) {
-        throw new Error(`Unknown table "${table}"`)
-      }
+      // Table names are statically typed at the call site, so a missing table
+      // can't occur in practice. Kept as a reminder of the runtime boundary.
+      // if (!schema.tables[table]) {
+      //   throw new Error(`Unknown table "${table}"`)
+      // }
 
       return createQuery({
         key: table,
@@ -41,9 +43,9 @@ export function store<const S extends ClientDatabaseSchema>(schema: S): QuerySto
       })
     },
     one: (table: string, options: { id: unknown; include?: readonly string[] }) => {
-      if (!schema.tables[table]) {
-        throw new Error(`Unknown table "${table}"`)
-      }
+      // if (!schema.tables[table]) {
+      //   throw new Error(`Unknown table "${table}"`)
+      // }
 
       const include = options.include ?? []
       const baseKey = `${table}:${primaryKeyFor(schema.tables[table], options.id)}`

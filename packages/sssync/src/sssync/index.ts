@@ -18,7 +18,6 @@ import type { ClientDatabaseSchema } from '../schema/table-schema'
 import { Observable } from '../shared'
 import type { BatchStats, ReadonlyObservable, WorkError } from '../shared'
 import { Store } from '../store'
-import { Stats } from './stats'
 
 /** Arguments for a single-row query: the row id plus relations to include. */
 export type OneArgs<
@@ -61,7 +60,14 @@ export class SSSync<
 > {
   readonly schema: S
   readonly mutators: Mutators<S, Definitions>
-  readonly stats: Stats<S, Definitions>
+  readonly stats: {
+    readonly isPersistent: ReadonlyObservable<boolean>
+    readonly bootstraps: ReadonlyObservable<BootstrapsSnapshot<S>>
+    readonly batches: ReadonlyObservable<BatchStats>
+    readonly mutationQueue: ReadonlyObservable<readonly MutationEnvelope<Mutators<S, Definitions>>[]>
+    readonly queries: ReadonlyObservable<Readonly<Record<string, QueryDetails>>>
+    readonly errors: ReadonlyObservable<readonly WorkError[]>
+  }
   readonly #store: QueryStore<S>
   readonly #rows: Store<S>
   readonly #coverage: CoverageTracker
@@ -88,14 +94,14 @@ export class SSSync<
     this.#queries = new Observable<Readonly<Record<string, QueryDetails>>>({})
     this.#errors = new Observable<readonly WorkError[]>([])
     this.#maxErrors = 100
-    this.stats = new Stats({
+    this.stats = {
       isPersistent: this.#isPersistent,
       bootstraps: this.#bootstraps,
       batches: this.#batches,
       mutationQueue: this.#mutationQueue,
       queries: this.#queries,
       errors: this.#errors,
-    })
+    }
     this.#coverage = new CoverageTracker(options.schema, options.batchURL, this.#batches)
     this.#bootstrap = new Bootstrap(options.schema, options.bootstrapURL, this.#bootstraps)
   }

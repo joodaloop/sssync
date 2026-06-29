@@ -3,13 +3,12 @@
   "ignoreExportsUsedInFile": true,
   "workspaces": {
     "packages/sssync": {
-      "entry": ["src/*/index.ts", "src/schema/*.ts", "tests/**/*.test.ts", "tests/**/*.test-d.ts"],
-      "project": ["src/**/*.ts", "tests/**/*.ts"],
+      "entry": ["src/*/index.ts"],
+      "project": ["src/**/*.ts"],
       "ignoreExportsUsedInFile": true
     },
     "packages/solid": {
-      "entry": ["tests/**/*.test-d.ts"],
-      "project": ["src/**/*.ts", "tests/**/*.ts"],
+      "project": ["src/**/*.ts"],
       "ignoreExportsUsedInFile": true
     }
   }

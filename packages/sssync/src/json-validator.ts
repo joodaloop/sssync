@@ -88,15 +88,6 @@ export function unknown(): Validator<unknown> {
   return validator(value => value)
 }
 
-export function literal<const Value extends string | number | boolean | null>(expected: Value): Validator<Value> {
-  return validator((value, path) => {
-    if (value !== expected) {
-      throw issueError(path, `Expected ${JSON.stringify(expected)} but received ${describe(value)}`)
-    }
-    return value as Value
-  })
-}
-
 export function picklist<const Values extends readonly [unknown, ...unknown[]]>(
   values: Values,
 ): Validator<Values[number]> {
@@ -143,6 +134,7 @@ export function object<const Shape extends Record<string, Validator<unknown>>>(
 ): Validator<{
   readonly [K in keyof Shape]: Shape[K] extends Validator<infer Output> ? Output : never
 }> {
+  type Out = { readonly [K in keyof Shape]: Shape[K] extends Validator<infer Output> ? Output : never }
   return validator((value, path) => {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
       throw issueError(path, `Expected object but received ${describe(value)}`)
@@ -156,7 +148,7 @@ export function object<const Shape extends Record<string, Validator<unknown>>>(
         output[key] = validated
       }
     }
-    return output as any
+    return output as Out
   })
 }
 

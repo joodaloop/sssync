@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm check:exports",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm check:exports && pnpm check:unused",
     "check:exports": "pnpm -r --if-present check:exports",
-    "check:unused": "knip --no-exit-code",
+    "check:unused": "knip",
     "format": "oxfmt . --write",
     "format:check": "oxfmt . --check",
     "lint": "oxlint --type-aware .",
