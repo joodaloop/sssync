@@ -14,7 +14,8 @@ import { Store } from '../store'
 import { CoverageTracker } from '../coverage'
 import { Bootstrap, type BootstrapsSnapshot } from '../bootstrap'
 import type { IDBStorage } from '../idb/types'
-import { Observable } from '../shared'
+import { Observable, type BatchStats } from '../shared'
+import { Stats } from '../stats'
 
 /** Arguments for a single-row query: the row id plus relations to include. */
 export type OneArgs<
@@ -56,12 +57,14 @@ export class SSSync<
 > {
   readonly schema: S
   readonly mutators: Mutators<S, Definitions>
+  readonly stats: Stats<S, Definitions>
   readonly #store: QueryStore<S>
   readonly #rows: Store<S>
   readonly #coverage: CoverageTracker
   readonly #bootstrap: Bootstrap<S>
   readonly #storage: null | IDBStorage
   readonly #bootstraps: Observable<BootstrapsSnapshot<S>>
+  readonly #batches: Observable<BatchStats>
 
   constructor(options: SSSyncOptions<S, Definitions>) {
     this.schema = options.schema
@@ -69,8 +72,18 @@ export class SSSync<
     this.#storage = options.storage
     this.#store = store(options.schema)
     this.#rows = new Store(options.schema)
-    this.#coverage = new CoverageTracker(options.schema, options.batchURL)
+    this.#batches = new Observable<BatchStats>({ pending: [], inflight: [] })
     this.#bootstraps = new Observable<BootstrapsSnapshot<S>>({})
+    this.stats = new Stats({
+      bootstraps: this.#bootstraps,
+      batches: this.#batches,
+      mutators: options.mutators,
+    })
+    this.#coverage = new CoverageTracker(
+      options.schema,
+      options.batchURL,
+      this.#batches,
+    )
     this.#bootstrap = new Bootstrap(
       options.schema,
       options.bootstrapURL,

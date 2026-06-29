@@ -3,8 +3,10 @@ import type { ClientDatabaseSchema } from '../schema/table-schema'
 import {
   cacheKeyForItem,
   coveredKeysForItem,
+  type BatchStats,
   type ResolvedItem,
 } from '../shared'
+import type { Observable } from '../shared'
 
 export type Coverage = 'success' | 'error'
 
@@ -21,8 +23,12 @@ export class CoverageTracker {
   private readonly pending = new Map<string, Pending>()
   private readonly batcher: Batcher
 
-  constructor(schema: ClientDatabaseSchema, batchURL: string) {
-    this.batcher = new Batcher(schema, batchURL, this.resolveItems)
+  constructor(
+    schema: ClientDatabaseSchema,
+    batchURL: string,
+    batches: Observable<BatchStats>,
+  ) {
+    this.batcher = new Batcher(schema, batchURL, batches, this.resolveItems)
   }
 
   // Requests coverage for `item`:

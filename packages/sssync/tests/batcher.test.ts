@@ -10,7 +10,7 @@ import {
 
 import { Batcher, mergeRequests, type ResolvedBatch } from '../src/batcher'
 import { column, createSchema, table } from '../src/schema'
-import { cacheKeyForItem, resolvedItemFor } from '../src/shared'
+import { Observable, resolvedItemFor, type BatchStats } from '../src/shared'
 
 const issues = table('issues')
   .columns({
@@ -63,6 +63,9 @@ const validRow = {
   done: false,
   ownerId: null,
 }
+
+const batchStats = () =>
+  new Observable<BatchStats>({ pending: [], inflight: [] })
 
 describe('mergeRequests', () => {
   test('collapses same model + id into one entry with all relations', () => {
@@ -155,23 +158,43 @@ describe('Batcher', () => {
     warn.mockRestore()
   })
 
-  test('request dedupes pending and inflight keys', () => {
-    const batcher = new Batcher(schema, '/batch', () => {})
+  test('request dedupes pending and inflight keys', async () => {
+    let release: () => void = () => {}
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    mockFetch(async () => {
+      await gate
+      return jsonResponse({ issues: [validRow] })
+    })
+    const batches = batchStats()
+    const batcher = new Batcher(schema, '/batch', batches, () => {})
 
     batcher.request(item('1'))
     batcher.request(item('1'))
     batcher.request(item('1', 'comments'))
-    expect(batcher.pending.size).toBe(2)
+    expect(batches.get().pending).toEqual([
+      { modelName: 'issues', id: '1', relations: ['comments'] },
+    ])
 
-    // A key already inflight is not re-queued.
-    batcher.inflight.add(cacheKeyForItem(item('2')))
-    batcher.request(item('2'))
-    expect(batcher.pending.size).toBe(2)
+    const flushed = batcher.flush()
+    expect(batches.get()).toEqual({
+      pending: [],
+      inflight: [{ modelName: 'issues', id: '1', relations: ['comments'] }],
+    })
+
+    batcher.request(item('1'))
+    batcher.request(item('1', 'comments'))
+    expect(batches.get().pending).toEqual([])
+
+    release()
+    await flushed
   })
 
   test('flush posts merged requests to the batch URL', async () => {
     const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
-    const batcher = new Batcher(schema, '/batch', () => {})
+    const batches = batchStats()
+    const batcher = new Batcher(schema, '/batch', batches, () => {})
 
     batcher.request(item('1'))
     batcher.request(item('1', 'comments'))
@@ -184,13 +207,15 @@ describe('Batcher', () => {
     expect(JSON.parse(init.body as string)).toEqual([
       { modelName: 'issues', id: '1', relations: ['comments'] },
     ])
-    expect(batcher.pending.size).toBe(0)
+    expect(batches.get()).toEqual({ pending: [], inflight: [] })
   })
 
   test('resolves success: true when every row validates', async () => {
     mockFetch(() => jsonResponse({ issues: [validRow] }))
     const batches: ResolvedBatch[] = []
-    const batcher = new Batcher(schema, '/batch', b => batches.push(b))
+    const batcher = new Batcher(schema, '/batch', batchStats(), b =>
+      batches.push(b),
+    )
 
     batcher.request(item('1'))
     await batcher.flush()
@@ -206,7 +231,9 @@ describe('Batcher', () => {
       jsonResponse({ issues: [{ ...validRow, priority: 'high' }] }),
     )
     const batches: ResolvedBatch[] = []
-    const batcher = new Batcher(schema, '/batch', b => batches.push(b))
+    const batcher = new Batcher(schema, '/batch', batchStats(), b =>
+      batches.push(b),
+    )
 
     batcher.request(item('1'))
     await batcher.flush()
@@ -218,7 +245,9 @@ describe('Batcher', () => {
   test('resolves success: false for an unknown model', async () => {
     mockFetch(() => jsonResponse({ widgets: [validRow] }))
     const batches: ResolvedBatch[] = []
-    const batcher = new Batcher(schema, '/batch', b => batches.push(b))
+    const batcher = new Batcher(schema, '/batch', batchStats(), b =>
+      batches.push(b),
+    )
 
     batcher.request(item('1'))
     await batcher.flush()
@@ -229,7 +258,9 @@ describe('Batcher', () => {
   test('resolves success: false on a non-ok response', async () => {
     mockFetch(() => jsonResponse({}, { status: 500 }))
     const batches: ResolvedBatch[] = []
-    const batcher = new Batcher(schema, '/batch', b => batches.push(b))
+    const batcher = new Batcher(schema, '/batch', batchStats(), b =>
+      batches.push(b),
+    )
 
     batcher.request(item('1'))
     await batcher.flush()
@@ -238,34 +269,48 @@ describe('Batcher', () => {
   })
 
   test('flush clears only its own inflight keys', async () => {
-    let release: () => void = () => {}
-    const gate = new Promise<void>(resolve => {
-      release = resolve
-    })
+    const releases: (() => void)[] = []
     mockFetch(async () => {
+      let release!: () => void
+      const gate = new Promise<void>(resolve => {
+        release = resolve
+      })
+      releases.push(release)
       await gate
       return jsonResponse({ issues: [validRow] })
     })
-    const batcher = new Batcher(schema, '/batch', () => {})
+    const batches = batchStats()
+    const batcher = new Batcher(schema, '/batch', batches, () => {})
 
-    // A key owned by a concurrent batch that is still in flight.
-    batcher.inflight.add(cacheKeyForItem(item('other')))
+    batcher.request(item('other'))
+    const otherFlushed = batcher.flush()
+    expect(batches.get().inflight).toEqual([
+      { modelName: 'issues', id: 'other', relations: [] },
+    ])
 
     batcher.request(item('1'))
     const flushed = batcher.flush()
-    expect(batcher.inflight.has(cacheKeyForItem(item('1')))).toBe(true)
+    expect(batches.get().inflight).toEqual([
+      { modelName: 'issues', id: 'other', relations: [] },
+      { modelName: 'issues', id: '1', relations: [] },
+    ])
 
-    release()
+    releases[1]()
     await flushed
 
     // Our own key is cleared, the concurrent batch's key is left intact.
-    expect(batcher.inflight.has(cacheKeyForItem(item('1')))).toBe(false)
-    expect(batcher.inflight.has(cacheKeyForItem(item('other')))).toBe(true)
+    expect(batches.get().inflight).toEqual([
+      { modelName: 'issues', id: 'other', relations: [] },
+    ])
+
+    releases[0]()
+    await otherFlushed
+    expect(batches.get().inflight).toEqual([])
   })
 
   test('flush with nothing pending does not fetch', async () => {
     const fetchMock = mockFetch(() => jsonResponse({}))
-    const batcher = new Batcher(schema, '/batch', () => {})
+    const batcher = new Batcher(schema, '/batch', batchStats(), () => {})
 
     await batcher.flush()
     expect(fetchMock).not.toHaveBeenCalled()

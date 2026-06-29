@@ -82,6 +82,25 @@ export type ResolvedItem = {
   readonly key: string
 }
 
+export type MergedRequest = {
+  readonly modelName: string
+  readonly id: unknown
+  readonly relations: readonly string[]
+}
+
+export type BatchStats = {
+  readonly pending: readonly MergedRequest[]
+  readonly inflight: readonly MergedRequest[]
+}
+
+export type WorkError = {
+  readonly source: 'bootstrap' | 'batch' | 'coverage' | 'channel' | 'leader'
+  readonly key: string
+  readonly message: string
+  readonly timestamp: number
+  readonly retryable: boolean
+}
+
 export function tupleKey(parts: readonly unknown[]): string {
   return JSON.stringify(parts)
 }

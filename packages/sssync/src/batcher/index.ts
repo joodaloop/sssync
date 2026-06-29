@@ -2,13 +2,16 @@ import * as v from 'valibot'
 
 import { rowSchemaFor } from '../schema/row-schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
-import { cacheKeyForItem, rowKeyForItem, type ResolvedItem } from '../shared'
+import {
+  cacheKeyForItem,
+  rowKeyForItem,
+  type BatchStats,
+  type MergedRequest,
+  type ResolvedItem,
+} from '../shared'
+import type { Observable } from '../shared'
 
-export type MergedRequest = {
-  readonly modelName: string
-  readonly id: unknown
-  readonly relations: readonly string[]
-}
+export type { MergedRequest } from '../shared'
 
 export type ResolvedBatch = {
   readonly items: readonly ResolvedItem[]
@@ -41,8 +44,8 @@ export function mergeRequests(items: readonly ResolvedItem[]): MergedRequest[] {
 
 export class Batcher {
   readonly wait = 100
-  readonly inflight = new Set<string>()
-  readonly pending = new Map<string, ResolvedItem>()
+  private readonly inflight = new Map<string, ResolvedItem>()
+  private readonly pending = new Map<string, ResolvedItem>()
   // One row validator per table, derived from the schema's write columns.
   private readonly rowValidators: Record<string, ReturnType<typeof rowSchemaFor>>
   timer: ReturnType<typeof setTimeout> | undefined
@@ -50,6 +53,7 @@ export class Batcher {
   constructor(
     private readonly schema: ClientDatabaseSchema,
     private readonly batchURL: string,
+    private readonly batches: Observable<BatchStats>,
     private readonly resolve: (batch: ResolvedBatch) => void,
   ) {
     this.rowValidators = Object.fromEntries(
@@ -94,8 +98,9 @@ export class Batcher {
   request(item: ResolvedItem) {
     const key = cacheKeyForItem(item)
     if (this.pending.has(key)) return
-    if(this.inflight.has(key)) return
+    if (this.inflight.has(key)) return
     this.pending.set(key, item)
+    this.publish()
     this.timer ??= setTimeout(this.flush, this.wait)
   }
 
@@ -106,7 +111,8 @@ export class Batcher {
     this.pending.clear()
 
     const items = entries.map(([, item]) => item)
-    entries.forEach(([k]) => this.inflight.add(k))
+    entries.forEach(([k, item]) => this.inflight.set(k, item))
+    this.publish()
     try {
       const res = await fetch(this.batchURL, {
         method: 'POST',
@@ -126,6 +132,14 @@ export class Batcher {
     } finally {
       // Clear only this batch's keys; a concurrent flush may still own others.
       entries.forEach(([k]) => this.inflight.delete(k))
+      this.publish()
     }
+  }
+
+  private publish(): void {
+    this.batches.set({
+      pending: mergeRequests([...this.pending.values()]),
+      inflight: mergeRequests([...this.inflight.values()]),
+    })
   }
 }

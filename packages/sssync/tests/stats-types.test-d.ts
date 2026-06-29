@@ -2,7 +2,7 @@ import * as v from 'valibot'
 import { defineMutators } from '../src/mutators'
 import { column, createSchema, table } from '../src/schema'
 import { Stats } from '../src/stats'
-import { Observable } from '../src/shared'
+import { Observable, type BatchStats } from '../src/shared'
 import type { BootstrapsSnapshot } from '../src/bootstrap'
 
 const issues = table('issues')
@@ -35,8 +35,9 @@ const mutators = defineMutators(schema, defineMutator => ({
 }))
 
 const bootstrapRegistry = new Observable<BootstrapsSnapshot<typeof schema>>({})
+const batches = new Observable<BatchStats>({ pending: [], inflight: [] })
 
-const stats = new Stats({ bootstraps: bootstrapRegistry, mutators })
+const stats = new Stats({ bootstraps: bootstrapRegistry, batches, mutators })
 
 const bootstraps = stats.bootstraps.get()
 
@@ -50,6 +51,17 @@ issueStatus
 
 // @ts-expect-error bootstraps are keyed by schema table names
 bootstraps.users
+
+const pendingBatch = stats.batches.get().pending[0]
+
+if (pendingBatch) {
+  const modelName: string = pendingBatch.modelName
+  const id: unknown = pendingBatch.id
+  const relations: readonly string[] = pendingBatch.relations
+  modelName
+  id
+  relations
+}
 
 const queue = stats.mutationQueue.get()
 
