@@ -1,6 +1,6 @@
+import * as j from '../json-validator'
 import type { SchemaValue, ValueType } from './schema-value'
 import type { TableSchema } from './table-schema'
-import * as j from '../json-validator'
 
 type RowValidator = j.Validator<Record<string, unknown>>
 
@@ -30,8 +30,6 @@ function columnSchema(column: SchemaValue) {
  * Unknown keys are ignored, so server rows may carry extra fields.
  */
 export function rowSchemaFor(table: TableSchema): RowValidator {
-  const entries = Object.entries(table.columns).map(
-    ([name, column]) => [name, columnSchema(column)] as const,
-  )
+  const entries = Object.entries(table.columns).map(([name, column]) => [name, columnSchema(column)] as const)
   return j.object(Object.fromEntries(entries))
 }

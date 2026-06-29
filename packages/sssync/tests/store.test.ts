@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 
+import type { Mutation } from '../src/mutators'
+import { column, createSchema, table } from '../src/schema'
 import { Store } from '../src/store'
 import type { Insert } from '../src/store'
-import { column, createSchema, table } from '../src/schema'
-import type { Mutation } from '../src/mutators'
 
 const issues = table('issues')
   .columns({
@@ -46,10 +46,10 @@ describe('Store', () => {
 
   test('UPDATE merges changes into an existing row', () => {
     const store = new Store(schema)
-    store.store([
-      row('1', 'First'),
-      { type: 'UPDATE', table: 'issues', id: { id: '1' }, changes: { done: true } },
-    ], false)
+    store.store(
+      [row('1', 'First'), { type: 'UPDATE', table: 'issues', id: { id: '1' }, changes: { done: true } }],
+      false,
+    )
 
     expect(store.tables.issues.get('["1"]')).toEqual({
       id: '1',
@@ -61,19 +61,14 @@ describe('Store', () => {
 
   test('UPDATE for a missing row is a no-op', () => {
     const store = new Store(schema)
-    store.store([
-      { type: 'UPDATE', table: 'issues', id: { id: '99' }, changes: { done: true } },
-    ], false)
+    store.store([{ type: 'UPDATE', table: 'issues', id: { id: '99' }, changes: { done: true } }], false)
 
     expect(store.tables.issues.has('["99"]')).toBe(false)
   })
 
   test('DELETE removes the row', () => {
     const store = new Store(schema)
-    store.store([
-      row('1', 'First'),
-      { type: 'DELETE', table: 'issues', id: { id: '1' } },
-    ], false)
+    store.store([row('1', 'First'), { type: 'DELETE', table: 'issues', id: { id: '1' } }], false)
 
     expect(store.tables.issues.has('["1"]')).toBe(false)
   })
@@ -113,11 +108,9 @@ describe('Store.addIfNotExist', () => {
 
   test('throws on an unknown table', () => {
     const store = new Store(schema)
-    expect(() =>
-      store.addIfNotExist([
-        { type: 'INSERT', table: 'nope', data: {} } as never,
-      ]),
-    ).toThrow('Unknown table "nope"')
+    expect(() => store.addIfNotExist([{ type: 'INSERT', table: 'nope', data: {} } as never])).toThrow(
+      'Unknown table "nope"',
+    )
   })
 })
 

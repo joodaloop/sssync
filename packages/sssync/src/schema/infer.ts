@@ -16,12 +16,11 @@ export type IdOf<T extends TableSchema> = {
   [K in T['primaryKey'][number] & keyof RowOf<T>]: RowOf<T>[K]
 }
 
-export type IdInputOf<T extends TableSchema> =
-  T['primaryKey'] extends readonly [infer K]
-    ? K extends keyof RowOf<T>
-      ? RowOf<T>[K]
-      : never
-    : IdOf<T>
+export type IdInputOf<T extends TableSchema> = T['primaryKey'] extends readonly [infer K]
+  ? K extends keyof RowOf<T>
+    ? RowOf<T>[K]
+    : never
+  : IdOf<T>
 
 /**
  * `ClientDatabaseSchema['tables']` carries a `[table: string]` index signature,
@@ -33,5 +32,4 @@ export type Tables<S extends ClientDatabaseSchema> = {
   [K in keyof S['tables'] as string extends K ? never : K]: S['tables'][K]
 }
 
-export type TableName<S extends ClientDatabaseSchema> =
-  keyof Tables<S> & string
+export type TableName<S extends ClientDatabaseSchema> = keyof Tables<S> & string

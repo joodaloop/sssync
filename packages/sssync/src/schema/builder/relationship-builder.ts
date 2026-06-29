@@ -1,8 +1,4 @@
-import type {
-  Relationship,
-  RelationshipsSchema,
-  TableSchema,
-} from '../table-schema'
+import type { Relationship, RelationshipsSchema, TableSchema } from '../table-schema'
 import type { TableBuilderWithColumns } from './table-builder'
 
 type ConnectArg<TSourceField, TDestField, TDest extends TableSchema> = {
@@ -40,11 +36,7 @@ type ManyConnector<TSource extends TableSchema> = {
       TDest
     >,
   ): [
-    ManyConnection<
-      readonly (keyof TSource['columns'] & string)[],
-      readonly (keyof TDest['columns'] & string)[],
-      TDest
-    >,
+    ManyConnection<readonly (keyof TSource['columns'] & string)[], readonly (keyof TDest['columns'] & string)[], TDest>,
   ]
 
   // Junction relationship (two hops)
@@ -82,11 +74,7 @@ type OneConnector<TSource extends TableSchema> = {
       TDest
     >,
   ): [
-    OneConnection<
-      readonly (keyof TSource['columns'] & string)[],
-      readonly (keyof TDest['columns'] & string)[],
-      TDest
-    >,
+    OneConnection<readonly (keyof TSource['columns'] & string)[], readonly (keyof TDest['columns'] & string)[], TDest>,
   ]
 
   // Two-hop relationship (e.g., invoice_line -> invoice -> customer)
@@ -115,15 +103,9 @@ type OneConnector<TSource extends TableSchema> = {
   ]
 }
 
-export function relationships<
-  TSource extends TableSchema,
-  TRelationships extends RelationshipsSchema,
->(
+export function relationships<TSource extends TableSchema, TRelationships extends RelationshipsSchema>(
   table: TableBuilderWithColumns<TSource>,
-  cb: (connects: {
-    many: ManyConnector<TSource>
-    one: OneConnector<TSource>
-  }) => TRelationships,
+  cb: (connects: { many: ManyConnector<TSource>; one: OneConnector<TSource> }) => TRelationships,
 ): { name: TSource['name']; relationships: TRelationships } {
   const relationships = cb({ many, one } as any)
 
@@ -133,9 +115,7 @@ export function relationships<
   }
 }
 
-function many(
-  ...args: readonly ConnectArg<any, any, TableSchema>[]
-): ManyConnection<any, any, any>[] {
+function many(...args: readonly ConnectArg<any, any, TableSchema>[]): ManyConnection<any, any, any>[] {
   return args.map(arg => ({
     sourceField: arg.sourceField,
     destField: arg.destField,
@@ -144,9 +124,7 @@ function many(
   }))
 }
 
-function one(
-  ...args: readonly ConnectArg<any, any, TableSchema>[]
-): OneConnection<any, any, any>[] {
+function one(...args: readonly ConnectArg<any, any, TableSchema>[]): OneConnection<any, any, any>[] {
   return args.map(arg => ({
     sourceField: arg.sourceField,
     destField: arg.destField,

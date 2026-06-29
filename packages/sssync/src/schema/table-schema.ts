@@ -27,9 +27,7 @@ type Connection = {
   readonly cardinality: Cardinality
 }
 
-export type Relationship =
-  | readonly [Connection]
-  | readonly [Connection, Connection]
+export type Relationship = readonly [Connection] | readonly [Connection, Connection]
 
 // export type LastInTuple<T extends Relationship> = T extends readonly [infer L]
 //   ? L

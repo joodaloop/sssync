@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { column, createSchema, relationships, table } from '../src/schema'
+
 import { store } from '../src/query'
+import { column, createSchema, relationships, table } from '../src/schema'
 
 const issues = table('issues')
   .columns({
@@ -101,11 +102,7 @@ describe('query store', () => {
       }),
     ).toEqual({
       key: 'issues:["issue-1"]?include=comments,owner',
-      accessKeys: [
-        'issues:["issue-1"]',
-        'issues:["issue-1"]:comments',
-        'issues:["issue-1"]:owner',
-      ],
+      accessKeys: ['issues:["issue-1"]', 'issues:["issue-1"]:comments', 'issues:["issue-1"]:owner'],
       plan: {
         kind: 'one',
         table: 'issues',
@@ -148,17 +145,15 @@ describe('query store', () => {
   test('throws when a composite id is not an object', () => {
     const db = store(schema)
 
-    expect(() =>
-      db.one('memberships', { id: 'issue-1' } as never),
-    ).toThrow('Composite primary key for table "memberships" requires an object')
+    expect(() => db.one('memberships', { id: 'issue-1' } as never)).toThrow(
+      'Composite primary key for table "memberships" requires an object',
+    )
   })
 
   test('throws when a composite id is missing a primary key column', () => {
     const db = store(schema)
 
-    expect(() =>
-      db.one('memberships', { id: { issueId: 'issue-1' } } as never),
-    ).toThrow(
+    expect(() => db.one('memberships', { id: { issueId: 'issue-1' } } as never)).toThrow(
       'Composite primary key for table "memberships" is missing "userId"',
     )
   })

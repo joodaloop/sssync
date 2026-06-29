@@ -1,12 +1,6 @@
 import * as j from '../json-validator'
 
-const valueTypeSchema = j.picklist([
-  'string',
-  'number',
-  'boolean',
-  'null',
-  'json',
-] as const)
+const valueTypeSchema = j.picklist(['string', 'number', 'boolean', 'null', 'json'] as const)
 
 const fieldListSchema = j.minLength(j.array(j.minLength(j.string(), 1)), 1)
 
@@ -29,14 +23,9 @@ const relationshipPart = j.object({
   cardinality: j.picklist(['one', 'many'] as const),
 })
 
-export const relationshipSchema = j.union([
-  j.tuple([relationshipPart]),
-  j.tuple([relationshipPart, relationshipPart]),
-])
+export const relationshipSchema = j.union([j.tuple([relationshipPart]), j.tuple([relationshipPart, relationshipPart])])
 
 export const schemaSchema = j.object({
   tables: j.record(j.string(), tableSchemaSchema),
-  relationships: j.optional(
-    j.record(j.string(), j.record(j.string(), relationshipSchema)),
-  ),
+  relationships: j.optional(j.record(j.string(), j.record(j.string(), relationshipSchema))),
 })

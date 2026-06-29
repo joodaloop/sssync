@@ -1,11 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import {
-  column,
-  createSchema,
-  hashSchema,
-  relationships,
-  table,
-} from '../src/schema'
+
+import { column, createSchema, hashSchema, relationships, table } from '../src/schema'
 
 const issues = table('issues')
   .columns({
@@ -237,9 +232,7 @@ describe('schema validation', () => {
         tables: [issues, comments, users],
         relationships: [issueRelationships, commentsAgain],
       }),
-    ).toThrow(
-      'Relationships for table "issues" are defined more than once in the schema',
-    )
+    ).toThrow('Relationships for table "issues" are defined more than once in the schema')
   })
 
   test('throws when a relationship points to a missing destination table', () => {
@@ -256,9 +249,7 @@ describe('schema validation', () => {
           })),
         ],
       }),
-    ).toThrow(
-      'For relationship "issues"."comments", destination table "comments" is missing in the schema',
-    )
+    ).toThrow('For relationship "issues"."comments", destination table "comments" is missing in the schema')
   })
 
   test('throws when relationship names collide with column names', () => {
@@ -275,8 +266,6 @@ describe('schema validation', () => {
           })),
         ],
       }),
-    ).toThrow(
-      'Relationship "issues"."title" cannot have the same name as the column "title" on the the table "issues"',
-    )
+    ).toThrow('Relationship "issues"."title" cannot have the same name as the column "title" on the the table "issues"')
   })
 })

@@ -1,12 +1,8 @@
-import {
-  column,
-  createSchema,
-  relationships,
-  table,
-} from '@sssync/sssync/schema'
 import { defineMutators } from '@sssync/sssync/mutators'
-import { SSSync } from '@sssync/sssync/sssync'
 import type { QueryValue } from '@sssync/sssync/query'
+import { column, createSchema, relationships, table } from '@sssync/sssync/schema'
+import { SSSync } from '@sssync/sssync/sssync'
+
 import { createSSSContext } from '../src'
 
 const issues = table('issues')
@@ -40,7 +36,13 @@ const schema = createSchema({
 
 const mutators = defineMutators(schema, () => ({}))
 
-const sync = new SSSync({ schema, mutators, batchURL: '/batch', bootstrapURL: '/bootstrap', storage: null })
+const sync = new SSSync({
+  schema,
+  mutators,
+  batchURL: '/batch',
+  bootstrapURL: '/bootstrap',
+  storage: null,
+})
 
 // `.all` and `.one` are fully typed straight off the instance.
 const allIssuesQuery = sync.all('issues')
@@ -53,7 +55,13 @@ allIssues
 
 // --- createSSSContext returns a typed provider/hook set ---------------------
 
-const main = createSSSContext({ schema, mutators, batchURL: '/batch', bootstrapURL: '/bootstrap', storage: null })
+const main = createSSSContext({
+  schema,
+  mutators,
+  batchURL: '/batch',
+  bootstrapURL: '/bootstrap',
+  storage: null,
+})
 const typed = main.useSSS()
 
 const issueWithCommentsQuery = typed().one('issues', {

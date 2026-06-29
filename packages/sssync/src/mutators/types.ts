@@ -1,25 +1,11 @@
-import type { StandardSchemaV1 } from '../types'
+import type { IdInputOf, IdOf, RowOf, TableName, Tables } from '../schema/infer'
+import type { ClientDatabaseSchema, TableSchema } from '../schema/table-schema'
 import type { JSONValue } from '../shared'
-import type {
-  IdInputOf,
-  IdOf,
-  RowOf,
-  TableName,
-  Tables,
-} from '../schema/infer'
-import type {
-  ClientDatabaseSchema,
-  TableSchema,
-} from '../schema/table-schema'
+import type { StandardSchemaV1 } from '../types'
 
-export type InsertOf<T extends TableSchema> = Omit<
-  RowOf<T>,
-  T['primaryKey'][number]
->
+export type InsertOf<T extends TableSchema> = Omit<RowOf<T>, T['primaryKey'][number]>
 
-export type UpdateOf<T extends TableSchema> = Partial<
-  Omit<RowOf<T>, T['primaryKey'][number]>
->
+export type UpdateOf<T extends TableSchema> = Partial<Omit<RowOf<T>, T['primaryKey'][number]>>
 
 export type InsertMutation<Name extends string, T extends TableSchema> = {
   type: 'INSERT'
@@ -62,14 +48,8 @@ export type Mutation<S extends ClientDatabaseSchema> =
     : never
 
 export type TableMutationHelpers<Name extends string, T extends TableSchema> = {
-  insert: (
-    id: IdInputOf<T>,
-    data: InsertOf<T>,
-  ) => InsertMutation<Name, T>
-  update: (
-    id: IdInputOf<T>,
-    changes: UpdateOf<T>,
-  ) => UpdateMutation<Name, T>
+  insert: (id: IdInputOf<T>, data: InsertOf<T>) => InsertMutation<Name, T>
+  update: (id: IdInputOf<T>, changes: UpdateOf<T>) => UpdateMutation<Name, T>
   remove: (id: IdInputOf<T>) => DeleteMutation<Name, T>
 }
 
@@ -79,39 +59,28 @@ export type MutationDb<S extends ClientDatabaseSchema> = {
 
 export type MutatorArgsSchema = StandardSchemaV1<unknown, JSONValue>
 
-export type MutatorArgs<Args extends MutatorArgsSchema> =
-  StandardSchemaV1.InferOutput<Args>
+export type MutatorArgs<Args extends MutatorArgsSchema> = StandardSchemaV1.InferOutput<Args>
 
 export type MutatorTx<S extends ClientDatabaseSchema> = {
   mutate: MutationDb<S>
 }
 
-export type MutatorEffect<
-  S extends ClientDatabaseSchema,
-  Args extends MutatorArgsSchema,
-> = (context: {
+export type MutatorEffect<S extends ClientDatabaseSchema, Args extends MutatorArgsSchema> = (context: {
   tx: MutatorTx<S>
   args: MutatorArgs<Args>
 }) => void | Promise<void>
 
-export type MutatorDefinition<
-  S extends ClientDatabaseSchema,
-  Args extends MutatorArgsSchema,
-> = {
+export type MutatorDefinition<S extends ClientDatabaseSchema, Args extends MutatorArgsSchema> = {
   args: Args
   effect: MutatorEffect<S, Args>
 }
 
-export type AnyMutatorDefinition<
-  S extends ClientDatabaseSchema = ClientDatabaseSchema,
-> = {
+export type AnyMutatorDefinition<S extends ClientDatabaseSchema = ClientDatabaseSchema> = {
   args: MutatorArgsSchema
   effect: (context: any) => void | Promise<void>
 }
 
-export type DefineMutator<S extends ClientDatabaseSchema> = <
-  const Args extends MutatorArgsSchema,
->(
+export type DefineMutator<S extends ClientDatabaseSchema> = <const Args extends MutatorArgsSchema>(
   args: Args,
   effect: MutatorEffect<S, Args>,
 ) => MutatorDefinition<S, Args>
@@ -123,9 +92,7 @@ export type Mutators<
   },
 > = {
   parse: (input: unknown) => MutationEnvelope<Mutators<S, Definitions>>
-  apply: (
-    envelope: MutationEnvelope<Mutators<S, Definitions>>,
-  ) => Promise<readonly Mutation<S>[]>
+  apply: (envelope: MutationEnvelope<Mutators<S, Definitions>>) => Promise<readonly Mutation<S>[]>
 }
 
 export type MutationEnvelope<Registry extends Mutators<any, any>> =

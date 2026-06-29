@@ -1,9 +1,7 @@
 import * as v from 'valibot'
+
+import { defineMutators, type MutationEnvelope } from '../src/mutators'
 import { column, createSchema, table } from '../src/schema'
-import {
-  defineMutators,
-  type MutationEnvelope,
-} from '../src/mutators'
 
 const issues = table('issues')
   .columns({
@@ -41,10 +39,7 @@ const mutators = defineMutators(schema, defineMutator => ({
       role: v.picklist(['admin', 'member']),
     }),
     ({ tx, args }) => {
-      tx.mutate.memberships.insert(
-        { issueId: args.issueId, userId: args.userId },
-        { role: args.role },
-      )
+      tx.mutate.memberships.insert({ issueId: args.issueId, userId: args.userId }, { role: args.role })
     },
   ),
 }))
@@ -94,33 +89,24 @@ switch (parsed.name) {
 }
 
 defineMutators(schema, defineMutator => ({
-  badColumn: defineMutator(
-    v.object({ id: v.string() }),
-    ({ tx, args }) => {
-      // @ts-expect-error 'missing' is not a column on issues
-      tx.mutate.issues.update(args.id, { missing: true })
-    },
-  ),
+  badColumn: defineMutator(v.object({ id: v.string() }), ({ tx, args }) => {
+    // @ts-expect-error 'missing' is not a column on issues
+    tx.mutate.issues.update(args.id, { missing: true })
+  }),
 }))
 
 defineMutators(schema, defineMutator => ({
-  badPrimaryKeyUpdate: defineMutator(
-    v.object({ id: v.string() }),
-    ({ tx, args }) => {
-      // @ts-expect-error update changes must not include primary-key columns
-      tx.mutate.issues.update(args.id, { id: 'new-id' })
-    },
-  ),
+  badPrimaryKeyUpdate: defineMutator(v.object({ id: v.string() }), ({ tx, args }) => {
+    // @ts-expect-error update changes must not include primary-key columns
+    tx.mutate.issues.update(args.id, { id: 'new-id' })
+  }),
 }))
 
 defineMutators(schema, defineMutator => ({
-  badCompositeId: defineMutator(
-    v.object({ issueId: v.string() }),
-    ({ tx, args }) => {
-      // @ts-expect-error composite primary keys require every key column
-      tx.mutate.memberships.remove({ issueId: args.issueId })
-    },
-  ),
+  badCompositeId: defineMutator(v.object({ issueId: v.string() }), ({ tx, args }) => {
+    // @ts-expect-error composite primary keys require every key column
+    tx.mutate.memberships.remove({ issueId: args.issueId })
+  }),
 }))
 
 const badEnvelope: Envelope = {

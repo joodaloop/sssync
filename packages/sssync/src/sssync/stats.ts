@@ -1,9 +1,5 @@
 import type { BootstrapsSnapshot } from '../bootstrap'
-import type {
-  AnyMutatorDefinition,
-  Mutators,
-  MutationEnvelope,
-} from '../mutators'
+import type { AnyMutatorDefinition, Mutators, MutationEnvelope } from '../mutators'
 import type { QueryDetails } from '../query'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import type { BatchStats, ReadonlyObservable, WorkError } from '../shared'
@@ -22,9 +18,7 @@ export class Stats<
       readonly isPersistent: ReadonlyObservable<boolean>
       readonly bootstraps: ReadonlyObservable<BootstrapsSnapshot<S>>
       readonly batches: ReadonlyObservable<BatchStats>
-      readonly mutationQueue: ReadonlyObservable<
-        readonly MutationEnvelope<Mutators<S, Definitions>>[]
-      >
+      readonly mutationQueue: ReadonlyObservable<readonly MutationEnvelope<Mutators<S, Definitions>>[]>
       readonly queries: ReadonlyObservable<Readonly<Record<string, QueryDetails>>>
       readonly errors: ReadonlyObservable<readonly WorkError[]>
     },
@@ -42,9 +36,7 @@ export class Stats<
     return this.observables.batches
   }
 
-  get mutationQueue(): ReadonlyObservable<
-    readonly MutationEnvelope<Mutators<S, Definitions>>[]
-  > {
+  get mutationQueue(): ReadonlyObservable<readonly MutationEnvelope<Mutators<S, Definitions>>[]> {
     return this.observables.mutationQueue
   }
 

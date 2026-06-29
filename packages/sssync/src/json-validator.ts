@@ -88,9 +88,7 @@ export function unknown(): Validator<unknown> {
   return validator(value => value)
 }
 
-export function literal<const Value extends string | number | boolean | null>(
-  expected: Value,
-): Validator<Value> {
+export function literal<const Value extends string | number | boolean | null>(expected: Value): Validator<Value> {
   return validator((value, path) => {
     if (value !== expected) {
       throw issue(path, `Expected ${JSON.stringify(expected)} but received ${describe(value)}`)
@@ -110,25 +108,15 @@ export function picklist<const Values extends readonly [unknown, ...unknown[]]>(
   })
 }
 
-export function optional<Output>(
-  schema: Validator<Output>,
-): Validator<Output | undefined> {
-  return validator((value, path) =>
-    value === undefined ? undefined : run(schema, value, path),
-  )
+export function optional<Output>(schema: Validator<Output>): Validator<Output | undefined> {
+  return validator((value, path) => (value === undefined ? undefined : run(schema, value, path)))
 }
 
-export function nullable<Output>(
-  schema: Validator<Output>,
-): Validator<Output | null> {
-  return validator((value, path) =>
-    value === null ? null : run(schema, value, path),
-  )
+export function nullable<Output>(schema: Validator<Output>): Validator<Output | null> {
+  return validator((value, path) => (value === null ? null : run(schema, value, path)))
 }
 
-export function array<Output>(
-  item: Validator<Output>,
-): Validator<readonly Output[]> {
+export function array<Output>(item: Validator<Output>): Validator<readonly Output[]> {
   return validator((value, path) => {
     if (!Array.isArray(value)) {
       throw issue(path, `Expected array but received ${describe(value)}`)
@@ -153,9 +141,7 @@ export function minLength<Output extends { readonly length: number }>(
 export function object<const Shape extends Record<string, Validator<unknown>>>(
   shape: Shape,
 ): Validator<{
-  readonly [K in keyof Shape]: Shape[K] extends Validator<infer Output>
-    ? Output
-    : never
+  readonly [K in keyof Shape]: Shape[K] extends Validator<infer Output> ? Output : never
 }> {
   return validator((value, path) => {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -194,9 +180,7 @@ export function record<Output>(
 export function tuple<const Items extends readonly Validator<unknown>[]>(
   items: Items,
 ): Validator<{
-  readonly [K in keyof Items]: Items[K] extends Validator<infer Output>
-    ? Output
-    : never
+  readonly [K in keyof Items]: Items[K] extends Validator<infer Output> ? Output : never
 }> {
   return validator((value, path) => {
     if (!Array.isArray(value) || value.length !== items.length) {
@@ -208,9 +192,7 @@ export function tuple<const Items extends readonly Validator<unknown>[]>(
 
 export function union<const Options extends readonly Validator<unknown>[]>(
   options: Options,
-): Validator<
-  Options[number] extends Validator<infer Output> ? Output : never
-> {
+): Validator<Options[number] extends Validator<infer Output> ? Output : never> {
   return validator((value, path) => {
     const issues: Issue[] = []
     for (const option of options) {
@@ -225,11 +207,7 @@ export function union<const Options extends readonly Validator<unknown>[]>(
   })
 }
 
-function run<Output>(
-  schema: Validator<Output>,
-  value: unknown,
-  path: readonly PropertyKey[],
-): Output {
+function run<Output>(schema: Validator<Output>, value: unknown, path: readonly PropertyKey[]): Output {
   const result = schema['~standard'].validate(value)
   if (result instanceof Promise) {
     throw new Error('Async schemas are not supported')

@@ -1,8 +1,8 @@
-import { rowSchemaFor } from '../schema/row-schema'
+import { safeValidate } from '../json-validator'
 import type { TableName } from '../schema/infer'
+import { rowSchemaFor } from '../schema/row-schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import type { Observable } from '../shared'
-import { safeValidate } from '../json-validator'
 
 export type BootstrapStatus = 'pending' | 'success' | 'error'
 
@@ -13,9 +13,7 @@ export type BootstrapState = {
 }
 
 // Bootstrap state keyed by model name.
-export type BootstrapsSnapshot<S extends ClientDatabaseSchema> = Readonly<
-  Partial<Record<TableName<S>, BootstrapState>>
->
+export type BootstrapsSnapshot<S extends ClientDatabaseSchema> = Readonly<Partial<Record<TableName<S>, BootstrapState>>>
 
 export type StatusChange<Name extends string = string> = {
   readonly name: Name
@@ -36,10 +34,7 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
     private readonly bootstraps: Observable<BootstrapsSnapshot<S>>,
   ) {
     this.rowValidators = Object.fromEntries(
-      Object.entries(schema.tables).map(([name, table]) => [
-        name,
-        rowSchemaFor(table),
-      ]),
+      Object.entries(schema.tables).map(([name, table]) => [name, rowSchemaFor(table)]),
     )
   }
 
@@ -111,10 +106,7 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
 
 // Validates the `{ data: rows[] }` payload, returning the rows when every one
 // matches `validator`. Throws otherwise so `load` can report the error message.
-function validateData(
-  payload: unknown,
-  validator: ReturnType<typeof rowSchemaFor>,
-): readonly unknown[] {
+function validateData(payload: unknown, validator: ReturnType<typeof rowSchemaFor>): readonly unknown[] {
   if (payload === null || typeof payload !== 'object' || !('data' in payload)) {
     throw new Error('Bootstrap response had no "data" array')
   }

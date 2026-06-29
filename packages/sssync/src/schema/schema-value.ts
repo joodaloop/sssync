@@ -29,8 +29,7 @@ export type TypeNameToTypeMap = {
   json: JSONValue
 }
 
-export type ColumnTypeName<T extends SchemaValue | ValueType> =
-  T extends SchemaValue ? T['type'] : T
+export type ColumnTypeName<T extends SchemaValue | ValueType> = T extends SchemaValue ? T['type'] : T
 
 /**
  * Given a schema value, return the TypeScript type.
@@ -38,19 +37,14 @@ export type ColumnTypeName<T extends SchemaValue | ValueType> =
  * This allows us to create the correct return type for a
  * query that has a selection.
  */
-export type SchemaValueToTSType<T extends SchemaValue | ValueType> =
-  T extends ValueType
-    ? TypeNameToTypeMap[T]
-    : T extends {
-          optional: true
-        }
-      ?
-          | (T extends SchemaValueWithCustomType<infer V>
-              ? V
-              : TypeNameToTypeMap[ColumnTypeName<T>])
-          | null
-      : T extends SchemaValueWithCustomType<infer V>
-        ? V
-        : TypeNameToTypeMap[ColumnTypeName<T>]
+export type SchemaValueToTSType<T extends SchemaValue | ValueType> = T extends ValueType
+  ? TypeNameToTypeMap[T]
+  : T extends {
+        optional: true
+      }
+    ? (T extends SchemaValueWithCustomType<infer V> ? V : TypeNameToTypeMap[ColumnTypeName<T>]) | null
+    : T extends SchemaValueWithCustomType<infer V>
+      ? V
+      : TypeNameToTypeMap[ColumnTypeName<T>]
 
 export type { JSONValue }

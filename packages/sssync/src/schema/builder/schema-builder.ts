@@ -1,12 +1,7 @@
-import type {
-  ClientDatabaseSchema,
-  Relationship,
-  RelationshipsSchema,
-  TableSchema,
-} from '../table-schema'
+import { hasOwn, mapAllEntries } from '../../shared'
+import type { ClientDatabaseSchema, Relationship, RelationshipsSchema, TableSchema } from '../table-schema'
 import type { Relationships } from './relationship-builder'
 import { type TableBuilderWithColumns } from './table-builder'
-import { hasOwn, mapAllEntries } from '../../shared'
 
 /**
  * Note: the keys of the `tables` and `relationships` parameters do not matter.
@@ -24,16 +19,10 @@ export function createSchema<
   readonly relationships?: TRelationships | undefined
 }): ClientDatabaseSchema & {
   tables: {
-    readonly [K in TTables[number]['schema']['name']]: Extract<
-      TTables[number]['schema'],
-      { name: K }
-    >
+    readonly [K in TTables[number]['schema']['name']]: Extract<TTables[number]['schema'], { name: K }>
   }
   relationships: {
-    readonly [K in TRelationships[number]['name']]: Extract<
-      TRelationships[number],
-      { name: K }
-    >['relationships']
+    readonly [K in TRelationships[number]['name']]: Extract<TRelationships[number], { name: K }>['relationships']
   }
 } {
   const retTables: Record<string, TableSchema> = {}
@@ -41,24 +30,16 @@ export function createSchema<
 
   options.tables.forEach(table => {
     if (hasOwn(retTables, table.schema.name)) {
-      throw new Error(
-        `Table "${table.schema.name}" is defined more than once in the schema`,
-      )
+      throw new Error(`Table "${table.schema.name}" is defined more than once in the schema`)
     }
     retTables[table.schema.name] = table.build()
   })
   options.relationships?.forEach(relationships => {
     if (retRelationships[relationships.name]) {
-      throw new Error(
-        `Relationships for table "${relationships.name}" are defined more than once in the schema`,
-      )
+      throw new Error(`Relationships for table "${relationships.name}" are defined more than once in the schema`)
     }
     retRelationships[relationships.name] = relationships.relationships
-    checkRelationship(
-      relationships.relationships,
-      relationships.name,
-      retTables,
-    )
+    checkRelationship(relationships.relationships, relationships.name, retTables)
   })
 
   return {

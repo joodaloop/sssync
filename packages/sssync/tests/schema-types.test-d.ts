@@ -1,10 +1,4 @@
-import {
-  column,
-  createSchema,
-  relationships,
-  table,
-  type SchemaValueToTSType,
-} from '../src/schema'
+import { column, createSchema, relationships, table, type SchemaValueToTSType } from '../src/schema'
 
 const issues = table('issues')
   .columns({
@@ -109,19 +103,14 @@ issueTableName
 const priorityType: 'number' = schema.tables.issues.columns.priority.type
 priorityType
 
-const commentsDest: 'comments' =
-  schema.relationships.issues.comments[0].destSchema
+const commentsDest: 'comments' = schema.relationships.issues.comments[0].destSchema
 commentsDest
 
-type RequiredTitle = SchemaValueToTSType<
-  typeof schema.tables.issues.columns.title
->
+type RequiredTitle = SchemaValueToTSType<typeof schema.tables.issues.columns.title>
 const title: RequiredTitle = 'hello'
 title
 
-type OptionalOwnerId = SchemaValueToTSType<
-  typeof schema.tables.issues.columns.ownerId
->
+type OptionalOwnerId = SchemaValueToTSType<typeof schema.tables.issues.columns.ownerId>
 const ownerId: OptionalOwnerId = null
 ownerId
 
@@ -138,7 +127,5 @@ const badTitle: RequiredTitle = null
 badTitle
 
 // @ts-expect-error number columns do not accept strings
-const badPriority: SchemaValueToTSType<
-  typeof schema.tables.issues.columns.priority
-> = 'high'
+const badPriority: SchemaValueToTSType<typeof schema.tables.issues.columns.priority> = 'high'
 badPriority

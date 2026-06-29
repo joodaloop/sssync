@@ -1,11 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 
-import {
-  Bootstrap,
-  type BootstrapsSnapshot,
-  type BootstrapStatus,
-  type StatusChange,
-} from '../src/bootstrap'
+import { Bootstrap, type BootstrapsSnapshot, type BootstrapStatus, type StatusChange } from '../src/bootstrap'
 import { column, createSchema, table } from '../src/schema'
 import { Observable } from '../src/shared'
 
@@ -33,15 +28,10 @@ function bootstrapRegistry() {
   return new Observable<BootstrapsSnapshot<typeof schema>>({})
 }
 
-function recordChanges(
-  bootstraps: Observable<BootstrapsSnapshot<typeof schema>>,
-): StatusChange[] {
+function recordChanges(bootstraps: Observable<BootstrapsSnapshot<typeof schema>>): StatusChange[] {
   const changes: StatusChange[] = []
   bootstraps.subscribe(() => {
-    const snapshot = bootstraps.get() as Record<
-      string,
-      Omit<StatusChange, 'name'> | undefined
-    >
+    const snapshot = bootstraps.get() as Record<string, Omit<StatusChange, 'name'> | undefined>
     for (const [name, state] of Object.entries(snapshot)) {
       if (state) changes.push({ name, ...state })
     }

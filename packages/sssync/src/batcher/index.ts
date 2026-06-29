@@ -1,14 +1,8 @@
+import { safeValidate } from '../json-validator'
 import { rowSchemaFor } from '../schema/row-schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
-import {
-  cacheKeyForItem,
-  rowKeyForItem,
-  type BatchStats,
-  type MergedRequest,
-  type ResolvedItem,
-} from '../shared'
+import { cacheKeyForItem, rowKeyForItem, type BatchStats, type MergedRequest, type ResolvedItem } from '../shared'
 import type { Observable } from '../shared'
-import { safeValidate } from '../json-validator'
 
 export type { MergedRequest } from '../shared'
 
@@ -21,10 +15,7 @@ export type ResolvedBatch = {
 // gathering all of their relations into one array. A bare-row request and its
 // related-relation requests for the same id go out as one request.
 export function mergeRequests(items: readonly ResolvedItem[]): MergedRequest[] {
-  const merged = new Map<
-    string,
-    { modelName: string; id: unknown; relations: string[] }
-  >()
+  const merged = new Map<string, { modelName: string; id: unknown; relations: string[] }>()
 
   for (const item of items) {
     const key = rowKeyForItem(item)
@@ -56,10 +47,7 @@ export class Batcher {
     private readonly resolve: (batch: ResolvedBatch) => void,
   ) {
     this.rowValidators = Object.fromEntries(
-      Object.entries(schema.tables).map(([name, table]) => [
-        name,
-        rowSchemaFor(table),
-      ]),
+      Object.entries(schema.tables).map(([name, table]) => [name, rowSchemaFor(table)]),
     )
   }
 

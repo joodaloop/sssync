@@ -2,16 +2,9 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 
 import { CoverageTracker } from '../src/coverage'
 import { column, createSchema, table } from '../src/schema'
-import {
-  type BatchStats,
-  cacheKeyForItem,
-  Observable,
-  resolvedItemFor,
-  type ResolvedItem,
-} from '../src/shared'
+import { type BatchStats, cacheKeyForItem, Observable, resolvedItemFor, type ResolvedItem } from '../src/shared'
 
-const status = (tracker: CoverageTracker, item: ResolvedItem) =>
-  tracker.coverage.get(cacheKeyForItem(item))
+const status = (tracker: CoverageTracker, item: ResolvedItem) => tracker.coverage.get(cacheKeyForItem(item))
 
 const issues = table('issues')
   .columns({
@@ -40,8 +33,7 @@ const validRow = {
   ownerId: null,
 }
 
-const batchStats = () =>
-  new Observable<BatchStats>({ pending: [], inflight: [] })
+const batchStats = () => new Observable<BatchStats>({ pending: [], inflight: [] })
 
 describe('CoverageTracker', () => {
   let restoreFetch: () => void

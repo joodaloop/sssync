@@ -105,10 +105,7 @@ export function tupleKey(parts: readonly unknown[]): string {
   return JSON.stringify(parts)
 }
 
-export function primaryKeyValues(
-  table: TableSchema,
-  idOrRow: unknown,
-): readonly unknown[] {
+export function primaryKeyValues(table: TableSchema, idOrRow: unknown): readonly unknown[] {
   if (table.primaryKey.length === 1) {
     const key = table.primaryKey[0]
     if (idOrRow !== null && typeof idOrRow === 'object' && key in idOrRow) {
@@ -118,17 +115,13 @@ export function primaryKeyValues(
   }
 
   if (idOrRow === null || typeof idOrRow !== 'object' || Array.isArray(idOrRow)) {
-    throw new Error(
-      `Composite primary key for table "${table.name}" requires an object`,
-    )
+    throw new Error(`Composite primary key for table "${table.name}" requires an object`)
   }
 
   const record = idOrRow as Record<string, unknown>
   for (const key of table.primaryKey) {
     if (!(key in record)) {
-      throw new Error(
-        `Composite primary key for table "${table.name}" is missing "${key}"`,
-      )
+      throw new Error(`Composite primary key for table "${table.name}" is missing "${key}"`)
     }
   }
   return table.primaryKey.map(key => record[key])
@@ -177,13 +170,7 @@ export function coveredKeysForItem(item: ResolvedItem): readonly string[] {
 }
 
 /** The values that can be represented in JSON */
-export type JSONValue =
-  | null
-  | string
-  | boolean
-  | number
-  | Array<JSONValue>
-  | JSONObject
+export type JSONValue = null | string | boolean | number | Array<JSONValue> | JSONObject
 
 /**
  * A JSON object. This is a map from strings to JSON values or `undefined`. We
@@ -193,13 +180,7 @@ export type JSONValue =
 export type JSONObject = { [key: string]: JSONValue | undefined }
 
 /** Like {@link JSONValue} but deeply readonly */
-export type ReadonlyJSONValue =
-  | null
-  | string
-  | boolean
-  | number
-  | ReadonlyArray<ReadonlyJSONValue>
-  | ReadonlyJSONObject
+export type ReadonlyJSONValue = null | string | boolean | number | ReadonlyArray<ReadonlyJSONValue> | ReadonlyJSONObject
 
 /** Like {@link JSONObject} but deeply readonly */
 export type ReadonlyJSONObject = {

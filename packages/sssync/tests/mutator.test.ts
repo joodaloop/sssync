@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test'
+
 import * as v from 'valibot'
+
+import { defineMutators } from '../src/mutators'
 import { column, createSchema, table } from '../src/schema'
-import {
-  defineMutators,
-} from '../src/mutators'
 
 const issues = table('issues')
   .columns({

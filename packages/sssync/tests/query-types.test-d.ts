@@ -1,10 +1,5 @@
+import { store, type Query, type QueryDetails, type QueryValue } from '../src/query'
 import { column, createSchema, relationships, table } from '../src/schema'
-import {
-  store,
-  type Query,
-  type QueryDetails,
-  type QueryValue,
-} from '../src/query'
 
 const issues = table('issues')
   .columns({

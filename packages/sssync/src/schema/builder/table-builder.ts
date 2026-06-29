@@ -1,6 +1,6 @@
+import { mapEntries } from '../../shared'
 import type { JSONValue, SchemaValue, ValueType } from '../schema-value'
 import type { PrimaryKey, TableSchema } from '../table-schema'
-import { mapEntries } from '../../shared'
 
 type ColumnMap = Record<string, ColumnBuilder<SchemaValue>>
 type BuiltColumns<TColumns extends ColumnMap> = {
@@ -77,10 +77,7 @@ export class TableBuilder<TShape extends TableSchema> {
     columns: BuiltColumns<TColumns>
     primaryKey: TShape['primaryKey']
   }> {
-    const columnSchemas = mapEntries(columns, (k, v) => [
-      k,
-      v.schema,
-    ]) as BuiltColumns<TColumns>
+    const columnSchemas = mapEntries(columns, (k, v) => [k, v.schema]) as BuiltColumns<TColumns>
     return new TableBuilderWithColumns({
       ...this.#schema,
       columns: columnSchemas,
@@ -95,9 +92,7 @@ export class TableBuilderWithColumns<TShape extends TableSchema> {
     this.#schema = schema
   }
 
-  primaryKey<TPKColNames extends (keyof TShape['columns'] & string)[]>(
-    ...pkColumnNames: TPKColNames
-  ) {
+  primaryKey<TPKColNames extends (keyof TShape['columns'] & string)[]>(...pkColumnNames: TPKColNames) {
     return new TableBuilderWithColumns({
       ...this.#schema,
       primaryKey: pkColumnNames,
@@ -118,9 +113,7 @@ export class TableBuilderWithColumns<TShape extends TableSchema> {
     for (const columnName of this.#schema.primaryKey) {
       const column = this.#schema.columns[columnName]
       if (column.type === 'json') {
-        throw new Error(
-          `Primary key column "${this.#schema.name}"."${columnName}" cannot be json`,
-        )
+        throw new Error(`Primary key column "${this.#schema.name}"."${columnName}" cannot be json`)
       }
     }
     return this.#schema

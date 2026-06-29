@@ -30,7 +30,7 @@ export class LeaderElection {
         this.setLeader(true)
         return new Promise<void>(() => {})
       })
-      .catch((error) => {
+      .catch(error => {
         console.warn('Leader election request failed:', error)
       })
   }

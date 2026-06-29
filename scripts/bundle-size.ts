@@ -1,7 +1,8 @@
-import { build } from 'vite'
-import Sonda from 'sonda/vite'
 import { readdirSync, existsSync, readFileSync, rmSync, writeFileSync, unlinkSync } from 'node:fs'
 import { join, basename } from 'node:path'
+
+import Sonda from 'sonda/vite'
+import { build } from 'vite'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const PACKAGES_DIR = join(ROOT, 'packages')
@@ -42,7 +43,12 @@ const pkgs = readdirSync(PACKAGES_DIR, { withFileTypes: true })
   .filter(d => d.isDirectory())
   .map(d => join(PACKAGES_DIR, d.name))
 
-const summary: Array<{ pkg: string; raw: number; gz: number; top: Array<[string, number, number]> }> = []
+const summary: Array<{
+  pkg: string
+  raw: number
+  gz: number
+  top: Array<[string, number, number]>
+}> = []
 
 for (const pkg of pkgs) {
   const name = basename(pkg)

@@ -1,46 +1,29 @@
-import type {
-  IdInputOf,
-  RowOf,
-  TableName,
-  Tables,
-} from '../schema/infer'
-import type {
-  Cardinality,
-  ClientDatabaseSchema,
-} from '../schema/table-schema'
+import type { IdInputOf, RowOf, TableName, Tables } from '../schema/infer'
+import type { Cardinality, ClientDatabaseSchema } from '../schema/table-schema'
 
 declare const queryValue: unique symbol
 
 type RelationshipTables<S extends ClientDatabaseSchema> = {
-  [K in keyof S['relationships'] as string extends K
-    ? never
-    : K]: S['relationships'][K]
+  [K in keyof S['relationships'] as string extends K ? never : K]: S['relationships'][K]
 }
 
-type RelationshipsFor<
-  S extends ClientDatabaseSchema,
-  Name extends string,
-> = Name extends keyof RelationshipTables<S> ? RelationshipTables<S>[Name] : {}
+type RelationshipsFor<S extends ClientDatabaseSchema, Name extends string> = Name extends keyof RelationshipTables<S>
+  ? RelationshipTables<S>[Name]
+  : {}
 
-export type RelationName<
-  S extends ClientDatabaseSchema,
-  Name extends string,
-> = keyof RelationshipsFor<S, Name> & string
+export type RelationName<S extends ClientDatabaseSchema, Name extends string> = keyof RelationshipsFor<S, Name> & string
 
 type RelationshipFor<
   S extends ClientDatabaseSchema,
   Name extends string,
   RelName extends string,
-> = RelName extends keyof RelationshipsFor<S, Name>
-  ? RelationshipsFor<S, Name>[RelName]
-  : never
+> = RelName extends keyof RelationshipsFor<S, Name> ? RelationshipsFor<S, Name>[RelName] : never
 
-type LastConnection<R> =
-  R extends readonly [infer Only]
-    ? Only
-    : R extends readonly [unknown, infer Last]
-      ? Last
-      : never
+type LastConnection<R> = R extends readonly [infer Only]
+  ? Only
+  : R extends readonly [unknown, infer Last]
+    ? Last
+    : never
 
 type RelationshipDestination<R> =
   LastConnection<R> extends {
@@ -56,16 +39,10 @@ type RelationshipCardinality<R> =
     ? C
     : never
 
-type RelationValue<
-  S extends ClientDatabaseSchema,
-  Name extends TableName<S>,
-  RelName extends RelationName<S, Name>,
-> =
+type RelationValue<S extends ClientDatabaseSchema, Name extends TableName<S>, RelName extends RelationName<S, Name>> =
   RelationshipDestination<RelationshipFor<S, Name, RelName>> extends infer Dest
     ? Dest extends TableName<S>
-      ? RelationshipCardinality<
-          RelationshipFor<S, Name, RelName>
-        > extends 'many'
+      ? RelationshipCardinality<RelationshipFor<S, Name, RelName>> extends 'many'
         ? readonly RowOf<Tables<S>[Dest]>[]
         : RowOf<Tables<S>[Dest]> | undefined
       : never
@@ -93,10 +70,7 @@ export type AllQueryPlan<Name extends string = string> = {
   readonly table: Name
 }
 
-export type OneQueryPlan<
-  Name extends string = string,
-  Include extends readonly string[] = readonly string[],
-> = {
+export type OneQueryPlan<Name extends string = string, Include extends readonly string[] = readonly string[]> = {
   readonly kind: 'one'
   readonly table: Name
   readonly id: unknown
@@ -105,9 +79,7 @@ export type OneQueryPlan<
 
 export type QueryPlan = AllQueryPlan | OneQueryPlan
 
-export type QueryDetails =
-  | { readonly status: 'ready' }
-  | { readonly status: 'error'; readonly error: Error }
+export type QueryDetails = { readonly status: 'ready' } | { readonly status: 'error'; readonly error: Error }
 
 export type Query<T, Plan extends QueryPlan = QueryPlan> = {
   readonly key: string
@@ -118,9 +90,7 @@ export type Query<T, Plan extends QueryPlan = QueryPlan> = {
 
 export type QueryValue<Q> = Q extends Query<infer T> ? T : never
 
-export type AllQueryFn<S extends ClientDatabaseSchema> = <
-  Name extends TableName<S>,
->(
+export type AllQueryFn<S extends ClientDatabaseSchema> = <Name extends TableName<S>>(
   table: Name,
 ) => Query<readonly RowOf<Tables<S>[Name]>[], AllQueryPlan<Name>>
 
@@ -130,10 +100,7 @@ export type OneQueryFn<S extends ClientDatabaseSchema> = <
 >(
   table: Name,
   options: OneQueryOptions<S, Name, Include>,
-) => Query<
-  RowWithIncludes<S, Name, Include> | undefined,
-  OneQueryPlan<Name, Include>
->
+) => Query<RowWithIncludes<S, Name, Include> | undefined, OneQueryPlan<Name, Include>>
 
 export type QueryStore<S extends ClientDatabaseSchema> = {
   all: AllQueryFn<S>

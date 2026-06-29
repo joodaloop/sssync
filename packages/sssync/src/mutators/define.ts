@@ -1,5 +1,5 @@
-import type { ClientDatabaseSchema } from '../schema/table-schema'
 import type { IdInputOf, IdOf } from '../schema/infer'
+import type { ClientDatabaseSchema } from '../schema/table-schema'
 import type { StandardSchemaV1 } from '../types'
 import type {
   AnyMutatorDefinition,
@@ -13,9 +13,7 @@ import type {
   UpdateOf,
 } from './types'
 
-type ParsedMutatorEnvelope<
-  Definitions extends Record<string, AnyMutatorDefinition>,
-> = {
+type ParsedMutatorEnvelope<Definitions extends Record<string, AnyMutatorDefinition>> = {
   [Name in keyof Definitions & string]: {
     name: Name
     args: MutatorArgs<Definitions[Name]['args']>
@@ -27,10 +25,7 @@ export function defineMutators<
   const Definitions extends {
     [K in keyof Definitions]: AnyMutatorDefinition<S>
   },
->(
-  schema: S,
-  build: (define: DefineMutator<S>) => Definitions,
-): Mutators<S, Definitions> {
+>(schema: S, build: (define: DefineMutator<S>) => Definitions): Mutators<S, Definitions> {
   const definitions = build((args, effect) => ({ args, effect }))
 
   return {
@@ -42,14 +37,8 @@ export function defineMutators<
 async function applyEnvelope<
   const S extends ClientDatabaseSchema,
   const Definitions extends Record<string, AnyMutatorDefinition<S>>,
->(
-  schema: S,
-  definitions: Definitions,
-  envelope: ParsedMutatorEnvelope<Definitions>,
-): Promise<readonly Mutation<S>[]> {
-  const definition = (definitions as Record<string, AnyMutatorDefinition<S>>)[
-    envelope.name
-  ]
+>(schema: S, definitions: Definitions, envelope: ParsedMutatorEnvelope<Definitions>): Promise<readonly Mutation<S>[]> {
+  const definition = (definitions as Record<string, AnyMutatorDefinition<S>>)[envelope.name]
 
   if (!definition) {
     throw new Error(`Unknown mutation "${envelope.name}"`)
@@ -64,9 +53,7 @@ async function applyEnvelope<
   return mutations
 }
 
-function parseEnvelope<
-  const Definitions extends Record<string, AnyMutatorDefinition>,
->(
+function parseEnvelope<const Definitions extends Record<string, AnyMutatorDefinition>>(
   definitions: Definitions,
   input: unknown,
 ): ParsedMutatorEnvelope<Definitions> {
@@ -80,9 +67,7 @@ function parseEnvelope<
     throw new Error('Mutation envelope name must be a string')
   }
 
-  const definition = (definitions as Record<string, AnyMutatorDefinition>)[
-    envelope.name
-  ]
+  const definition = (definitions as Record<string, AnyMutatorDefinition>)[envelope.name]
 
   if (!definition) {
     throw new Error(`Unknown mutation "${envelope.name}"`)
@@ -95,11 +80,7 @@ function parseEnvelope<
   }
 
   if (result.issues) {
-    throw new Error(
-      result.issues
-        .map((issue: StandardSchemaV1.Issue) => issue.message)
-        .join('; '),
-    )
+    throw new Error(result.issues.map((issue: StandardSchemaV1.Issue) => issue.message).join('; '))
   }
 
   return {
@@ -108,15 +89,11 @@ function parseEnvelope<
   } as ParsedMutatorEnvelope<Definitions>
 }
 
-function createCollectingDb<const S extends ClientDatabaseSchema>(
-  schema: S,
-  mutations: Mutation<S>[],
-): MutationDb<S> {
+function createCollectingDb<const S extends ClientDatabaseSchema>(schema: S, mutations: Mutation<S>[]): MutationDb<S> {
   const collecting: Record<string, unknown> = {}
 
   Object.entries(schema.tables).forEach(([tableName, table]) => {
-    const idOf = (id: unknown) =>
-      table.primaryKey.length === 1 ? { [table.primaryKey[0]]: id } : id
+    const idOf = (id: unknown) => (table.primaryKey.length === 1 ? { [table.primaryKey[0]]: id } : id)
 
     collecting[tableName] = {
       insert: (id: IdInputOf<typeof table>, data: InsertOf<typeof table>) => {
@@ -131,10 +108,7 @@ function createCollectingDb<const S extends ClientDatabaseSchema>(
         mutations.push(mutation)
         return mutation
       },
-      update: (
-        id: IdInputOf<typeof table>,
-        changes: UpdateOf<typeof table>,
-      ) => {
+      update: (id: IdInputOf<typeof table>, changes: UpdateOf<typeof table>) => {
         const mutation = {
           type: 'UPDATE' as const,
           table: tableName,

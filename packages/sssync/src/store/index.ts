@@ -1,9 +1,6 @@
-import type { RowOf, TableName, Tables } from '../schema/infer'
-import type {
-  ClientDatabaseSchema,
-  TableSchema,
-} from '../schema/table-schema'
 import type { InsertMutation, Mutation } from '../mutators/types'
+import type { RowOf, TableName, Tables } from '../schema/infer'
+import type { ClientDatabaseSchema, TableSchema } from '../schema/table-schema'
 import { primaryKeyFor } from '../shared'
 
 /**
@@ -11,11 +8,7 @@ import { primaryKeyFor } from '../shared'
  * name so that once `table` is fixed, `data` is constrained to that table's row.
  */
 export type Insert<S extends ClientDatabaseSchema> =
-  TableName<S> extends infer Name
-    ? Name extends TableName<S>
-      ? InsertMutation<Name, Tables<S>[Name]>
-      : never
-    : never
+  TableName<S> extends infer Name ? (Name extends TableName<S> ? InsertMutation<Name, Tables<S>[Name]> : never) : never
 
 /**
  * The Map key for a row, encoded from the schema's primary-key values.
@@ -37,9 +30,9 @@ export class Store<S extends ClientDatabaseSchema> {
   readonly deleted: Map<string, null> = new Map()
 
   constructor(private readonly schema: S) {
-    this.tables = Object.fromEntries(
-      Object.keys(schema.tables).map(name => [name, new Map()]),
-    ) as { [Name in TableName<S>]: TableStore<Tables<S>[Name]> }
+    this.tables = Object.fromEntries(Object.keys(schema.tables).map(name => [name, new Map()])) as {
+      [Name in TableName<S>]: TableStore<Tables<S>[Name]>
+    }
   }
 
   // Applies a batch of mutations in order. INSERT replaces the row at its key,
@@ -48,10 +41,7 @@ export class Store<S extends ClientDatabaseSchema> {
   // mutator (an optimistic write) rather than the server.
   store(mutations: readonly Mutation<S>[], isFromMutator: boolean) {
     for (const mutation of mutations) {
-      const table = this.tables[mutation.table as TableName<S>] as Map<
-        string,
-        RowOf<TableSchema>
-      >
+      const table = this.tables[mutation.table as TableName<S>] as Map<string, RowOf<TableSchema>>
       if (!table) {
         throw new Error(`Unknown table "${mutation.table}"`)
       }
@@ -85,10 +75,7 @@ export class Store<S extends ClientDatabaseSchema> {
   // rows.
   addIfNotExist(inserts: readonly Insert<S>[]) {
     for (const insert of inserts) {
-      const table = this.tables[insert.table as TableName<S>] as Map<
-        string,
-        RowOf<TableSchema>
-      >
+      const table = this.tables[insert.table as TableName<S>] as Map<string, RowOf<TableSchema>>
       if (!table) {
         throw new Error(`Unknown table "${insert.table}"`)
       }
