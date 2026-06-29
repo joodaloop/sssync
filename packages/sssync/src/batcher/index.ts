@@ -1,8 +1,8 @@
 import { safeValidate } from '../json-validator'
 import { rowSchemaFor } from '../schema/row-schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
-import { cacheKeyForItem, rowKeyForItem } from '../shared';
-import type { BatchStats, MergedRequest, ResolvedItem } from '../shared';
+import { cacheKeyForItem, rowKeyForItem } from '../shared'
+import type { BatchStats, MergedRequest, ResolvedItem } from '../shared'
 import type { Observable } from '../shared'
 
 export type ResolvedBatch = {
@@ -97,7 +97,7 @@ export class Batcher {
     this.pending.clear()
 
     const items = entries.map(([, item]) => item)
-    entries.forEach(([k, item]) => this.inflight.set(k, item))
+    for (const [k, item] of entries) this.inflight.set(k, item)
     this.publish()
     try {
       const res = await fetch(this.batchURL, {
@@ -117,7 +117,7 @@ export class Batcher {
       this.resolve({ items, success: false })
     } finally {
       // Clear only this batch's keys; a concurrent flush may still own others.
-      entries.forEach(([k]) => this.inflight.delete(k))
+      for (const [k] of entries) this.inflight.delete(k)
       this.publish()
     }
   }

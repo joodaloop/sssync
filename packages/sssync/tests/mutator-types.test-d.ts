@@ -1,7 +1,7 @@
 import * as v from 'valibot'
 
-import { defineMutators } from '../src/mutators';
-import type { MutationEnvelope } from '../src/mutators';
+import { defineMutators } from '../src/mutators'
+import type { MutationEnvelope } from '../src/mutators'
 import { column, createSchema, table } from '../src/schema'
 
 const issues = table('issues')

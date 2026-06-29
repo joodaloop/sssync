@@ -48,10 +48,7 @@ export declare namespace StandardSchemaV1 {
   /** The Standard Schema properties interface. */
   export interface Props<Input = unknown, Output = Input> extends StandardTypedV1.Props<Input, Output> {
     /** Validates unknown input values. */
-    readonly validate: (
-      value: unknown,
-      options?: StandardSchemaV1.Options,
-    ) => Result<Output> | Promise<Result<Output>>
+    readonly validate: (value: unknown, options?: StandardSchemaV1.Options) => Result<Output> | Promise<Result<Output>>
   }
 
   /** The result interface of the validate function. */

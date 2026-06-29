@@ -1,5 +1,5 @@
-import { Bootstrap } from '../bootstrap';
-import type { BootstrapsSnapshot } from '../bootstrap';
+import { Bootstrap } from '../bootstrap'
+import type { BootstrapsSnapshot } from '../bootstrap'
 import { CoverageTracker } from '../coverage'
 import type { IDBStorage } from '../idb/types'
 import type { AnyMutatorDefinition, Mutators } from '../mutators'
@@ -9,8 +9,8 @@ import type { AllQueryPlan, OneQueryPlan, Query, QueryStore, RelationName, RowWi
 import type { QueryDetails } from '../query'
 import type { IdInputOf, RowOf, TableName, Tables } from '../schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
-import { Observable } from '../shared';
-import type { BatchStats, ReadonlyObservable, WorkError } from '../shared';
+import { Observable } from '../shared'
+import type { BatchStats, ReadonlyObservable, WorkError } from '../shared'
 import { Store } from '../store'
 import { Stats } from './stats'
 

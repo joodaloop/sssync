@@ -92,7 +92,7 @@ function parseEnvelope<const Definitions extends Record<string, AnyMutatorDefini
 function createCollectingDb<const S extends ClientDatabaseSchema>(schema: S, mutations: Mutation<S>[]): MutationDb<S> {
   const collecting: Record<string, unknown> = {}
 
-  Object.entries(schema.tables).forEach(([tableName, table]) => {
+  for (const [tableName, table] of Object.entries(schema.tables)) {
     const idOf = (id: unknown) => (table.primaryKey.length === 1 ? { [table.primaryKey[0]]: id } : id)
 
     collecting[tableName] = {
@@ -128,7 +128,7 @@ function createCollectingDb<const S extends ClientDatabaseSchema>(schema: S, mut
         return mutation
       },
     }
-  })
+  }
 
   return collecting as MutationDb<S>
 }

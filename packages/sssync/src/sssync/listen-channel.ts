@@ -1,5 +1,5 @@
-import { safeValidate } from '../json-validator';
-import type { Validator } from '../json-validator';
+import { safeValidate } from '../json-validator'
+import type { Validator } from '../json-validator'
 
 export type ChannelHandler<S extends Validator<unknown>> = (
   message: S extends Validator<infer Output> ? Output : never,

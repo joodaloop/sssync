@@ -28,19 +28,19 @@ export function createSchema<
   const retTables: Record<string, TableSchema> = {}
   const retRelationships: Record<string, Record<string, Relationship>> = {}
 
-  options.tables.forEach(table => {
+  for (const table of options.tables) {
     if (hasOwn(retTables, table.schema.name)) {
       throw new Error(`Table "${table.schema.name}" is defined more than once in the schema`)
     }
     retTables[table.schema.name] = table.build()
-  })
-  options.relationships?.forEach(relationships => {
+  }
+  for (const relationships of options.relationships ?? []) {
     if (retRelationships[relationships.name]) {
       throw new Error(`Relationships for table "${relationships.name}" are defined more than once in the schema`)
     }
     retRelationships[relationships.name] = relationships.relationships
     checkRelationship(relationships.relationships, relationships.name, retTables)
-  })
+  }
 
   return {
     tables: retTables,
@@ -55,14 +55,14 @@ function checkRelationship(
   tables: Record<string, TableSchema>,
 ) {
   // TS should be able to check this for us but something is preventing it from happening.
-  Object.entries(relationships).forEach(([name, rel]) => {
+  for (const [name, rel] of Object.entries(relationships)) {
     let source = tables[tableName]
     if (source.columns[name] !== undefined) {
       throw new Error(
         `Relationship "${tableName}"."${name}" cannot have the same name as the column "${name}" on the the table "${source.name}"`,
       )
     }
-    rel.forEach(connection => {
+    for (const connection of rel) {
       if (!tables[connection.destSchema]) {
         throw new Error(
           `For relationship "${tableName}"."${name}", destination table "${connection.destSchema}" is missing in the schema`,
@@ -74,8 +74,8 @@ function checkRelationship(
         )
       }
       source = tables[connection.destSchema]
-    })
-  })
+    }
+  }
 }
 
 export function hashSchema(schema: {
