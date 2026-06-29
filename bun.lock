@@ -9,6 +9,17 @@
         "vite": "^8.0.13",
       },
     },
+    "packages/solid": {
+      "name": "@sssync/solid",
+      "dependencies": {
+        "@sssync/sssync": "workspace:*",
+        "solid-js": "2.0.0-beta.0",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.14",
+        "typescript": "^6.0.3",
+      },
+    },
     "packages/sssync": {
       "name": "@sssync/sssync",
       "dependencies": {
@@ -128,6 +139,8 @@
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.1", "", {}, "sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw=="],
 
     "@solidjs/signals": ["@solidjs/signals@0.11.3", "", {}, "sha512-udMfutYPOlcxKUmc5+n1QtarsxOiAlC6LJY2TqFyaMwdXgo+reiYUcYGDlOiAPXfCLE0lavZHQ/6GT5pJbXKBA=="],
+
+    "@sssync/solid": ["@sssync/solid@workspace:packages/solid"],
 
     "@sssync/sssync": ["@sssync/sssync@workspace:packages/sssync"],
 

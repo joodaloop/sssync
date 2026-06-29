@@ -35,6 +35,7 @@ description: Todo list & progress tracking
 - [ ] Add a `store-updated` Broadcast Channel coordinator
 
 ## Putting it all together
+- [ ] Design error types for library
 - [ ] Figure out how to play well with SSR:
   1. Make IDB storage purely pluggable
 - [ ] Connect query layer with the coverage tracker

@@ -5,8 +5,8 @@ import {
   type Accessor,
   type JSX,
 } from 'solid-js'
-import { SSSync, type OneArgs, type SSSyncOptions } from '../sssync'
-import type { AnyMutatorDefinition } from '../mutators'
+import { SSSync, type OneArgs, type SSSyncOptions } from '@sssync/sssync/sssync'
+import type { AnyMutatorDefinition } from '@sssync/sssync/mutators'
 import type {
   AllQueryPlan,
   OneQueryPlan,
@@ -15,9 +15,9 @@ import type {
   QueryValue,
   RelationName,
   RowWithIncludes,
-} from '../query'
-import type { RowOf, TableName, Tables } from '../schema'
-import type { ClientDatabaseSchema } from '../schema/table-schema'
+} from '@sssync/sssync/query'
+import type { RowOf, TableName, Tables } from '@sssync/sssync/schema'
+import type { ClientDatabaseSchema } from '@sssync/sssync/schema/table-schema'
 
 export type SSSProviderProps<Sync extends SSSync<any, any>> = {
   readonly sync?: Sync | Accessor<Sync>

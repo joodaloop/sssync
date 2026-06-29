@@ -12,8 +12,9 @@ import type { ClientDatabaseSchema } from '../schema/table-schema'
 import type { AnyMutatorDefinition, Mutators } from '../mutators'
 import { Store } from '../store'
 import { CoverageTracker } from '../coverage'
-import { Bootstrap, type BootstrapStatus } from '../bootstrap'
+import { Bootstrap, type BootstrapsSnapshot } from '../bootstrap'
 import type { IDBStorage } from '../idb/types'
+import { Observable } from '../shared'
 
 /** Arguments for a single-row query: the row id plus relations to include. */
 export type OneArgs<
@@ -58,10 +59,9 @@ export class SSSync<
   readonly #store: QueryStore<S>
   readonly #rows: Store<S>
   readonly #coverage: CoverageTracker
-  readonly #bootstrap: Bootstrap
+  readonly #bootstrap: Bootstrap<S>
   readonly #storage: null | IDBStorage
-  // Per-model bootstrap status, backing the Bootstrap's checkStatus/changeStatus.
-  readonly #bootstrapStatus = new Map<string, BootstrapStatus>()
+  readonly #bootstraps: Observable<BootstrapsSnapshot<S>>
 
   constructor(options: SSSyncOptions<S, Definitions>) {
     this.schema = options.schema
@@ -70,11 +70,11 @@ export class SSSync<
     this.#store = store(options.schema)
     this.#rows = new Store(options.schema)
     this.#coverage = new CoverageTracker(options.schema, options.batchURL)
+    this.#bootstraps = new Observable<BootstrapsSnapshot<S>>({})
     this.#bootstrap = new Bootstrap(
       options.schema,
       options.bootstrapURL,
-      async name => this.#bootstrapStatus.get(name),
-      change => this.#bootstrapStatus.set(change.name, change.status),
+      this.#bootstraps,
     )
   }
 

@@ -1,34 +1,40 @@
 import * as v from 'valibot'
 
 import { rowSchemaFor } from '../schema/row-schema'
+import type { TableName } from '../schema/infer'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
+import type { Observable } from '../shared'
 
 export type BootstrapStatus = 'pending' | 'success' | 'error'
 
-export type StatusChange = {
-  readonly name: string
+// Per-model bootstrap state.
+export type BootstrapState = {
   readonly status: BootstrapStatus
   readonly error?: string
 }
 
+// Bootstrap state keyed by model name.
+export type BootstrapsSnapshot<S extends ClientDatabaseSchema> = Readonly<
+  Partial<Record<TableName<S>, BootstrapState>>
+>
+
+export type StatusChange<Name extends string = string> = {
+  readonly name: Name
+} & BootstrapState
+
 type LoadResult = Promise<readonly unknown[] | undefined>
 
-export class Bootstrap {
+export class Bootstrap<S extends ClientDatabaseSchema> {
   // One row validator per table, derived from the schema's write columns.
   private readonly rowValidators: Record<string, ReturnType<typeof rowSchemaFor>>
   // In-flight loads keyed by model. Recorded synchronously in `load` so
-  // concurrent calls share one fetch instead of racing past `checkStatus`.
+  // concurrent calls share one fetch before consulting the bootstrap registry.
   private readonly inflight = new Map<string, LoadResult>()
 
   constructor(
-    private readonly schema: ClientDatabaseSchema,
+    private readonly schema: S,
     private readonly bootstrapURL: string,
-    // Returns a model's current bootstrap status from the registry, or
-    // undefined if it has never been bootstrapped.
-    private readonly checkStatus: (
-      modelName: string,
-    ) => Promise<BootstrapStatus | undefined>,
-    private readonly changeStatus: (change: StatusChange) => void,
+    private readonly bootstraps: Observable<BootstrapsSnapshot<S>>,
   ) {
     this.rowValidators = Object.fromEntries(
       Object.entries(schema.tables).map(([name, table]) => [
@@ -41,7 +47,7 @@ export class Bootstrap {
   // Fetches every row for `modelName` via `GET /bootstrap?model=<name>`,
   // expecting `{ data: rows[] }`. Concurrent loads for the same model share one
   // in-flight request and resolve to the same rows. Returns undefined for an
-  // unknown model or one already satisfied per `checkStatus`.
+  // unknown model or one already satisfied per the bootstrap registry.
   //
   // Synchronous on purpose: the in-flight lookup happens before any await, so
   // two back-to-back calls can't both get past it.
@@ -68,7 +74,7 @@ export class Bootstrap {
 
     // Skip if already bootstrapped ('success') or being bootstrapped by another
     // session/tab ('pending'); the in-flight map handles same-instance dedupe.
-    const existing = await this.checkStatus(modelName)
+    const existing = this.bootstraps.get()[modelName as TableName<S>]?.status
     if (existing === 'success' || existing === 'pending') return undefined
 
     this.changeStatus({ name: modelName, status: 'pending' })
@@ -91,6 +97,16 @@ export class Bootstrap {
       })
       return undefined
     }
+  }
+
+  private changeStatus(change: StatusChange): void {
+    this.bootstraps.set({
+      ...this.bootstraps.get(),
+      [change.name]: {
+        status: change.status,
+        ...(change.error === undefined ? {} : { error: change.error }),
+      },
+    })
   }
 }
 

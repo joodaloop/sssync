@@ -1,8 +1,13 @@
-import { column, createSchema, relationships, table } from '../src/schema'
-import { defineMutators } from '../src/mutators'
-import { SSSync } from '../src/sssync'
-import { createSSSContext } from '../src/solid'
-import type { QueryValue } from '../src/query'
+import {
+  column,
+  createSchema,
+  relationships,
+  table,
+} from '@sssync/sssync/schema'
+import { defineMutators } from '@sssync/sssync/mutators'
+import { SSSync } from '@sssync/sssync/sssync'
+import type { QueryValue } from '@sssync/sssync/query'
+import { createSSSContext } from '../src'
 
 const issues = table('issues')
   .columns({

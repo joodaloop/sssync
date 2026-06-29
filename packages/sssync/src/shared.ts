@@ -36,6 +36,45 @@ export function hasOwn(obj: object, key: PropertyKey): boolean {
   return Object.prototype.hasOwnProperty.call(obj, key)
 }
 
+export type Listener = () => void
+
+// The read side of an Observable: a referentially-stable snapshot plus a way to
+// be notified when it changes. This is the external-store contract, so framework
+// wrappers can bind to it — Solid via `from`, React via `useSyncExternalStore` —
+// without the core depending on any UI framework.
+export interface ReadonlyObservable<T> {
+  get(): T
+  subscribe(listener: Listener): () => void
+}
+
+// A minimal observable value. Holds one snapshot whose identity is stable until
+// `set` is called, and notifies listeners on each `set`. Callers are responsible
+// for passing a new reference when the value has actually changed.
+export class Observable<T> implements ReadonlyObservable<T> {
+  #value: T
+  readonly #listeners = new Set<Listener>()
+
+  constructor(initial: T) {
+    this.#value = initial
+  }
+
+  get(): T {
+    return this.#value
+  }
+
+  set(value: T): void {
+    this.#value = value
+    for (const listener of this.#listeners) listener()
+  }
+
+  subscribe(listener: Listener): () => void {
+    this.#listeners.add(listener)
+    return () => {
+      this.#listeners.delete(listener)
+    }
+  }
+}
+
 export type ResolvedItem = {
   readonly modelName: string
   readonly id: unknown
