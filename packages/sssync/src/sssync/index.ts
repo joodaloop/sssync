@@ -71,7 +71,7 @@ export class SSSync<
   }
   readonly #store: QueryStore<S>
   readonly #rows: Store<S>
-  readonly #coverage: CoverageTracker
+  readonly #coverage: CoverageTracker<S>
   readonly #bootstrap: Bootstrap<S>
   readonly #storage: null | IDBStorage
   readonly #isPersistent: Observable<boolean>

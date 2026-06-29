@@ -2,7 +2,8 @@ import { Batcher } from '../batcher'
 import type { ResolvedBatch } from '../batcher'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import { cacheKeyForItem, coveredKeysForItem } from '../shared'
-import type { BatchResponse, BatchStats, Observable, ResolvedItem } from '../shared'
+import type { BatchStats, Observable, ResolvedItem } from '../shared'
+import type { RowsByTable } from '../store'
 
 export type Coverage = 'success' | 'error'
 
@@ -13,17 +14,17 @@ type Pending = {
 
 // Tracks which items have been fetched by driving a Batcher and recording the
 // outcome of each resolved item keyed by its cache key.
-export class CoverageTracker {
+export class CoverageTracker<S extends ClientDatabaseSchema> {
   readonly coverage = new Map<string, Coverage>()
   // In-flight requests keyed by cache key, settled when the batcher resolves.
   private readonly pending = new Map<string, Pending>()
-  private readonly batcher: Batcher
+  private readonly batcher: Batcher<S>
 
   constructor(
-    schema: ClientDatabaseSchema,
+    schema: S,
     batchURL: string,
     batches: Observable<BatchStats>,
-    addIfNotExist: (response: BatchResponse) => void = () => {},
+    addIfNotExist: (rowsByTable: RowsByTable<S>) => void = () => {},
   ) {
     this.batcher = new Batcher(schema, batchURL, batches, addIfNotExist, this.resolveItems)
   }

@@ -181,7 +181,7 @@ describe('Batcher', () => {
   })
 
   test('resolves success: true when every row validates', async () => {
-    mockFetch(() => jsonResponse({ issues: [validRow] }))
+    mockFetch(() => jsonResponse({ issues: [{ ...validRow, ignored: 'server-only' }] }))
     const batches: ResolvedBatch[] = []
     let added: unknown
     const batcher = new Batcher(

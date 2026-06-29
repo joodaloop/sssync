@@ -2,7 +2,8 @@ import { safeValidate } from '../json-validator'
 import { rowSchemaFor } from '../schema/row-schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import { cacheKeyForItem, rowKeyForItem } from '../shared'
-import type { BatchResponse, BatchStats, MergedRequest, Observable, ResolvedItem } from '../shared'
+import type { BatchStats, MergedRequest, Observable, ResolvedItem } from '../shared'
+import type { RowsByTable } from '../store'
 
 export type ResolvedBatch = {
   readonly items: readonly ResolvedItem[]
@@ -30,7 +31,7 @@ export function mergeRequests(items: readonly ResolvedItem[]): MergedRequest[] {
   return [...merged.values()]
 }
 
-export class Batcher {
+export class Batcher<S extends ClientDatabaseSchema> {
   readonly wait = 100
   private readonly inflight = new Map<string, ResolvedItem>()
   private readonly pending = new Map<string, ResolvedItem>()
@@ -39,10 +40,10 @@ export class Batcher {
   timer: ReturnType<typeof setTimeout> | undefined
 
   constructor(
-    private readonly schema: ClientDatabaseSchema,
+    private readonly schema: S,
     private readonly batchURL: string,
     private readonly batches: Observable<BatchStats>,
-    private readonly addIfNotExist: (response: BatchResponse) => void,
+    private readonly addIfNotExist: (rowsByTable: RowsByTable<S>) => void,
     private readonly resolve: (batch: ResolvedBatch) => void,
   ) {
     this.rowValidators = Object.fromEntries(
@@ -51,34 +52,38 @@ export class Batcher {
   }
 
   // Validates the server payload of `{ tableName: rows }` against each table's
-  // write schema. Returns false on an unknown table or any invalid row.
-  private validatePayload(payload: unknown): payload is BatchResponse {
+  // write schema. Returns typed rows on success.
+  private validatePayload(payload: unknown): RowsByTable<S> | undefined {
     if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
       console.warn('Batch response was not an object of rows')
-      return false
+      return undefined
     }
 
+    const rowsByTable: Record<string, readonly Record<string, unknown>[]> = {}
     for (const [tableName, rows] of Object.entries(payload)) {
       const validator = this.rowValidators[tableName]
       if (!validator) {
         console.warn(`Batch response referenced unknown table "${tableName}"`)
-        return false
+        return undefined
       }
       if (!Array.isArray(rows)) {
         console.warn(`Rows for table "${tableName}" were not an array`)
-        return false
+        return undefined
       }
+      const validatedRows: Record<string, unknown>[] = []
       for (const row of rows) {
         const result = safeValidate(validator, row)
         if (!result.success) {
           const message = result.issues.map(issue => issue.message).join('; ')
           console.warn(`Invalid "${tableName}" row: ${message}`)
-          return false
+          return undefined
         }
+        validatedRows.push(result.output)
       }
+      rowsByTable[tableName] = validatedRows
     }
 
-    return true
+    return rowsByTable as RowsByTable<S>
   }
 
   request(item: ResolvedItem) {
@@ -109,13 +114,13 @@ export class Batcher {
       }
       // Only report success if every incoming row passes its write schema.
       const payload = await res.json()
-      const valid = this.validatePayload(payload)
+      const rowsByTable = this.validatePayload(payload)
       // Seed the validated rows into the store before resolving, so waiters see
       // the data the moment their request settles. Invalid payloads are skipped.
-      if (valid) this.addIfNotExist(payload)
+      if (rowsByTable) this.addIfNotExist(rowsByTable)
       // The resolver expands a relation item into its bare row, so resolving the
       // fetched items also resolves any bare rows we subsumed into them.
-      this.resolve({ items, success: valid })
+      this.resolve({ items, success: rowsByTable !== undefined })
     } catch {
       // Unblock waiters so a failed batch doesn't leave its requests hanging.
       this.resolve({ items, success: false })

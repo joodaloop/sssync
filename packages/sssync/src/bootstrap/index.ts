@@ -33,7 +33,7 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
     private readonly schema: S,
     private readonly bootstrapURL: string,
     private readonly bootstraps: Observable<BootstrapsSnapshot<S>>,
-    private readonly addIfNotExist: (rowsByTable: RowsByTable) => void = () => {},
+    private readonly addIfNotExist: (rowsByTable: RowsByTable<S>) => void = () => {},
   ) {
     this.rowValidators = Object.fromEntries(
       Object.entries(schema.tables).map(([name, table]) => [name, rowSchemaFor(table)]),
@@ -83,7 +83,7 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
       }
 
       const rows = validateData(await res.json(), validator)
-      this.addIfNotExist({ [modelName]: rows })
+      this.addIfNotExist(rowsByTableFor<S>(modelName, rows))
       this.changeStatus({ name: modelName, status: 'success' })
       return rows
     } catch (error) {
@@ -130,4 +130,11 @@ function validateData(payload: unknown, validator: ReturnType<typeof rowSchemaFo
   }
 
   return rows
+}
+
+function rowsByTableFor<S extends ClientDatabaseSchema>(
+  tableName: string,
+  rows: readonly Record<string, unknown>[],
+): RowsByTable<S> {
+  return { [tableName]: rows } as RowsByTable<S>
 }

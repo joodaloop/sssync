@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 
 import { CoverageTracker } from '../src/coverage'
 import { column, createSchema, table } from '../src/schema'
+import type { ClientDatabaseSchema } from '../src/schema'
 import { cacheKeyForItem, Observable, resolvedItemFor } from '../src/shared'
 import type { BatchStats, ResolvedItem } from '../src/shared'
 
-const status = (tracker: CoverageTracker, item: ResolvedItem) => tracker.coverage.get(cacheKeyForItem(item))
+const status = <S extends ClientDatabaseSchema>(tracker: CoverageTracker<S>, item: ResolvedItem) =>
+  tracker.coverage.get(cacheKeyForItem(item))
 
 const issues = table('issues')
   .columns({

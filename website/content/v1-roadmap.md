@@ -26,7 +26,8 @@ description: Todo list & progress tracking
 - [ ] Design APIs to write to the store from:
   - [ ] Mutations
   - [ ] Syncers
-  - [x] Batch/bootstrap
+  - [x] [Batch/bootstrap](https://github.com/joodaloop/sssync/commit/068f1bcd36abd5f8bac0887c67458e94988811c5)
+- [ ] Implement (tested) performant path for store APIs 
 - [ ] Build an IndexedDB database management system
 
 ## Cross-tab coordination

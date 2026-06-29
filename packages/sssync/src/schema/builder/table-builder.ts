@@ -115,6 +115,9 @@ export class TableBuilderWithColumns<TShape extends TableSchema> {
       if (col.type === 'json') {
         throw new Error(`Primary key column "${this.#schema.name}"."${columnName}" cannot be json`)
       }
+      if (col.optional) {
+        throw new Error(`Primary key column "${this.#schema.name}"."${columnName}" cannot be optional`)
+      }
     }
     return this.#schema
   }

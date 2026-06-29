@@ -3,7 +3,11 @@ import type { IdInputOf, RowOf, TableName, Tables } from '../schema/infer'
 import type { ClientDatabaseSchema, TableSchema } from '../schema/table-schema'
 import { primaryKeyFor } from '../shared'
 
-export type RowsByTable = Readonly<Record<string, readonly Record<string, unknown>[]>>
+export type RowsByTable<S extends ClientDatabaseSchema> = Readonly<
+  Partial<{
+    readonly [Name in TableName<S>]: readonly RowOf<Tables<S>[Name]>[]
+  }>
+>
 export type StoreRow = Readonly<Record<string, unknown>>
 export type StoreRowPatch = Readonly<Record<string, unknown>>
 
@@ -57,7 +61,6 @@ export type Stores<S extends ClientDatabaseSchema> = {
 // Holds a JavaScript Map per table and applies batches of INSERT/UPDATE/DELETE
 // mutations to them.
 export class Store<S extends ClientDatabaseSchema> {
-
   readonly tables: Stores<S>
   readonly deleted: Map<string, null> = new Map()
   readonly #rowChangeListeners = new Set<RowChangeListener>()
@@ -70,12 +73,9 @@ export class Store<S extends ClientDatabaseSchema> {
   }
 
   getRowFromTable: GetRowFromTable<S> = (tableName, id) => {
-    const table = this.tables[tableName] as Map<string, RowOf<Tables<S>[typeof tableName]>> | undefined
-    if (!table) {
-      throw new Error(`Unknown table "${tableName}"`)
-    }
-
-    return table.get(this.keyFor(tableName, id))
+    return this.tableFor(tableName).get(this.keyFor(tableName, id)) as
+      | RowOf<Tables<S>[typeof tableName]>
+      | undefined
   }
 
   subscribeToRowChanges: SubscribeToRowChanges = listener => {
@@ -98,6 +98,8 @@ export class Store<S extends ClientDatabaseSchema> {
             const existing = this.tableFor(mutation.table).get(key)
             if (existing) {
               this.setRow(mutation.table, key, { ...existing, ...mutation.changes })
+            } else {
+              console.warn(`UPDATE ignored for missing "${mutation.table}" row ${key}`)
             }
             break
           }
@@ -115,9 +117,9 @@ export class Store<S extends ClientDatabaseSchema> {
   // Adds rows from a table-keyed response, but only fills in rows that are
   // currently absent. Used to seed the store without clobbering existing
   // (e.g. locally mutated) rows.
-  addIfNotExist(rowsByTable: RowsByTable) {
+  addIfNotExist(rowsByTable: RowsByTable<S>) {
     this.transact(() => {
-      for (const [tableName, rows] of Object.entries(rowsByTable)) {
+      for (const [tableName, rows] of Object.entries(rowsByTable) as [string, readonly StoreRow[]][]) {
         const table = this.tableFor(tableName)
 
         for (const row of rows) {

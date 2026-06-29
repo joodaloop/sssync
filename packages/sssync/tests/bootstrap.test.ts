@@ -91,7 +91,7 @@ describe('Bootstrap', () => {
   })
 
   test('adds validated rows to the store by table name', async () => {
-    mockFetch(() => jsonResponse({ data: [validRow] }))
+    mockFetch(() => jsonResponse({ data: [{ ...validRow, ignored: 'server-only' }] }))
     const added: unknown[] = []
     const bootstrap = new Bootstrap(schema, '/bootstrap', bootstrapRegistry(), rowsByTable => {
       added.push(rowsByTable)
