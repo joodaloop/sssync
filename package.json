@@ -2,7 +2,6 @@
   "name": "sssync-beta",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.7.0",
   "scripts": {
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm check:exports",
     "check:exports": "pnpm -r --if-present check:exports",
@@ -23,5 +22,6 @@
     "publint": "^0.3.21",
     "sonda": "^0.11.1",
     "vite": "^8.0.13"
-  }
+  },
+  "packageManager": "pnpm@11.7.0"
 }
