@@ -3,6 +3,7 @@ import type { TableName } from '../schema/infer'
 import { rowSchemaFor } from '../schema/row-schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import type { Observable } from '../shared'
+import type { RowsByTable } from '../store'
 
 export type BootstrapStatus = 'pending' | 'success' | 'error'
 
@@ -32,6 +33,7 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
     private readonly schema: S,
     private readonly bootstrapURL: string,
     private readonly bootstraps: Observable<BootstrapsSnapshot<S>>,
+    private readonly addIfNotExist: (rowsByTable: RowsByTable) => void = () => {},
   ) {
     this.rowValidators = Object.fromEntries(
       Object.entries(schema.tables).map(([name, table]) => [name, rowSchemaFor(table)]),
@@ -81,6 +83,7 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
       }
 
       const rows = validateData(await res.json(), validator)
+      this.addIfNotExist({ [modelName]: rows })
       this.changeStatus({ name: modelName, status: 'success' })
       return rows
     } catch (error) {
@@ -106,7 +109,7 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
 
 // Validates the `{ data: rows[] }` payload, returning the rows when every one
 // matches `validator`. Throws otherwise so `load` can report the error message.
-function validateData(payload: unknown, validator: ReturnType<typeof rowSchemaFor>): readonly unknown[] {
+function validateData(payload: unknown, validator: ReturnType<typeof rowSchemaFor>): readonly Record<string, unknown>[] {
   if (payload === null || typeof payload !== 'object' || !('data' in payload)) {
     throw new Error('Bootstrap response had no "data" array')
   }
@@ -116,13 +119,15 @@ function validateData(payload: unknown, validator: ReturnType<typeof rowSchemaFo
     throw new Error('Bootstrap response "data" was not an array')
   }
 
+  const rows: Record<string, unknown>[] = []
   for (const row of data) {
     const result = safeValidate(validator, row)
     if (!result.success) {
       const message = result.issues.map(issue => issue.message).join('; ')
       throw new Error(`Invalid row: ${message}`)
     }
+    rows.push(result.output)
   }
 
-  return data
+  return rows
 }

@@ -1,8 +1,8 @@
 import { Batcher } from '../batcher'
-import type { BatchResponse, ResolvedBatch } from '../batcher'
+import type { ResolvedBatch } from '../batcher'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import { cacheKeyForItem, coveredKeysForItem } from '../shared'
-import type { BatchStats, Observable, ResolvedItem } from '../shared'
+import type { BatchResponse, BatchStats, Observable, ResolvedItem } from '../shared'
 
 export type Coverage = 'success' | 'error'
 

@@ -90,6 +90,18 @@ describe('Bootstrap', () => {
     expect(rows).toEqual([validRow])
   })
 
+  test('adds validated rows to the store by table name', async () => {
+    mockFetch(() => jsonResponse({ data: [validRow] }))
+    const added: unknown[] = []
+    const bootstrap = new Bootstrap(schema, '/bootstrap', bootstrapRegistry(), rowsByTable => {
+      added.push(rowsByTable)
+    })
+
+    await bootstrap.load('issues')
+
+    expect(added).toEqual([{ issues: [validRow] }])
+  })
+
   test('skips fetch when already satisfied or in flight', async () => {
     for (const existing of ['success', 'pending'] as BootstrapStatus[]) {
       const fetchMock = mockFetch(() => jsonResponse({ data: [validRow] }))
@@ -170,11 +182,15 @@ describe('Bootstrap', () => {
     mockFetch(() => jsonResponse({ data: [{ ...validRow, priority: 'high' }] }))
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
-    const bootstrap = new Bootstrap(schema, '/bootstrap', bootstraps)
+    const added: unknown[] = []
+    const bootstrap = new Bootstrap(schema, '/bootstrap', bootstraps, rowsByTable => {
+      added.push(rowsByTable)
+    })
 
     const rows = await bootstrap.load('issues')
 
     expect(rows).toBeUndefined()
+    expect(added).toEqual([])
     expect(changes.map(c => c.status)).toEqual(['pending', 'error'])
     expect(changes[1].error).toBeTruthy()
   })

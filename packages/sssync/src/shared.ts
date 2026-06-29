@@ -84,6 +84,8 @@ export type BatchStats = {
   readonly inflight: readonly MergedRequest[]
 }
 
+export type BatchResponse = Readonly<Record<string, readonly Record<string, unknown>[]>>
+
 export type WorkError = {
   readonly source: 'bootstrap' | 'batch' | 'coverage' | 'channel' | 'leader'
   readonly key: string

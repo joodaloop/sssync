@@ -106,7 +106,9 @@ export class SSSync<
     this.#coverage = new CoverageTracker(options.schema, options.batchURL, this.#batches, response =>
       this.#rows.addIfNotExist(response),
     )
-    this.#bootstrap = new Bootstrap(options.schema, options.bootstrapURL, this.#bootstraps)
+    this.#bootstrap = new Bootstrap(options.schema, options.bootstrapURL, this.#bootstraps, rowsByTable =>
+      this.#rows.addIfNotExist(rowsByTable),
+    )
   }
 
   get isPersistent(): ReadonlyObservable<boolean> {

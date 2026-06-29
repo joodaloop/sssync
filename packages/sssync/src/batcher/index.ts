@@ -2,14 +2,12 @@ import { safeValidate } from '../json-validator'
 import { rowSchemaFor } from '../schema/row-schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import { cacheKeyForItem, rowKeyForItem } from '../shared'
-import type { BatchStats, MergedRequest, Observable, ResolvedItem } from '../shared'
+import type { BatchResponse, BatchStats, MergedRequest, Observable, ResolvedItem } from '../shared'
 
 export type ResolvedBatch = {
   readonly items: readonly ResolvedItem[]
   readonly success: boolean
 }
-
-export type BatchResponse = Readonly<Record<string, readonly Record<string, unknown>[]>>
 
 // Collapses requests for the same model + id into a single payload entry,
 // gathering all of their relations into one array. A bare-row request and its
