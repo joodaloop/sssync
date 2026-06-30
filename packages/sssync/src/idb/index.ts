@@ -2,9 +2,9 @@ import { openDB, type IDBPDatabase, type IDBPTransaction } from 'idb'
 
 import type { ClientDatabaseSchema, IdInputOf, Relationship, RowOf, TableName, TableSchema, Tables } from '../schema'
 import { primaryKeyFor, tupleKey } from '../shared'
-import type { IDBReadTransaction, IDBStorage, IDBStorageInitOptions } from './types'
+import type { IDBKVTransaction, IDBReadTransaction, IDBStorage, IDBStorageInitOptions } from './types'
 
-export type { IDBReadTransaction, IDBStorage, IDBStorageInitOptions } from './types'
+export type { IDBKVTransaction, IDBReadTransaction, IDBStorage, IDBStorageInitOptions } from './types'
 
 type StorageRecord = {
   readonly key: string
@@ -86,14 +86,12 @@ export class IndexedDBStorage<S extends ClientDatabaseSchema = ClientDatabaseSch
     return callback(reader)
   }
 
-  async readKV(id: string): Promise<unknown | undefined> {
+  async transactionKVStore<T>(callback: (transaction: IDBKVTransaction) => Promise<T>): Promise<T> {
     const db = await this.ready
-    return db.get(KV_STORE_NAME, id)
-  }
-
-  async writeKV(id: string, value: unknown): Promise<void> {
-    const db = await this.ready
-    await db.put(KV_STORE_NAME, value, id)
+    const transaction = db.transaction(KV_STORE_NAME, 'readwrite')
+    const result = await callback(new IndexedDBKVTransaction(transaction))
+    await transaction.done
+    return result
   }
 
   storeMutations(): void {
@@ -122,6 +120,18 @@ export class IndexedDBStorage<S extends ClientDatabaseSchema = ClientDatabaseSch
       throw new Error('IndexedDBStorage has not been initialized')
     }
     return storeNames
+  }
+}
+
+class IndexedDBKVTransaction implements IDBKVTransaction {
+  constructor(private readonly transaction: IDBPTransaction<unknown, [typeof KV_STORE_NAME], 'readwrite'>) {}
+
+  async get(id: string): Promise<unknown | undefined> {
+    return this.transaction.objectStore(KV_STORE_NAME).get(id)
+  }
+
+  async put(id: string, value: unknown): Promise<void> {
+    await this.transaction.objectStore(KV_STORE_NAME).put(value, id)
   }
 }
 

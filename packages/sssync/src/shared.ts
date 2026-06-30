@@ -27,6 +27,10 @@ export function hasOwn(obj: object, key: PropertyKey): boolean {
   return Object.prototype.hasOwnProperty.call(obj, key)
 }
 
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
 export type Listener = () => void
 
 // The read side of an Observable: a referentially-stable snapshot plus a way to

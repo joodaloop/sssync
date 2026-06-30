@@ -16,9 +16,11 @@ import type {
 } from '../query'
 import type { IdInputOf, RowOf, TableName, Tables } from '../schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
-import { Observable } from '../shared'
+import { hasOwn, isRecord, Observable } from '../shared'
 import type { BatchStats, ReadonlyObservable } from '../shared'
 import { Store } from '../store'
+
+const BOOTSTRAPS_KV_KEY = 'bootstraps'
 
 /** Arguments for a single-row query: the row id plus relations to include. */
 export type OneArgs<
@@ -61,6 +63,7 @@ export class SSSync<
     [K in keyof Definitions]: AnyMutatorDefinition<S>
   } = {},
 > {
+  readonly ready: Promise<void>
   readonly schema: S
   readonly mutators: Mutators<S, Definitions>
   readonly stats: {
@@ -74,7 +77,7 @@ export class SSSync<
   readonly #store: QueryStore<S>
   readonly #rows: Store<S>
   readonly #coverage: CoverageTracker<S>
-  readonly #bootstrap: Bootstrap<S>
+  readonly #bootstrap: Promise<Bootstrap<S>>
   readonly #storage: null | IDBStorage<S>
   readonly #isPersistent: Observable<boolean>
   readonly #bootstraps: Observable<BootstrapsSnapshot<S>>
@@ -106,6 +109,7 @@ export class SSSync<
     this.#queries = new Observable<Readonly<Record<string, QueryDetails>>>({})
     this.#errors = new Observable<readonly SyncError[]>([])
     this.#maxErrors = 100
+    this.ready = this.#hydrateBootstrapsFromStorage()
     this.stats = {
       isPersistent: this.#isPersistent,
       bootstraps: this.#bootstraps,
@@ -119,9 +123,63 @@ export class SSSync<
     this.#coverage = new CoverageTracker(options.schema, batchURL, this.#batches, response =>
       this.#rows.addIfNotExist(response),
     )
-    this.#bootstrap = new Bootstrap(options.schema, bootstrapURL, this.#bootstraps, rowsByTable =>
-      this.#rows.addIfNotExist(rowsByTable),
+    this.#bootstrap = this.ready.then(
+      () =>
+        new Bootstrap(options.schema, bootstrapURL, this.#bootstraps, rowsByTable =>
+          this.#rows.addIfNotExist(rowsByTable),
+        ),
     )
+    if (this.#storage) {
+      this.ready.then(() => {
+        let previous = this.#bootstraps.get()
+        this.#bootstraps.subscribe(() => {
+          const next = this.#bootstraps.get()
+          for (const [tableName, state] of Object.entries(next)) {
+            if (state && previous[tableName as TableName<S>] !== state) {
+              this.#storage
+                ?.transactionKVStore(async kv => {
+                  const value = await kv.get(BOOTSTRAPS_KV_KEY)
+                  const snapshot = isBootstrapsSnapshot(this.schema, value) ? value : {}
+                  await kv.put(BOOTSTRAPS_KV_KEY, {
+                    ...snapshot,
+                    [tableName]: state,
+                  })
+                })
+                .catch(error => {
+                  this.report({
+                    type: 'persistence.write_failed',
+                    store: BOOTSTRAPS_KV_KEY,
+                    key: BOOTSTRAPS_KV_KEY,
+                    cause: { message: String(error) },
+                  })
+                })
+            }
+          }
+          previous = next
+        })
+      })
+    }
+  }
+
+  async #hydrateBootstrapsFromStorage(): Promise<void> {
+    const storage = this.#storage
+    if (!storage) return
+
+    try {
+      await storage.transactionKVStore(async kv => {
+        const value = await kv.get(BOOTSTRAPS_KV_KEY)
+        if (isBootstrapsSnapshot(this.schema, value)) {
+          this.#bootstraps.set(value as BootstrapsSnapshot<S>)
+        }
+      })
+    } catch (error) {
+      this.report({
+        type: 'persistence.read_failed',
+        store: BOOTSTRAPS_KV_KEY,
+        key: BOOTSTRAPS_KV_KEY,
+        cause: { message: String(error) },
+      })
+    }
   }
 
   get isPersistent(): ReadonlyObservable<boolean> {
@@ -173,4 +231,24 @@ function absoluteURL(label: string, url: string): string {
     throw new Error(`${label} must be an absolute URL, got "${url}"`)
   }
   return url.replace(/\/+$/, '')
+}
+
+function isBootstrapsSnapshot<S extends ClientDatabaseSchema>(
+  schema: S,
+  value: unknown,
+): value is BootstrapsSnapshot<S> {
+  if (!isRecord(value)) return false
+
+  for (const [tableName, state] of Object.entries(value)) {
+    if (!hasOwn(schema.tables, tableName) || !isBootstrapState(state)) {
+      return false
+    }
+  }
+  return true
+}
+
+function isBootstrapState(value: unknown): boolean {
+  if (!isRecord(value)) return false
+  if (value.status !== 'pending' && value.status !== 'success' && value.status !== 'error') return false
+  return value.error === undefined || typeof value.error === 'string'
 }

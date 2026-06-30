@@ -19,6 +19,11 @@ export interface IDBReadTransaction<S extends ClientDatabaseSchema = ClientDatab
   ): Promise<readonly RowOf<Tables<S>[Name]>[]>
 }
 
+export interface IDBKVTransaction {
+  get(id: string): Promise<unknown | undefined>
+  put(id: string, value: unknown): Promise<void>
+}
+
 /**
  * Storage contract for sssync persistence.
  *
@@ -35,6 +40,5 @@ export interface IDBStorage<S extends ClientDatabaseSchema = ClientDatabaseSchem
   readonly __idbStorage: 'IDBStorage'
   init(options: IDBStorageInitOptions<S>): void
   read<T>(callback: (transaction: IDBReadTransaction<S>) => Promise<T>): Promise<T>
-  readKV(id: string): Promise<unknown | undefined>
-  writeKV(id: string, value: unknown): Promise<void>
+  transactionKVStore<T>(callback: (transaction: IDBKVTransaction) => Promise<T>): Promise<T>
 }
