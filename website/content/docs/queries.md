@@ -2,6 +2,11 @@
 title: Querying data
 ---
 
+`subscribe(body, {onData, onError, isEqual})`
+onChange
+- initialValuesInFirstDiff` — if true, the first callback synthesizes an `add` diff for *all existing matching values*, so a watcher can build initial state and then stay live from one code path.
+- DeepReadonly<T>
+
 Accessing all items in a collection:
 ```tsx
 // React: returns a tuple

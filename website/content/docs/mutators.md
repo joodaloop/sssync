@@ -15,3 +15,6 @@ THese mutators are eventually sent to the backend in the form:
   id: "evt_01J...",
   time: "2026-06-22T10:15:30Z",
 }```
+
+- `experimentalPendingMutations()` — inspect not-yet-confirmed local mutations.
+- `mutationID`, `reason` (`'initial' | 'rebase' | 'authoritative'`)

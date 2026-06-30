@@ -14,6 +14,7 @@ description: Todo list & progress tracking
 - [x] [Build type-safe mutator definitions, with a Standard Schema `data` field](https://github.com/joodaloop/sssync/commit/15d512c14b0d23aa6c9fd88b18e7811a5b95fd55)
 - [ ] Build cross-tab ordering system
 - [ ] Connect to IDB for persistence
+- [ ] Choose an incrementing Mutation ID format per (client|browser)
 
 ## Query DSL
 - [x] [Finalise design for query DSL](https://github.com/joodaloop/sssync/commit/3e255be4fd00f77772a3ee91b83d3dd02c0c10e7)
@@ -60,7 +61,7 @@ description: Todo list & progress tracking
 <br/>
 
 ## Future
-
+- Add https://rxdb.info/key-compression.html
 - Go through https://github.com/rocicorp/replicache/releases and implement all useful features.
 - Eviction
 - Partial migrations

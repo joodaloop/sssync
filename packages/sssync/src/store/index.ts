@@ -3,6 +3,8 @@ import type { IdInputOf, RowOf, TableName, Tables } from '../schema/infer'
 import type { ClientDatabaseSchema, TableSchema } from '../schema/table-schema'
 import { primaryKeyFor } from '../shared'
 
+// The diff is `readonly DiffOperation[]` where each op is `{op:'add', key, newValue}` | `{op:'del', key, oldValue}` | `{op:'change', key, oldValue, newValue}`. The callback is never invoked with an empty diff. This add/del/change triple with old+new values is the canonical shape — worth matching exactly so downstream consumers can be generic.
+
 export type RowsByTable<S extends ClientDatabaseSchema> = Readonly<
   Partial<{
     readonly [Name in TableName<S>]: readonly RowOf<Tables<S>[Name]>[]
