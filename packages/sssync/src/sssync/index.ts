@@ -1,6 +1,7 @@
 import { Bootstrap } from '../bootstrap'
 import type { BootstrapsSnapshot } from '../bootstrap'
 import { CoverageTracker } from '../coverage'
+import type { SyncError } from '../errors'
 import type { IDBStorage } from '../idb/types'
 import type { AnyMutatorDefinition, MutationEnvelope, Mutators } from '../mutators'
 import { store } from '../query'
@@ -18,7 +19,6 @@ import type { ClientDatabaseSchema } from '../schema/table-schema'
 import { Observable } from '../shared'
 import type { BatchStats, ReadonlyObservable } from '../shared'
 import { Store } from '../store'
-import type { SyncError } from '../errors'
 
 /** Arguments for a single-row query: the row id plus relations to include. */
 export type OneArgs<
@@ -34,12 +34,14 @@ export type SSSyncOptions<
   S extends ClientDatabaseSchema,
   Definitions extends { [K in keyof Definitions]: AnyMutatorDefinition<S> },
 > = {
+  readonly name: string
+  readonly id: string
   readonly schema: S
   readonly mutators: Mutators<S, Definitions>
   readonly schemaVersion: number
   readonly batchURL: string
   readonly bootstrapURL: string
-  readonly storage: null | IDBStorage
+  readonly storage: null | IDBStorage<S>
 }
 
 /**
@@ -47,7 +49,7 @@ export type SSSyncOptions<
  * builds query plans against them.
  *
  * ```ts
- * const sync = new SSSync({ schema, mutators })
+ * const sync = new SSSync({ name: 'my-app', id: 'current-user', schema, mutators })
  * sync.all('issues')                                    // whole table
  * sync.one('issues', { id: 'issue-1' })                 // one row
  * sync.one('issues', { id: 'issue-1', relations: ['comments'] })
@@ -73,7 +75,7 @@ export class SSSync<
   readonly #rows: Store<S>
   readonly #coverage: CoverageTracker<S>
   readonly #bootstrap: Bootstrap<S>
-  readonly #storage: null | IDBStorage
+  readonly #storage: null | IDBStorage<S>
   readonly #isPersistent: Observable<boolean>
   readonly #bootstraps: Observable<BootstrapsSnapshot<S>>
   readonly #batches: Observable<BatchStats>
@@ -86,6 +88,12 @@ export class SSSync<
     this.schema = options.schema
     this.mutators = options.mutators
     this.#storage = options.storage
+    this.#storage?.init({
+      name: options.name,
+      id: options.id,
+      schema: options.schema,
+      schemaVersion: options.schemaVersion,
+    })
     this.#isPersistent = new Observable(options.storage !== null)
     this.#rows = new Store(options.schema)
     this.#store = store(options.schema, {

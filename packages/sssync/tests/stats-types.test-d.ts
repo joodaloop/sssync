@@ -34,6 +34,8 @@ const mutators = defineMutators(schema, defineMutator => ({
 }))
 
 const sync = new SSSync({
+  name: 'test',
+  id: 'test-user',
   schema,
   mutators,
   schemaVersion: 1,

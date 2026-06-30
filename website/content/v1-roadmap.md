@@ -8,7 +8,6 @@ description: Todo list & progress tracking
 - [x] [Use minimal internal validators instead of Valibot](https://github.com/joodaloop/sssync/commit/952f4623ef2f045b8ee46d9500145bf4743a17ef)
 
 ## Mutators
-
 - [x] [Switch over to using mutators instead of the event/projector separation](https://github.com/joodaloop/sssync/commit/8230a567fbeb45c02e03815f82cc5f98ab6c4968)
 - [x] [Decide on a mutator design](https://github.com/joodaloop/sssync/blob/80360dfddba47bd1c9bb33cabeb7b15798ae4072/website/content/docs/events.md)
 - [x] [Build type-safe mutator definitions, with a Standard Schema `data` field](https://github.com/joodaloop/sssync/commit/15d512c14b0d23aa6c9fd88b18e7811a5b95fd55)
