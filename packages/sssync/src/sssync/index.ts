@@ -16,11 +16,11 @@ import type {
 } from '../query'
 import type { IdInputOf, RowOf, TableName, Tables } from '../schema'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
-import { hasOwn, isRecord, Observable } from '../shared'
+import { isRecord, Observable } from '../shared'
 import type { BatchStats, ReadonlyObservable } from '../shared'
 import { Store } from '../store'
 
-const BOOTSTRAPS_KV_KEY = 'bootstraps'
+const BOOTSTRAPS_KV_PREFIX = 'bootstraps'
 
 /** Arguments for a single-row query: the row id plus relations to include. */
 export type OneArgs<
@@ -136,20 +136,16 @@ export class SSSync<
           const next = this.#bootstraps.get()
           for (const [tableName, state] of Object.entries(next)) {
             if (state && previous[tableName as TableName<S>] !== state) {
+              const key = bootstrapKVKey(tableName)
               this.#storage
                 ?.transactionKVStore(async kv => {
-                  const value = await kv.get(BOOTSTRAPS_KV_KEY)
-                  const snapshot = isBootstrapsSnapshot(this.schema, value) ? value : {}
-                  await kv.put(BOOTSTRAPS_KV_KEY, {
-                    ...snapshot,
-                    [tableName]: state,
-                  })
+                  await kv.put(key, state)
                 })
                 .catch(error => {
                   this.report({
                     type: 'persistence.write_failed',
-                    store: BOOTSTRAPS_KV_KEY,
-                    key: BOOTSTRAPS_KV_KEY,
+                    store: key,
+                    key,
                     cause: { message: String(error) },
                   })
                 })
@@ -166,17 +162,33 @@ export class SSSync<
     if (!storage) return
 
     try {
+      const snapshot: Record<string, unknown> = {}
       await storage.transactionKVStore(async kv => {
-        const value = await kv.get(BOOTSTRAPS_KV_KEY)
-        if (isBootstrapsSnapshot(this.schema, value)) {
-          this.#bootstraps.set(value as BootstrapsSnapshot<S>)
+        for (const tableName of Object.keys(this.schema.tables)) {
+          const key = bootstrapKVKey(tableName)
+          try {
+            const value = await kv.get(key)
+            if (isBootstrapState(value)) {
+              snapshot[tableName] = value
+            }
+          } catch (error) {
+            this.report({
+              type: 'persistence.read_failed',
+              store: key,
+              key,
+              cause: { message: String(error) },
+            })
+          }
         }
       })
+
+      if (Object.keys(snapshot).length > 0) {
+        this.#bootstraps.set(snapshot as BootstrapsSnapshot<S>)
+      }
     } catch (error) {
       this.report({
         type: 'persistence.read_failed',
-        store: BOOTSTRAPS_KV_KEY,
-        key: BOOTSTRAPS_KV_KEY,
+        store: BOOTSTRAPS_KV_PREFIX,
         cause: { message: String(error) },
       })
     }
@@ -233,18 +245,8 @@ function absoluteURL(label: string, url: string): string {
   return url.replace(/\/+$/, '')
 }
 
-function isBootstrapsSnapshot<S extends ClientDatabaseSchema>(
-  schema: S,
-  value: unknown,
-): value is BootstrapsSnapshot<S> {
-  if (!isRecord(value)) return false
-
-  for (const [tableName, state] of Object.entries(value)) {
-    if (!hasOwn(schema.tables, tableName) || !isBootstrapState(state)) {
-      return false
-    }
-  }
-  return true
+function bootstrapKVKey(tableName: string): string {
+  return `${BOOTSTRAPS_KV_PREFIX}:${tableName}`
 }
 
 function isBootstrapState(value: unknown): boolean {
