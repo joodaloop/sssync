@@ -7,8 +7,6 @@ import type { LoadingStatus, Observable } from './shared'
 import type { RowsByTable } from './store'
 import type { RowValidationProblem } from './validate'
 
-export type BootstrapStatus = LoadingStatus
-
 // Per-model bootstrap state.
 export type BootstrapState = {
   readonly status: LoadingStatus

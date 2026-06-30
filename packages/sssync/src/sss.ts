@@ -1,5 +1,3 @@
-import type { Result } from 'better-result'
-
 import { Bootstrap } from './bootstrap'
 import type { BootstrapsSnapshot } from './bootstrap'
 import { CoverageTracker } from './coverage'
@@ -21,9 +19,7 @@ import type { ClientDatabaseSchema } from './schema/table-schema'
 import { isRecord, Observable } from './shared'
 import type { BatchStats, ReadonlyObservable } from './shared'
 import { Store } from './store'
-import type { RowsByTable } from './store'
 import { rowValidatorsFor, validateRowsByTable } from './validate'
-import type { RowValidationProblem } from './validate'
 
 const BOOTSTRAPS_KV_PREFIX = 'bootstraps'
 
@@ -83,21 +79,19 @@ export class SSSync<
   readonly #rows: Store<S>
   readonly #coverage: CoverageTracker<S>
   readonly #bootstrap: Promise<Bootstrap<S>>
-  readonly #validatePayload: (payload: unknown) => Result<RowsByTable<S>, RowValidationProblem>
   readonly #storage: null | IDBStorage<S>
-  readonly #isPersistent: Observable<boolean>
-  readonly #bootstraps: Observable<BootstrapsSnapshot<S>>
-  readonly #batches: Observable<BatchStats>
-  readonly #mutationQueue: Observable<readonly MutationEnvelope<Mutators<S, Definitions>>[]>
-  readonly #queries: Observable<Readonly<Record<string, QueryDetails>>>
-  readonly #errors: Observable<readonly SyncError[]>
-  readonly #maxErrors: number
+  readonly #isPersistent = new Observable(false)
+  readonly #bootstraps = new Observable<BootstrapsSnapshot<S>>({})
+  readonly #batches = new Observable<BatchStats>({ pending: [], inflight: [] })
+  readonly #mutationQueue = new Observable<readonly MutationEnvelope<Mutators<S, Definitions>>[]>([])
+  readonly #queries = new Observable<Readonly<Record<string, QueryDetails>>>({})
+  readonly #errors = new Observable<readonly SyncError[]>([])
+  readonly #maxErrors = 100
 
   constructor(options: SSSyncOptions<S, Definitions>) {
     this.schema = options.schema
     this.mutators = options.mutators
-    const rowValidators = rowValidatorsFor(options.schema)
-    this.#validatePayload = payload => validateRowsByTable<S>(payload, rowValidators)
+    const validatePayload = (payload: unknown) => validateRowsByTable<S>(payload, rowValidatorsFor(options.schema))
     this.#storage = options.storage
     this.#storage?.init({
       name: options.name,
@@ -105,18 +99,12 @@ export class SSSync<
       schema: options.schema,
       schemaVersion: options.schemaVersion,
     })
-    this.#isPersistent = new Observable(options.storage !== null)
+    this.#isPersistent.set(options.storage !== null)
     this.#rows = new Store(options.schema)
     this.#store = store(options.schema, {
       getRowFromTable: this.#rows.getRowFromTable,
       subscribeToRowChanges: this.#rows.subscribeToRowChanges,
     })
-    this.#batches = new Observable<BatchStats>({ pending: [], inflight: [] })
-    this.#bootstraps = new Observable<BootstrapsSnapshot<S>>({})
-    this.#mutationQueue = new Observable<readonly MutationEnvelope<Mutators<S, Definitions>>[]>([])
-    this.#queries = new Observable<Readonly<Record<string, QueryDetails>>>({})
-    this.#errors = new Observable<readonly SyncError[]>([])
-    this.#maxErrors = 100
     this.ready = this.#hydrateBootstrapsFromStorage()
     this.stats = {
       isPersistent: this.#isPersistent,
@@ -131,7 +119,7 @@ export class SSSync<
     this.#coverage = new CoverageTracker(
       batchURL,
       this.#batches,
-      this.#validatePayload,
+      validatePayload,
       response => this.#rows.addIfNotExist(response),
       this.#storage,
       error => this.report(error),
@@ -141,7 +129,7 @@ export class SSSync<
         new Bootstrap(
           bootstrapURL,
           this.#bootstraps,
-          this.#validatePayload,
+          validatePayload,
           rowsByTable => this.#rows.addIfNotExist(rowsByTable),
           error => this.report(error),
         ),
