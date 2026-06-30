@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 
 import { CoverageTracker } from '../src/coverage'
+import type { PersistenceError } from '../src/errors'
 import type { IDBKVTransaction, IDBStorage } from '../src/idb/types'
 import { column, createSchema, table } from '../src/schema'
 import type { ClientDatabaseSchema } from '../src/schema'
@@ -39,14 +40,19 @@ const validRow = {
 
 const batchStats = () => new Observable<BatchStats>({ pending: [], inflight: [] })
 
-function fakeStorage(initial: readonly [string, unknown][] = []) {
+function fakeStorage(
+  initial: readonly [string, unknown][] = [],
+  options: { readonly failGet?: boolean; readonly failPut?: boolean } = {},
+) {
   const values = new Map<string, unknown>(initial)
   const puts: [string, unknown][] = []
   const kv: IDBKVTransaction = {
     async get(id) {
+      if (options.failGet) throw new Error('kv get failed')
       return values.get(id)
     },
     async put(id, value) {
+      if (options.failPut) throw new Error('kv put failed')
       puts.push([id, value])
       values.set(id, value)
     },
@@ -62,6 +68,16 @@ function fakeStorage(initial: readonly [string, unknown][] = []) {
     },
   }
   return { storage, values, puts }
+}
+
+const recordErrors = () => {
+  const errors: PersistenceError[] = []
+  return {
+    errors,
+    report(error: PersistenceError) {
+      errors.push(error)
+    },
+  }
 }
 
 const coverageKVKey = (item: ResolvedItem) => `coverage:${cacheKeyForItem(item)}`
@@ -263,6 +279,48 @@ describe('CoverageTracker', () => {
     await settleStorageLookup()
 
     expect(puts).toEqual([])
+  })
+
+  test('reports kv store read failures and falls back to fetching', async () => {
+    const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
+    const { storage } = fakeStorage([], { failGet: true })
+    const { errors, report } = recordErrors()
+    const tracker = new CoverageTracker(schema, '/batch', batchStats(), undefined, storage, report)
+    const issue = item('1')
+
+    const result = tracker.request(issue)
+    await settleStorageLookup()
+    await tracker['batcher'].flush()
+
+    expect(await result).toBe('success')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toMatchObject({
+      type: 'persistence.read_failed',
+      store: 'coverage',
+      key: coverageKVKey(issue),
+      cause: { message: 'Error: kv get failed' },
+    })
+  })
+
+  test('reports kv store write failures without changing successful coverage', async () => {
+    mockFetch(() => jsonResponse({ issues: [validRow] }))
+    const { storage } = fakeStorage([], { failPut: true })
+    const { errors, report } = recordErrors()
+    const tracker = new CoverageTracker(schema, '/batch', batchStats(), undefined, storage, report)
+
+    const result = tracker.request(item('1'))
+    await settleStorageLookup()
+    await tracker['batcher'].flush()
+    expect(await result).toBe('success')
+    await settleStorageLookup()
+
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toMatchObject({
+      type: 'persistence.write_failed',
+      store: 'coverage',
+      cause: { message: 'Error: kv put failed' },
+    })
   })
 
   test('returns success from a persisted coverage match and updates memory', async () => {
