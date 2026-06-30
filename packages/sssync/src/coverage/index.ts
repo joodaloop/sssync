@@ -1,5 +1,6 @@
 import { Batcher } from '../batcher'
 import type { ResolvedBatch } from '../batcher'
+import type { PersistenceError } from '../errors'
 import type { IDBStorage } from '../idb/types'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import { cacheKeyForItem, coveredKeysForItem } from '../shared'
@@ -15,6 +16,7 @@ type Pending = {
 
 const COVERAGE_KV_PREFIX = 'coverage'
 
+type Reporter = (error: PersistenceError) => void
 
 export class CoverageTracker<S extends ClientDatabaseSchema> {
   readonly coverage = new Map<string, Coverage>()
@@ -28,6 +30,7 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
     batches: Observable<BatchStats>,
     addIfNotExist: (rowsByTable: RowsByTable<S>) => void = () => {},
     private readonly storage: null | IDBStorage<S> = null,
+    private readonly report: Reporter = () => {},
   ) {
     this.batcher = new Batcher(schema, batchURL, batches, addIfNotExist, this.resolveItems)
   }
@@ -56,14 +59,16 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
       }
     }
     if (this.storage) {
-      void this.resolveFromStorageOrRequest(item, pending)
+      void this.resolveFromStorage(item, pending).then(resolved => {
+        if (!resolved) this.batcher.request(item)
+      })
     } else {
       this.batcher.request(item)
     }
     return promise
   }
 
-  private async resolveFromStorageOrRequest(item: ResolvedItem, pending: Pending): Promise<void> {
+  private async resolveFromStorage(item: ResolvedItem, pending: Pending): Promise<boolean> {
     const key = cacheKeyForItem(item)
 
     try {
@@ -74,14 +79,19 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
           this.pending.delete(coveredKey)
         }
         pending.resolve('success')
-        return
+        return true
       }
-    } catch {
-      // Treat persistence as an optimization; a failed read falls back to the
-      // network path so coverage can still be established.
+    } catch (error) {
+      this.report({
+        type: 'persistence.read_failed',
+        store: COVERAGE_KV_PREFIX,
+        key: coverageKVKey(key),
+        cause: { message: String(error) },
+      })
+      return false
     }
 
-    this.batcher.request(item)
+    return false
   }
 
   // Handed to the batcher as its resolver; records each item's outcome and
@@ -109,8 +119,12 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
       await this.storage?.transactionKVStore(async kv => {
         await Promise.all(keys.map(key => kv.put(coverageKVKey(key), 'success')))
       })
-    } catch {
-      // A successful batch should remain successful even if persistence fails.
+    } catch (error) {
+      this.report({
+        type: 'persistence.write_failed',
+        store: COVERAGE_KV_PREFIX,
+        cause: { message: String(error) },
+      })
     }
   }
 }

@@ -126,6 +126,7 @@ export class SSSync<
       this.#batches,
       response => this.#rows.addIfNotExist(response),
       this.#storage,
+      error => this.report(error),
     )
     this.#bootstrap = this.ready.then(
       () =>
