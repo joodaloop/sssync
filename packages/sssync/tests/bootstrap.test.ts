@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 
-import { Bootstrap } from '../src/bootstrap'
-import type { BootstrapsSnapshot, BootstrapStatus, StatusChange } from '../src/bootstrap'
+import { Bootstrap } from '../src/boostrap'
+import type { BootstrapsSnapshot, BootstrapStatus, StatusChange } from '../src/boostrap'
 import { column, createSchema, table } from '../src/schema'
 import { Observable } from '../src/shared'
 
@@ -167,7 +167,10 @@ describe('Bootstrap', () => {
     const fetchMock = mockFetch(() => jsonResponse({ data: [] }))
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
-    const bootstrap = new Bootstrap(schema, '/bootstrap', bootstraps)
+    const reports: unknown[] = []
+    const bootstrap = new Bootstrap(schema, '/bootstrap', bootstraps, undefined, error => {
+      reports.push(error)
+    })
 
     const rows = await bootstrap.load('widgets')
 
@@ -176,6 +179,7 @@ describe('Bootstrap', () => {
     expect(changes).toHaveLength(1)
     expect(changes[0].status).toBe('error')
     expect(changes[0].error).toContain('widgets')
+    expect(reports).toEqual([{ type: 'bootstrap.unknown_model', model: 'widgets' }])
   })
 
   test('marks error with a message when a row fails validation', async () => {
@@ -183,9 +187,18 @@ describe('Bootstrap', () => {
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
     const added: unknown[] = []
-    const bootstrap = new Bootstrap(schema, '/bootstrap', bootstraps, rowsByTable => {
-      added.push(rowsByTable)
-    })
+    const reports: unknown[] = []
+    const bootstrap = new Bootstrap(
+      schema,
+      '/bootstrap',
+      bootstraps,
+      rowsByTable => {
+        added.push(rowsByTable)
+      },
+      error => {
+        reports.push(error)
+      },
+    )
 
     const rows = await bootstrap.load('issues')
 
@@ -193,6 +206,13 @@ describe('Bootstrap', () => {
     expect(added).toEqual([])
     expect(changes.map(c => c.status)).toEqual(['pending', 'error'])
     expect(changes[1].error).toBeTruthy()
+    expect(reports).toEqual([
+      {
+        type: 'bootstrap.invalid_row',
+        model: 'issues',
+        issues: [{ message: 'Expected number but received string' }],
+      },
+    ])
   })
 
   test('marks error when the payload has no data array', async () => {

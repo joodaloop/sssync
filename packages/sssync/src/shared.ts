@@ -32,6 +32,7 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export type Listener = () => void
+export type LoadingStatus = 'pending' | 'success' | 'error'
 
 // The read side of an Observable: a referentially-stable snapshot plus a way to
 // be notified when it changes. This is the external-store contract, so framework

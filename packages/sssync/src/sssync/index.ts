@@ -1,5 +1,5 @@
-import { Bootstrap } from '../bootstrap'
-import type { BootstrapsSnapshot } from '../bootstrap'
+import { Bootstrap } from '../boostrap'
+import type { BootstrapsSnapshot } from '../boostrap'
 import { CoverageTracker } from '../coverage'
 import type { SyncError } from '../errors'
 import type { IDBStorage } from '../idb/types'
@@ -130,8 +130,12 @@ export class SSSync<
     )
     this.#bootstrap = this.ready.then(
       () =>
-        new Bootstrap(options.schema, bootstrapURL, this.#bootstraps, rowsByTable =>
-          this.#rows.addIfNotExist(rowsByTable),
+        new Bootstrap(
+          options.schema,
+          bootstrapURL,
+          this.#bootstraps,
+          rowsByTable => this.#rows.addIfNotExist(rowsByTable),
+          error => this.report(error),
         ),
     )
     if (this.#storage) {
@@ -225,6 +229,11 @@ export class SSSync<
 
   report(error: SyncError): void {
     this.#errors.set([error, ...this.#errors.get()].slice(0, this.#maxErrors))
+  }
+
+  async bootstrapload<Name extends TableName<S>>(table: Name): Promise<readonly RowOf<Tables<S>[Name]>[] | undefined> {
+    const bootstrap = await this.#bootstrap
+    return bootstrap.load(table) as Promise<readonly RowOf<Tables<S>[Name]>[] | undefined>
   }
 
   all<Name extends TableName<S>>(table: Name): Query<readonly RowOf<Tables<S>[Name]>[], AllQueryPlan<Name>> {
