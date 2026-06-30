@@ -106,6 +106,7 @@ export class Batcher<S extends ClientDatabaseSchema> {
     this.publish()
     try {
       const res = await fetch(this.batchURL, {
+        headers: { 'Content-Type': 'application/json' },
         method: 'POST',
         body: JSON.stringify(mergeRequests(items)),
       })

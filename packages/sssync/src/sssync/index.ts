@@ -120,8 +120,12 @@ export class SSSync<
     }
     const batchURL = absoluteURL('batchURL', options.batchURL)
     const bootstrapURL = absoluteURL('bootstrapURL', options.bootstrapURL)
-    this.#coverage = new CoverageTracker(options.schema, batchURL, this.#batches, response =>
-      this.#rows.addIfNotExist(response),
+    this.#coverage = new CoverageTracker(
+      options.schema,
+      batchURL,
+      this.#batches,
+      response => this.#rows.addIfNotExist(response),
+      this.#storage,
     )
     this.#bootstrap = this.ready.then(
       () =>

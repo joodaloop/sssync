@@ -31,7 +31,6 @@ description: Todo list & progress tracking
   - [ ] Mutations
   - [ ] Syncers
   - [x] [Batch/bootstrap](https://github.com/joodaloop/sssync/commit/068f1bcd36abd5f8bac0887c67458e94988811c5)
-- [ ] Implement (tested) performant path for store APIs 
 - [ ] Handle the `store-updated` Broadcast Channel coordinator
 
 ## SSSync class
@@ -57,6 +56,12 @@ description: Todo list & progress tracking
 ## Integrations
 - [ ] Solid.js wrapper with Stores on the reactive layers
 - [ ] React wrapper with stable identity
+
+## Performance
+- [ ] Make sure store APIs are fast
+- [ ] Add perf tests for store => query connection
+- [ ] Ensure that rebasing is fast
+
 
 <br/>
 
