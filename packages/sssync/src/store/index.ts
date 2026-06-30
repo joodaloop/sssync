@@ -43,6 +43,10 @@ type RowTransition = {
   readonly table: string
   readonly key: string
   readonly before: StoreRow | undefined
+  // Whether the key was present in the table before this transaction. Tells a
+  // pre-existing tombstone (present, value undefined) apart from a never-seen
+  // row (absent) when rolling back.
+  readonly beforeExisted: boolean
   after: StoreRow | undefined
 }
 
@@ -51,8 +55,14 @@ type RowTransition = {
  */
 export type RowKeyOf<_T extends TableSchema> = string
 
-/** One in-memory table: rows keyed by their primary key. */
-export type TableStore<T extends TableSchema> = Map<RowKeyOf<T>, RowOf<T>>
+/**
+ * One in-memory table: rows keyed by their primary key.
+ *
+ * Row presence is `.has(key)`, not the value: a key present with value
+ * `undefined` is a tombstone (deleted locally, kept so a server seed won't
+ * resurrect it); a key that isn't present is a row never seen.
+ */
+export type TableStore<T extends TableSchema> = Map<RowKeyOf<T>, RowOf<T> | undefined>
 
 export type Stores<S extends ClientDatabaseSchema> = {
   readonly [Name in TableName<S>]: TableStore<Tables<S>[Name]>
@@ -62,11 +72,12 @@ export type Stores<S extends ClientDatabaseSchema> = {
 // mutations to them.
 export class Store<S extends ClientDatabaseSchema> {
   readonly tables: Stores<S>
-  readonly deleted: Map<string, null> = new Map()
+  readonly #schema: S
   readonly #rowChangeListeners = new Set<RowChangeListener>()
   #transaction: Map<string, RowTransition> | undefined
 
-  constructor(private readonly schema: S) {
+  constructor(schema: S) {
+    this.#schema = schema
     this.tables = Object.fromEntries(Object.keys(schema.tables).map(name => [name, new Map()])) as {
       [Name in TableName<S>]: TableStore<Tables<S>[Name]>
     }
@@ -88,30 +99,19 @@ export class Store<S extends ClientDatabaseSchema> {
   applyMutation(mutations: readonly Mutation<S>[]) {
     this.transact(() => {
       for (const mutation of mutations) {
-        switch (mutation.type) {
-          case 'INSERT': {
-            this.setRow(mutation.table, this.keyFor(mutation.table, mutation.data), mutation.data)
-            break
-          }
-          case 'UPDATE': {
-            const key = this.keyFor(mutation.table, mutation.id)
-            const existing = this.tableFor(mutation.table).get(key)
-            if (existing) {
-              this.setRow(mutation.table, key, { ...existing, ...mutation.changes })
-            } else {
-              console.warn(`UPDATE ignored for missing "${mutation.table}" row ${key}`)
-            }
-            break
-          }
-          case 'DELETE': {
-            const key = this.keyFor(mutation.table, mutation.id)
-            this.setRow(mutation.table, key, undefined)
-            this.deleted.set(key, null)
-            break
-          }
-        }
+        this.applyOne(mutation)
       }
     })
+  }
+
+  applySyncerUpdate(mutations: readonly Mutation<S>[]) {
+    // undo mutations
+    this.transact(() => {
+      for (const mutation of mutations) {
+        this.applyOne(mutation)
+      }
+    })
+    // redo mutations
   }
 
   // Adds rows from a table-keyed response, but only fills in rows that are
@@ -119,25 +119,34 @@ export class Store<S extends ClientDatabaseSchema> {
   // (e.g. locally mutated) rows.
   addIfNotExist(rowsByTable: RowsByTable<S>) {
     this.transact(() => {
+      // undo mutations
+
       for (const [tableName, rows] of Object.entries(rowsByTable) as [string, readonly StoreRow[]][]) {
         const table = this.tableFor(tableName)
 
         for (const row of rows) {
           const key = this.keyFor(tableName, row)
-          if (table.get(key) === undefined || this.deleted.has(key)) {
+          // Seed only rows never seen. A present key is either live (don't
+          // clobber) or a tombstone (don't resurrect) — both should be left be.
+          if (!table.has(key)) {
             this.setRow(tableName, key, row)
           }
         }
       }
+
+      // redo mutations
     })
   }
 
   // Derives the Map key from a row or id object in primary-key order.
   private keyFor(tableName: string, record: unknown): string {
-    return primaryKeyFor(this.schema.tables[tableName], record)
+    return primaryKeyFor(this.#schema.tables[tableName], record)
   }
 
   private transact(applyUpdates: () => void): void {
+    // Re-entrant: a nested call joins the in-progress transaction, writing into
+    // the same transitions map. The outermost call owns commit/rollback and
+    // fires listeners once, so a group of nested writes lands as one change set.
     if (this.#transaction) {
       applyUpdates()
       return
@@ -178,12 +187,31 @@ export class Store<S extends ClientDatabaseSchema> {
           changes.push({ type: 'update', table, key, changes: patch })
         }
       }
+    } catch (error) {
+      // Restore every row this transaction touched to its pre-transaction value,
+      // so a mid-batch throw leaves the store unchanged rather than half-applied.
+      // No listeners fire, since `changes` is never assigned.
+      this.rollback(transitions)
+      throw error
     } finally {
       this.#transaction = undefined
     }
 
     if (!changes || changes.length === 0) return
     for (const listener of this.#rowChangeListeners) listener(changes)
+  }
+
+  // Reverts each touched row to its pre-transaction state: restore the prior
+  // value if the key existed (which may be a tombstone), otherwise drop the key.
+  private rollback(transitions: Map<string, RowTransition>): void {
+    for (const { table, key, before, beforeExisted } of transitions.values()) {
+      const store = this.tableFor(table)
+      if (beforeExisted) {
+        store.set(key, before as RowOf<TableSchema> | undefined)
+      } else {
+        store.delete(key)
+      }
+    }
   }
 
   private setRow(tableName: string, key: string, row: StoreRow | undefined): void {
@@ -197,24 +225,51 @@ export class Store<S extends ClientDatabaseSchema> {
     let transition = transaction.get(txKey)
     if (!transition) {
       const before = table.get(key)
-      transition = { table: tableName, key, before, after: before }
+      transition = { table: tableName, key, before, beforeExisted: table.has(key), after: before }
       transaction.set(txKey, transition)
     }
 
-    if (row === undefined) {
-      table.delete(key)
-    } else {
-      table.set(key, row as RowOf<TableSchema>)
-    }
+    // Keep the key even when removing: a present key with value `undefined` is a
+    // tombstone, which `addIfNotExist` uses to avoid resurrecting a deleted row.
+    table.set(key, row as RowOf<TableSchema> | undefined)
 
     transition.after = table.get(key)
   }
 
-  private tableFor(tableName: string): Map<string, RowOf<TableSchema>> {
-    const table = this.tables[tableName as TableName<S>] as Map<string, RowOf<TableSchema>> | undefined
+  private tableFor(tableName: string): Map<string, RowOf<TableSchema> | undefined> {
+    const table = this.tables[tableName as TableName<S>] as
+      | Map<string, RowOf<TableSchema> | undefined>
+      | undefined
     if (!table) {
       throw new Error(`Unknown table "${tableName}"`)
     }
     return table
+  }
+
+  private applyOne(mutation: Mutation<S>): void {
+    switch (mutation.type) {
+      case 'INSERT': {
+        this.setRow(mutation.table, this.keyFor(mutation.table, mutation.data), mutation.data)
+        break
+      }
+      case 'UPDATE': {
+        const key = this.keyFor(mutation.table, mutation.id)
+        const table = this.tableFor(mutation.table)
+        const existing = table.get(key)
+        if (existing !== undefined) {
+          this.setRow(mutation.table, key, { ...existing, ...mutation.changes })
+        } else if (table.has(key)) {
+          throw new Error(`Cannot UPDATE deleted "${mutation.table}" row ${key}`)
+        } else {
+          console.warn(`UPDATE ignored for missing "${mutation.table}" row ${key}`)
+        }
+        break
+      }
+      case 'DELETE': {
+        const key = this.keyFor(mutation.table, mutation.id)
+        this.setRow(mutation.table, key, undefined)
+        break
+      }
+    }
   }
 }

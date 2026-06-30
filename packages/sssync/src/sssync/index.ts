@@ -106,10 +106,12 @@ export class SSSync<
       queries: this.#queries,
       errors: this.#errors,
     }
-    this.#coverage = new CoverageTracker(options.schema, options.batchURL, this.#batches, response =>
+    const batchURL = absoluteURL('batchURL', options.batchURL)
+    const bootstrapURL = absoluteURL('bootstrapURL', options.bootstrapURL)
+    this.#coverage = new CoverageTracker(options.schema, batchURL, this.#batches, response =>
       this.#rows.addIfNotExist(response),
     )
-    this.#bootstrap = new Bootstrap(options.schema, options.bootstrapURL, this.#bootstraps, rowsByTable =>
+    this.#bootstrap = new Bootstrap(options.schema, bootstrapURL, this.#bootstraps, rowsByTable =>
       this.#rows.addIfNotExist(rowsByTable),
     )
   }
@@ -152,4 +154,15 @@ export class SSSync<
   ): Query<RowWithIncludes<S, Name, Relations> | undefined, OneQueryPlan<Name, Relations>> {
     return this.#store.one(table, { id: args.id, include: args.relations })
   }
+}
+
+// Requires an absolute URL and strips any trailing slash, so callers can append
+// paths/query strings (e.g. `${url}?model=...`) without a double slash.
+function absoluteURL(label: string, url: string): string {
+  try {
+    new URL(url)
+  } catch {
+    throw new Error(`${label} must be an absolute URL, got "${url}"`)
+  }
+  return url.replace(/\/+$/, '')
 }

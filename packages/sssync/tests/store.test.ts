@@ -93,7 +93,9 @@ describe('Store.applyMutation', () => {
     const store = new Store(schema)
     store.applyMutation([issue('1', 'First'), removeIssue('1')])
 
-    expect(store.tables.issues.has('["1"]')).toBe(false)
+    // The row is gone from reads, but the key is kept as a tombstone.
+    expect(store.tables.issues.get('["1"]')).toBeUndefined()
+    expect(store.tables.issues.has('["1"]')).toBe(true)
   })
 
   test('reads a row by table and id', () => {
@@ -342,6 +344,8 @@ describe('Store with composite keys', () => {
       },
     ])
 
-    expect(store.tables.labels.has('["1","bug"]')).toBe(false)
+    // The row is gone from reads, but the key is kept as a tombstone.
+    expect(store.tables.labels.get('["1","bug"]')).toBeUndefined()
+    expect(store.tables.labels.has('["1","bug"]')).toBe(true)
   })
 })

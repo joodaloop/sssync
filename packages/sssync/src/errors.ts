@@ -11,6 +11,7 @@ export type SyncError =
   | PersistenceError
   | ChannelError
   | LeaderElectionError
+  | ConfigError
 
 export type SSSyncError = SyncError
 
@@ -115,6 +116,16 @@ export type StoreMutationError =
       readonly type: 'store.invalid_mutation'
       readonly table?: string | undefined
       readonly reason: 'missing_table' | 'missing_type' | 'unknown_type' | 'invalid_id' | 'invalid_data' | 'invalid_changes'
+    }
+  | {
+      readonly type: 'store.update_deleted_row'
+      readonly table: string
+      readonly key: string
+    }
+  | {
+      readonly type: 'store.write_outside_transaction'
+      readonly table: string
+      readonly key: string
     }
 
 export type MutatorError =
@@ -307,6 +318,13 @@ export type LeaderElectionError =
       readonly lockName: string
       readonly cause: ErrorCause
     }
+
+export type ConfigError = {
+  readonly type: 'config.invalid_url'
+  readonly option: 'batchURL' | 'bootstrapURL'
+  readonly reason: 'not_absolute'
+  readonly value: string
+}
 
 export type RequestedItem = {
   readonly modelName: string
