@@ -1,5 +1,5 @@
 import { column, createSchema, table } from '../src/schema'
-import { Store } from '../src/storec
+import { Store } from '../src/store'
 
 const issues = table('issues')
   .columns({

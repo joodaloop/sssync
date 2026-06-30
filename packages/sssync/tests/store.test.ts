@@ -2,7 +2,7 @@ import { describe, expect, spyOn, test } from 'bun:test'
 
 import type { Mutation } from '../src/mutators'
 import { column, createSchema, table } from '../src/schema'
-import { Store, type StoreRowChange } from '../src/storec
+import { Store, type StoreRowChange } from '../src/store'
 
 const issues = table('issues')
   .columns({
