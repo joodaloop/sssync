@@ -1,14 +1,14 @@
 import type { Result } from 'better-result'
 
-import { Batcher } from '../batcher'
-import type { ResolvedBatch } from '../batcher'
-import type { PersistenceError } from '../errors'
-import type { IDBStorage } from '../idb/types'
-import type { ClientDatabaseSchema } from '../schema/table-schema'
-import { cacheKeyForItem, coveredKeysForItem } from '../shared'
-import type { BatchStats, Observable, ResolvedItem } from '../shared'
-import type { RowsByTable } from '../store'
-import type { RowValidationProblem } from '../validate'
+import { Batcher } from './batcher'
+import type { ResolvedBatch } from './batcher'
+import type { PersistenceError } from './errors'
+import type { IDBStorage } from './idb/types'
+import type { ClientDatabaseSchema } from './schema/table-schema'
+import { cacheKeyForItem, coveredKeysForItem } from './shared'
+import type { BatchStats, Observable, ResolvedItem } from './shared'
+import type { RowsByTable } from './store'
+import type { RowValidationProblem } from './validate'
 
 export type Coverage = 'success' | 'error'
 

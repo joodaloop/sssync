@@ -1,12 +1,12 @@
 import type { Result } from 'better-result'
 
-import { Bootstrap } from '../bootstrap'
-import type { BootstrapsSnapshot } from '../bootstrap'
-import { CoverageTracker } from '../coverage'
-import type { SyncError } from '../errors'
-import type { IDBStorage } from '../idb/types'
-import type { AnyMutatorDefinition, MutationEnvelope, Mutators } from '../mutators'
-import { store } from '../query'
+import { Bootstrap } from './bootstrap'
+import type { BootstrapsSnapshot } from './bootstrap'
+import { CoverageTracker } from './coverage'
+import type { SyncError } from './errors'
+import type { IDBStorage } from './idb/types'
+import type { AnyMutatorDefinition, MutationEnvelope, Mutators } from './mutators'
+import { store } from './query'
 import type {
   AllQueryPlan,
   OneQueryPlan,
@@ -15,15 +15,15 @@ import type {
   QueryStore,
   RelationName,
   RowWithIncludes,
-} from '../query'
-import type { IdInputOf, RowOf, TableName, Tables } from '../schema'
-import type { ClientDatabaseSchema } from '../schema/table-schema'
-import { isRecord, Observable } from '../shared'
-import type { BatchStats, ReadonlyObservable } from '../shared'
-import { Store } from '../store'
-import type { RowsByTable } from '../store'
-import { rowValidatorsFor, validateRowsByTable } from '../validate'
-import type { RowValidationProblem } from '../validate'
+} from './query'
+import type { IdInputOf, RowOf, TableName, Tables } from './schema'
+import type { ClientDatabaseSchema } from './schema/table-schema'
+import { isRecord, Observable } from './shared'
+import type { BatchStats, ReadonlyObservable } from './shared'
+import { Store } from './store'
+import type { RowsByTable } from './store'
+import { rowValidatorsFor, validateRowsByTable } from './validate'
+import type { RowValidationProblem } from './validate'
 
 const BOOTSTRAPS_KV_PREFIX = 'bootstraps'
 

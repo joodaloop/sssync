@@ -5,7 +5,7 @@ import { safeValidate } from './json-validator'
 import type { Issue } from './json-validator'
 import { rowSchemaFor } from './schema/row-schema'
 import type { ClientDatabaseSchema } from './schema/table-schema'
-import type { RowsByTable } from './store'
+import type { RowsByTable } from './store.
 
 export type RowValidationProblem =
   | { readonly type: 'payload_not_object' }

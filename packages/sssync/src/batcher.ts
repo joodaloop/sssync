@@ -1,10 +1,10 @@
 import { Result } from 'better-result'
 
-import type { ClientDatabaseSchema } from '../schema/table-schema'
-import { cacheKeyForItem, rowKeyForItem } from '../shared'
-import type { BatchStats, MergedRequest, Observable, ResolvedItem } from '../shared'
-import type { RowsByTable } from '../store'
-import type { RowValidationProblem } from '../validate'
+import type { ClientDatabaseSchema } from './schema/table-schema'
+import { cacheKeyForItem, rowKeyForItem } from './shared'
+import type { BatchStats, MergedRequest, Observable, ResolvedItem } from './shared'
+import type { RowsByTable } from './store'
+import type { RowValidationProblem } from './validate'
 
 export type ResolvedBatch = {
   readonly items: readonly ResolvedItem[]
