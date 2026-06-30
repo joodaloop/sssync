@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 
-import { Bootstrap } from '../src/boostrap'
-import type { BootstrapsSnapshot, BootstrapStatus, StatusChange } from '../src/boostrap'
+import { Bootstrap } from '../src/bootstrap'
+import type { BootstrapsSnapshot, StatusChange } from '../src/bootstrap'
 import { column, createSchema, table } from '../src/schema'
-import { Observable } from '../src/shared'
+import { Observable, type LoadingStatus } from '../src/shared'
+import { rowValidatorsFor, validateRowsByTable } from '../src/validate'
 
 const issues = table('issues')
   .columns({
@@ -16,6 +17,8 @@ const issues = table('issues')
   .primaryKey('id')
 
 const schema = createSchema({ tables: [issues] })
+const validators = rowValidatorsFor(schema)
+const validatePayload = (payload: unknown) => validateRowsByTable<typeof schema>(payload, validators)
 
 const validRow = {
   id: '1',
@@ -66,8 +69,8 @@ describe('Bootstrap', () => {
   })
 
   test('fetches GET /bootstrap?model=<name>', async () => {
-    const fetchMock = mockFetch(() => jsonResponse({ data: [validRow] }))
-    const bootstrap = new Bootstrap(schema, '/bootstrap', bootstrapRegistry())
+    const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
+    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload)
 
     await bootstrap.load('issues')
 
@@ -76,10 +79,10 @@ describe('Bootstrap', () => {
   })
 
   test('marks pending then success when all rows validate', async () => {
-    mockFetch(() => jsonResponse({ data: [validRow] }))
+    mockFetch(() => jsonResponse({ issues: [validRow] }))
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
-    const bootstrap = new Bootstrap(schema, '/bootstrap', bootstraps)
+    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload)
 
     const rows = await bootstrap.load('issues')
 
@@ -91,9 +94,9 @@ describe('Bootstrap', () => {
   })
 
   test('adds validated rows to the store by table name', async () => {
-    mockFetch(() => jsonResponse({ data: [{ ...validRow, ignored: 'server-only' }] }))
+    mockFetch(() => jsonResponse({ issues: [{ ...validRow, ignored: 'server-only' }] }))
     const added: unknown[] = []
-    const bootstrap = new Bootstrap(schema, '/bootstrap', bootstrapRegistry(), rowsByTable => {
+    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload, rowsByTable => {
       added.push(rowsByTable)
     })
 
@@ -103,12 +106,12 @@ describe('Bootstrap', () => {
   })
 
   test('skips fetch when already satisfied or in flight', async () => {
-    for (const existing of ['success', 'pending'] as BootstrapStatus[]) {
-      const fetchMock = mockFetch(() => jsonResponse({ data: [validRow] }))
+    for (const existing of ['success', 'pending'] as LoadingStatus[]) {
+      const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
       const bootstraps = bootstrapRegistry()
       bootstraps.set({ issues: { status: existing } })
       const changes = recordChanges(bootstraps)
-      const bootstrap = new Bootstrap(schema, '/bootstrap', bootstraps)
+      const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload)
 
       const rows = await bootstrap.load('issues')
 
@@ -126,9 +129,9 @@ describe('Bootstrap', () => {
     })
     const fetchMock = mockFetch(async () => {
       await gate
-      return jsonResponse({ data: [validRow] })
+      return jsonResponse({ issues: [validRow] })
     })
-    const bootstrap = new Bootstrap(schema, '/bootstrap', bootstrapRegistry())
+    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload)
 
     const a = bootstrap.load('issues')
     const b = bootstrap.load('issues')
@@ -142,8 +145,8 @@ describe('Bootstrap', () => {
   })
 
   test('a fresh load after one succeeds is skipped by the registry', async () => {
-    const fetchMock = mockFetch(() => jsonResponse({ data: [validRow] }))
-    const bootstrap = new Bootstrap(schema, '/bootstrap', bootstrapRegistry())
+    const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
+    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload)
 
     await bootstrap.load('issues')
     await bootstrap.load('issues')
@@ -152,10 +155,10 @@ describe('Bootstrap', () => {
   })
 
   test('checks satisfaction with the requested model name', async () => {
-    const fetchMock = mockFetch(() => jsonResponse({ data: [validRow] }))
+    const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
     const bootstraps = bootstrapRegistry()
     bootstraps.set({ issues: { status: 'success' } })
-    const bootstrap = new Bootstrap(schema, '/bootstrap', bootstraps)
+    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload)
 
     await bootstrap.load('issues')
 
@@ -163,35 +166,34 @@ describe('Bootstrap', () => {
     expect(bootstraps.get().issues?.status).toBe('success')
   })
 
-  test('marks error before fetching or checking for an unknown model', async () => {
-    const fetchMock = mockFetch(() => jsonResponse({ data: [] }))
+  test('marks error when the response references an unknown model', async () => {
+    const fetchMock = mockFetch(() => jsonResponse({ widgets: [] }))
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
     const reports: unknown[] = []
-    const bootstrap = new Bootstrap(schema, '/bootstrap', bootstraps, undefined, error => {
+    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, undefined, error => {
       reports.push(error)
     })
 
     const rows = await bootstrap.load('widgets')
 
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(rows).toBeUndefined()
-    expect(changes).toHaveLength(1)
-    expect(changes[0].status).toBe('error')
-    expect(changes[0].error).toContain('widgets')
+    expect(changes.map(c => c.status)).toEqual(['pending', 'error'])
+    expect(changes[1].error).toContain('widgets')
     expect(reports).toEqual([{ type: 'bootstrap.unknown_model', model: 'widgets' }])
   })
 
   test('marks error with a message when a row fails validation', async () => {
-    mockFetch(() => jsonResponse({ data: [{ ...validRow, priority: 'high' }] }))
+    mockFetch(() => jsonResponse({ issues: [{ ...validRow, priority: 'high' }] }))
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
     const added: unknown[] = []
     const reports: unknown[] = []
     const bootstrap = new Bootstrap(
-      schema,
       '/bootstrap',
       bootstraps,
+      validatePayload,
       rowsByTable => {
         added.push(rowsByTable)
       },
@@ -215,23 +217,23 @@ describe('Bootstrap', () => {
     ])
   })
 
-  test('marks error when the payload has no data array', async () => {
-    mockFetch(() => jsonResponse({ rows: [validRow] }))
+  test('marks error when a table payload is not an array', async () => {
+    mockFetch(() => jsonResponse({ issues: { id: '1' } }))
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
-    const bootstrap = new Bootstrap(schema, '/bootstrap', bootstraps)
+    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload)
 
     await bootstrap.load('issues')
 
     expect(changes.map(c => c.status)).toEqual(['pending', 'error'])
-    expect(changes[1].error).toContain('data')
+    expect(changes[1].error).toContain('array')
   })
 
   test('marks error on a non-ok response', async () => {
     mockFetch(() => jsonResponse({}, { status: 500 }))
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
-    const bootstrap = new Bootstrap(schema, '/bootstrap', bootstraps)
+    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload)
 
     await bootstrap.load('issues')
 

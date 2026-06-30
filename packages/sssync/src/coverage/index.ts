@@ -1,3 +1,5 @@
+import type { Result } from 'better-result'
+
 import { Batcher } from '../batcher'
 import type { ResolvedBatch } from '../batcher'
 import type { PersistenceError } from '../errors'
@@ -6,6 +8,7 @@ import type { ClientDatabaseSchema } from '../schema/table-schema'
 import { cacheKeyForItem, coveredKeysForItem } from '../shared'
 import type { BatchStats, Observable, ResolvedItem } from '../shared'
 import type { RowsByTable } from '../store'
+import type { RowValidationProblem } from '../validate'
 
 export type Coverage = 'success' | 'error'
 
@@ -25,14 +28,14 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
   private readonly batcher: Batcher<S>
 
   constructor(
-    schema: S,
     batchURL: string,
     batches: Observable<BatchStats>,
+    validatePayload: (payload: unknown) => Result<RowsByTable<S>, RowValidationProblem>,
     addIfNotExist: (rowsByTable: RowsByTable<S>) => void = () => {},
     private readonly storage: null | IDBStorage<S> = null,
     private readonly report: Reporter = () => {},
   ) {
-    this.batcher = new Batcher(schema, batchURL, batches, addIfNotExist, this.resolveItems)
+    this.batcher = new Batcher(batchURL, batches, validatePayload, addIfNotExist, this.resolveItems)
   }
 
   // Requests coverage for `item`:

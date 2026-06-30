@@ -58,7 +58,7 @@ describe('SSSync.bootstrapload', () => {
   })
 
   test('loads a table through the public API', async () => {
-    const fetchMock = mockFetch(() => jsonResponse({ data: [validRow] }))
+    const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
     const db = sync()
 
     const rows = await db.bootstrapload('issues')

@@ -5,6 +5,7 @@ import type { ResolvedBatch } from '../src/batcher'
 import { column, createSchema, table } from '../src/schema'
 import { Observable, resolvedItemFor } from '../src/shared'
 import type { BatchStats } from '../src/shared'
+import { rowValidatorsFor, validateRowsByTable } from '../src/validate'
 
 const issues = table('issues')
   .columns({
@@ -17,6 +18,8 @@ const issues = table('issues')
   .primaryKey('id')
 
 const schema = createSchema({ tables: [issues] })
+const validators = rowValidatorsFor(schema)
+const validatePayload = (payload: unknown) => validateRowsByTable<typeof schema>(payload, validators)
 
 const labels = table('labels')
   .columns({
@@ -142,7 +145,7 @@ describe('Batcher', () => {
       return jsonResponse({ issues: [validRow] })
     })
     const batches = batchStats()
-    const batcher = new Batcher(schema, '/batch', batches, () => {}, () => {})
+    const batcher = new Batcher('/batch', batches, validatePayload, () => {}, () => {})
 
     batcher.request(item('1'))
     batcher.request(item('1'))
@@ -166,7 +169,7 @@ describe('Batcher', () => {
   test('flush posts merged requests to the batch URL', async () => {
     const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
     const batches = batchStats()
-    const batcher = new Batcher(schema, '/batch', batches, () => {}, () => {})
+    const batcher = new Batcher('/batch', batches, validatePayload, () => {}, () => {})
 
     batcher.request(item('1'))
     batcher.request(item('1', 'comments'))
@@ -185,9 +188,9 @@ describe('Batcher', () => {
     const batches: ResolvedBatch[] = []
     let added: unknown
     const batcher = new Batcher(
-      schema,
       '/batch',
       batchStats(),
+      validatePayload,
       response => {
         added = response
       },
@@ -207,7 +210,7 @@ describe('Batcher', () => {
     // `priority` should be a number.
     mockFetch(() => jsonResponse({ issues: [{ ...validRow, priority: 'high' }] }))
     const batches: ResolvedBatch[] = []
-    const batcher = new Batcher(schema, '/batch', batchStats(), () => {}, b => batches.push(b))
+    const batcher = new Batcher('/batch', batchStats(), validatePayload, () => {}, b => batches.push(b))
 
     batcher.request(item('1'))
     await batcher.flush()
@@ -219,7 +222,7 @@ describe('Batcher', () => {
   test('resolves success: false for an unknown model', async () => {
     mockFetch(() => jsonResponse({ widgets: [validRow] }))
     const batches: ResolvedBatch[] = []
-    const batcher = new Batcher(schema, '/batch', batchStats(), () => {}, b => batches.push(b))
+    const batcher = new Batcher('/batch', batchStats(), validatePayload, () => {}, b => batches.push(b))
 
     batcher.request(item('1'))
     await batcher.flush()
@@ -230,7 +233,7 @@ describe('Batcher', () => {
   test('resolves success: false on a non-ok response', async () => {
     mockFetch(() => jsonResponse({}, { status: 500 }))
     const batches: ResolvedBatch[] = []
-    const batcher = new Batcher(schema, '/batch', batchStats(), () => {}, b => batches.push(b))
+    const batcher = new Batcher('/batch', batchStats(), validatePayload, () => {}, b => batches.push(b))
 
     batcher.request(item('1'))
     await batcher.flush()
@@ -250,7 +253,7 @@ describe('Batcher', () => {
       return jsonResponse({ issues: [validRow] })
     })
     const batches = batchStats()
-    const batcher = new Batcher(schema, '/batch', batches, () => {}, () => {})
+    const batcher = new Batcher('/batch', batches, validatePayload, () => {}, () => {})
 
     batcher.request(item('other'))
     const otherFlushed = batcher.flush()
@@ -276,7 +279,7 @@ describe('Batcher', () => {
 
   test('flush with nothing pending does not fetch', async () => {
     const fetchMock = mockFetch(() => jsonResponse({}))
-    const batcher = new Batcher(schema, '/batch', batchStats(), () => {}, () => {})
+    const batcher = new Batcher('/batch', batchStats(), validatePayload, () => {}, () => {})
 
     await batcher.flush()
     expect(fetchMock).not.toHaveBeenCalled()

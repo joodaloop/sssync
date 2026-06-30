@@ -1,9 +1,10 @@
-import { safeValidate } from '../json-validator'
-import { rowSchemaFor } from '../schema/row-schema'
+import { Result } from 'better-result'
+
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import { cacheKeyForItem, rowKeyForItem } from '../shared'
 import type { BatchStats, MergedRequest, Observable, ResolvedItem } from '../shared'
 import type { RowsByTable } from '../store'
+import type { RowValidationProblem } from '../validate'
 
 export type ResolvedBatch = {
   readonly items: readonly ResolvedItem[]
@@ -35,56 +36,15 @@ export class Batcher<S extends ClientDatabaseSchema> {
   readonly wait = 100
   private readonly inflight = new Map<string, ResolvedItem>()
   private readonly pending = new Map<string, ResolvedItem>()
-  // One row validator per table, derived from the schema's write columns.
-  private readonly rowValidators: Record<string, ReturnType<typeof rowSchemaFor>>
   timer: ReturnType<typeof setTimeout> | undefined
 
   constructor(
-    private readonly schema: S,
     private readonly batchURL: string,
     private readonly batches: Observable<BatchStats>,
+    private readonly validatePayload: (payload: unknown) => Result<RowsByTable<S>, RowValidationProblem>,
     private readonly addIfNotExist: (rowsByTable: RowsByTable<S>) => void,
     private readonly resolve: (batch: ResolvedBatch) => void,
-  ) {
-    this.rowValidators = Object.fromEntries(
-      Object.entries(schema.tables).map(([name, table]) => [name, rowSchemaFor(table)]),
-    )
-  }
-
-  // Validates the server payload of `{ tableName: rows }` against each table's
-  // write schema. Returns typed rows on success.
-  private validatePayload(payload: unknown): RowsByTable<S> | undefined {
-    if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
-      console.warn('Batch response was not an object of rows')
-      return undefined
-    }
-
-    const rowsByTable: Record<string, readonly Record<string, unknown>[]> = {}
-    for (const [tableName, rows] of Object.entries(payload)) {
-      const validator = this.rowValidators[tableName]
-      if (!validator) {
-        console.warn(`Batch response referenced unknown table "${tableName}"`)
-        return undefined
-      }
-      if (!Array.isArray(rows)) {
-        console.warn(`Rows for table "${tableName}" were not an array`)
-        return undefined
-      }
-      const validatedRows: Record<string, unknown>[] = []
-      for (const row of rows) {
-        const result = safeValidate(validator, row)
-        if (!result.success) {
-          const message = result.issues.map(issue => issue.message).join('; ')
-          console.warn(`Invalid "${tableName}" row: ${message}`)
-          return undefined
-        }
-        validatedRows.push(result.output)
-      }
-      rowsByTable[tableName] = validatedRows
-    }
-
-    return rowsByTable as RowsByTable<S>
-  }
+  ) {}
 
   request(item: ResolvedItem) {
     const key = cacheKeyForItem(item)
@@ -116,12 +76,15 @@ export class Batcher<S extends ClientDatabaseSchema> {
       // Only report success if every incoming row passes its write schema.
       const payload = await res.json()
       const rowsByTable = this.validatePayload(payload)
+      if (Result.isError(rowsByTable)) {
+        console.warn(messageFor(rowsByTable.error))
+      }
       // Seed the validated rows into the store before resolving, so waiters see
       // the data the moment their request settles. Invalid payloads are skipped.
-      if (rowsByTable) this.addIfNotExist(rowsByTable)
+      if (Result.isOk(rowsByTable)) this.addIfNotExist(rowsByTable.value)
       // The resolver expands a relation item into its bare row, so resolving the
       // fetched items also resolves any bare rows we subsumed into them.
-      this.resolve({ items, success: rowsByTable !== undefined })
+      this.resolve({ items, success: Result.isOk(rowsByTable) })
     } catch {
       // Unblock waiters so a failed batch doesn't leave its requests hanging.
       this.resolve({ items, success: false })
@@ -137,5 +100,18 @@ export class Batcher<S extends ClientDatabaseSchema> {
       pending: mergeRequests([...this.pending.values()]),
       inflight: mergeRequests([...this.inflight.values()]),
     })
+  }
+}
+
+function messageFor(problem: RowValidationProblem): string {
+  switch (problem.type) {
+    case 'payload_not_object':
+      return 'Batch response was not an object of rows'
+    case 'unknown_model':
+      return `Batch response referenced unknown table "${problem.model}"`
+    case 'rows_not_array':
+      return `Rows for table "${problem.model}" were not an array`
+    case 'invalid_row':
+      return `Invalid "${problem.model}" row: ${problem.issues.map(issue => issue.message).join('; ')}`
   }
 }

@@ -7,17 +7,16 @@ import { rowSchemaFor } from './schema/row-schema'
 import type { ClientDatabaseSchema } from './schema/table-schema'
 import type { RowsByTable } from './store'
 
-export type RowValidator = ReturnType<typeof rowSchemaFor>
-export type ValidatedRows = readonly Record<string, unknown>[]
-
 export type RowValidationProblem =
   | { readonly type: 'payload_not_object' }
   | { readonly type: 'unknown_model'; readonly model: string }
   | { readonly type: 'rows_not_array'; readonly model: string }
   | { readonly type: 'invalid_row'; readonly model: string; readonly issues: readonly ErrorIssue[] }
 
-export function rowValidatorsFor(schema: ClientDatabaseSchema): Partial<Record<string, RowValidator>> {
-  const validators: Partial<Record<string, RowValidator>> = {}
+export function rowValidatorsFor(
+  schema: ClientDatabaseSchema,
+): Partial<Record<string, ReturnType<typeof rowSchemaFor>>> {
+  const validators: Partial<Record<string, ReturnType<typeof rowSchemaFor>>> = {}
 
   for (const [name, table] of Object.entries(schema.tables)) {
     validators[name] = rowSchemaFor(table)
@@ -28,49 +27,36 @@ export function rowValidatorsFor(schema: ClientDatabaseSchema): Partial<Record<s
 
 export function validateRowsByTable<S extends ClientDatabaseSchema>(
   payload: unknown,
-  validators: Partial<Record<string, RowValidator>>,
+  validators: Partial<Record<string, ReturnType<typeof rowSchemaFor>>>,
 ): Result<RowsByTable<S>, RowValidationProblem> {
   if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
     return Result.err({ type: 'payload_not_object' })
   }
 
-  const rowsByTable: Record<string, ValidatedRows> = {}
+  const rowsByTable: Record<string, Record<string, unknown>[]> = {}
   for (const [model, rows] of Object.entries(payload)) {
     const validator = validators[model]
     if (!validator) return Result.err({ type: 'unknown_model', model })
 
-    const result = validateRows(model, rows, validator)
-    if (Result.isError(result)) return Result.err(result.error)
+    if (!Array.isArray(rows)) return Result.err({ type: 'rows_not_array', model })
 
-    rowsByTable[model] = result.value
-  }
-
-  return Result.ok(rowsByTable as RowsByTable<S>)
-}
-
-export function validateRows(
-  model: string,
-  rows: unknown,
-  validator: RowValidator,
-): Result<ValidatedRows, RowValidationProblem> {
-  if (!Array.isArray(rows)) {
-    return Result.err({ type: 'rows_not_array', model })
-  }
-
-  const validatedRows: Record<string, unknown>[] = []
-  for (const row of rows) {
-    const result = safeValidate(validator, row)
-    if (!result.success) {
-      return Result.err({
-        type: 'invalid_row',
-        model,
-        issues: result.issues.map(toErrorIssue),
-      })
+    const validatedRows: Record<string, unknown>[] = []
+    for (const row of rows) {
+      const result = safeValidate(validator, row)
+      if (!result.success) {
+        return Result.err({
+          type: 'invalid_row',
+          model,
+          issues: result.issues.map(toErrorIssue),
+        })
+      }
+      validatedRows.push(result.output)
     }
-    validatedRows.push(result.output)
+
+    rowsByTable[model] = validatedRows
   }
 
-  return Result.ok(validatedRows)
+  return Result.ok(rowsByTable as unknown as RowsByTable<S>)
 }
 
 function toErrorIssue(issue: Issue): ErrorIssue {

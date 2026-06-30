@@ -5,8 +5,7 @@ import type { TableName } from './schema/infer'
 import type { ClientDatabaseSchema } from './schema/table-schema'
 import type { LoadingStatus, Observable } from './shared'
 import type { RowsByTable } from './store'
-import { rowValidatorsFor, validateRowsByTable } from './validate'
-import type { RowValidationProblem, RowValidator } from './validate'
+import type { RowValidationProblem } from './validate'
 
 export type BootstrapStatus = LoadingStatus
 
@@ -27,24 +26,20 @@ type LoadResult = Promise<readonly unknown[] | undefined>
 type Reporter = (error: SyncError) => void
 
 export class Bootstrap<S extends ClientDatabaseSchema> {
-  // One row validator per table, derived from the schema's write columns.
-  private readonly rowValidators: Partial<Record<string, RowValidator>>
   // In-flight loads keyed by model. Recorded synchronously in `load` so
   // concurrent calls share one fetch before consulting the bootstrap registry.
   private readonly inflight = new Map<string, LoadResult>()
 
   constructor(
-    private readonly schema: S,
     private readonly bootstrapURL: string,
     private readonly bootstraps: Observable<BootstrapsSnapshot<S>>,
+    private readonly validatePayload: (payload: unknown) => Result<RowsByTable<S>, RowValidationProblem>,
     private readonly addIfNotExist: (rowsByTable: RowsByTable<S>) => void = () => {},
     private readonly report: Reporter = () => {},
-  ) {
-    this.rowValidators = rowValidatorsFor(schema)
-  }
+  ) {}
 
-  // Fetches every row for `modelName` via `GET /bootstrap?model=<name>`,
-  // expecting `{ data: rows[] }`. Concurrent loads for the same model share one
+  // Fetches every row for `modelName` via `GET /bootstrap?model=<name>`.
+  // Concurrent loads for the same model share one
   // in-flight request and resolve to the same rows. Returns undefined for an
   // unknown model or one already satisfied per the bootstrap registry.
   //
@@ -53,20 +48,6 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
   load = (modelName: string): LoadResult => {
     const existing = this.inflight.get(modelName)
     if (existing) return existing
-
-    const validator = this.rowValidators[modelName]
-    if (!validator) {
-      this.report({
-        type: 'bootstrap.unknown_model',
-        model: modelName,
-      })
-      this.changeStatus({
-        name: modelName,
-        status: 'error',
-        error: `Unknown model "${modelName}"`,
-      })
-      return Promise.resolve(undefined)
-    }
 
     const run = this.run(modelName)
     this.inflight.set(modelName, run)
@@ -128,9 +109,7 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
 
     if (Result.isError(payload)) return Result.err(payload.error)
 
-    return validateRowsByTable<S>(payload.value, this.rowValidators).mapError(problem =>
-      bootstrapErrorForProblem(modelName, problem),
-    )
+    return this.validatePayload(payload.value).mapError(problem => bootstrapErrorForProblem(modelName, problem))
   }
 
   private fail(modelName: string, error: SyncError): undefined {

@@ -1,5 +1,7 @@
-import { Bootstrap } from '../boostrap'
-import type { BootstrapsSnapshot } from '../boostrap'
+import type { Result } from 'better-result'
+
+import { Bootstrap } from '../bootstrap'
+import type { BootstrapsSnapshot } from '../bootstrap'
 import { CoverageTracker } from '../coverage'
 import type { SyncError } from '../errors'
 import type { IDBStorage } from '../idb/types'
@@ -19,6 +21,9 @@ import type { ClientDatabaseSchema } from '../schema/table-schema'
 import { isRecord, Observable } from '../shared'
 import type { BatchStats, ReadonlyObservable } from '../shared'
 import { Store } from '../store'
+import type { RowsByTable } from '../store'
+import { rowValidatorsFor, validateRowsByTable } from '../validate'
+import type { RowValidationProblem } from '../validate'
 
 const BOOTSTRAPS_KV_PREFIX = 'bootstraps'
 
@@ -78,6 +83,7 @@ export class SSSync<
   readonly #rows: Store<S>
   readonly #coverage: CoverageTracker<S>
   readonly #bootstrap: Promise<Bootstrap<S>>
+  readonly #validatePayload: (payload: unknown) => Result<RowsByTable<S>, RowValidationProblem>
   readonly #storage: null | IDBStorage<S>
   readonly #isPersistent: Observable<boolean>
   readonly #bootstraps: Observable<BootstrapsSnapshot<S>>
@@ -90,6 +96,8 @@ export class SSSync<
   constructor(options: SSSyncOptions<S, Definitions>) {
     this.schema = options.schema
     this.mutators = options.mutators
+    const rowValidators = rowValidatorsFor(options.schema)
+    this.#validatePayload = payload => validateRowsByTable<S>(payload, rowValidators)
     this.#storage = options.storage
     this.#storage?.init({
       name: options.name,
@@ -121,9 +129,9 @@ export class SSSync<
     const batchURL = absoluteURL('batchURL', options.batchURL)
     const bootstrapURL = absoluteURL('bootstrapURL', options.bootstrapURL)
     this.#coverage = new CoverageTracker(
-      options.schema,
       batchURL,
       this.#batches,
+      this.#validatePayload,
       response => this.#rows.addIfNotExist(response),
       this.#storage,
       error => this.report(error),
@@ -131,9 +139,9 @@ export class SSSync<
     this.#bootstrap = this.ready.then(
       () =>
         new Bootstrap(
-          options.schema,
           bootstrapURL,
           this.#bootstraps,
+          this.#validatePayload,
           rowsByTable => this.#rows.addIfNotExist(rowsByTable),
           error => this.report(error),
         ),
