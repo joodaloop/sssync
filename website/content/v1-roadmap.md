@@ -50,7 +50,7 @@ description: Todo list & progress tracking
 - [ ] Build an IndexedDB database management system (with indexes)
 - [ ] Design system for query layer to use
 - [ ] Design API for persisting store data
-- [ ] Design API for storing and reading coverage indexes & bootstrap status
+- [x] [Design KV store API for storing coverage indexes & bootstrap status](https://github.com/joodaloop/sssync/commit/7b2c6376a0b315d3bc7618d0be0fa7985e3bf89e)
 - [ ] Design API for storing mutation queue
 
 ## Integrations

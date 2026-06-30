@@ -135,7 +135,7 @@ export class SSSync<
         ),
     )
     if (this.#storage) {
-      this.ready.then(() => {
+      void this.ready.then(() => {
         let previous = this.#bootstraps.get()
         this.#bootstraps.subscribe(() => {
           const next = this.#bootstraps.get()
