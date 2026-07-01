@@ -24,10 +24,35 @@ export function listenChannel<S extends Validator<unknown>>(
 
   const channel = new BroadcastChannel(`sssync:${dbName}:${name}`)
 
+  // Unique per-instance id so we can tag outgoing messages and ignore the ones
+  // that originate from this same instance.
+  const instanceId =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+  interface Envelope {
+    senderId: string
+    message: unknown
+  }
+
+  const isEnvelope = (data: unknown): data is Envelope =>
+    typeof data === 'object' && data !== null && 'senderId' in data && 'message' in data
+
   return {
     handle(handler) {
       const listener = (event: MessageEvent<unknown>) => {
-        const parsed = safeValidate(schema, event.data)
+        if (!isEnvelope(event.data)) {
+          console.warn(`Invalid ${name} channel message: missing envelope`)
+          return
+        }
+
+        // Drop messages this instance posted itself.
+        if (event.data.senderId === instanceId) {
+          return
+        }
+
+        const parsed = safeValidate(schema, event.data.message)
         if (!parsed.ok) {
           console.warn(`Invalid ${name} channel message:`, parsed.error)
           return
@@ -42,7 +67,7 @@ export function listenChannel<S extends Validator<unknown>>(
       }
     },
     post(message) {
-      channel.postMessage(message)
+      channel.postMessage({ senderId: instanceId, message } satisfies Envelope)
     },
     close() {
       channel.close()

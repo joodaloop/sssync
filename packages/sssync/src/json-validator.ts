@@ -1,5 +1,4 @@
 import { err, ok, panic, type Result } from './result'
-
 import type { StandardSchemaV1 } from './types'
 
 export type Issue = StandardSchemaV1.Issue

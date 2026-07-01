@@ -1,7 +1,6 @@
-import { err, ok, type Result } from './result'
-
 import type { Failure } from './errors'
 import { safeValidate } from './json-validator'
+import { err, ok, type Result } from './result'
 import { rowSchemaFor } from './schema/row-schema'
 import type { ClientDatabaseSchema } from './schema/table-schema'
 import type { RowsByTable } from './store'

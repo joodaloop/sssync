@@ -1,3 +1,5 @@
+import type { IDBReadFailure, IDBWriteFailure, PersistenceFailure } from '../errors'
+import type { Result } from '../result'
 import type { ClientDatabaseSchema, IdInputOf, RowOf, TableName, Tables } from '../schema'
 import type { ValidatePayload } from '../validate'
 
@@ -24,8 +26,8 @@ export interface IDBReadTransaction<S extends ClientDatabaseSchema = ClientDatab
 }
 
 export interface IDBKVTransaction {
-  get(id: string): Promise<unknown | undefined>
-  put(id: string, value: unknown): Promise<void>
+  get(id: string): Promise<Result<unknown, IDBReadFailure>>
+  put(id: string, value: unknown): Promise<Result<unknown, IDBWriteFailure>>
 }
 
 /**

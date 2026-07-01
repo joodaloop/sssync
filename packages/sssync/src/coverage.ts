@@ -1,7 +1,7 @@
 import { Batcher } from './batcher'
 import type { ResolvedBatch } from './batcher'
-import { attemptAsync } from './result'
 import type { IDBStorage } from './idb/types'
+import { attemptAsync } from './result'
 import type { ClientDatabaseSchema } from './schema/table-schema'
 import { cacheKeyForItem, coveredKeysForItem } from './shared'
 import type { BatchStats, Observable, ResolvedItem } from './shared'

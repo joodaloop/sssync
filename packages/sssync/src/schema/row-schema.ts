@@ -1,6 +1,5 @@
-import { panic } from '../result'
-
 import * as j from '../json-validator'
+import { panic } from '../result'
 import type { SchemaValue, ValueType } from './schema-value'
 import type { TableSchema } from './table-schema'
 

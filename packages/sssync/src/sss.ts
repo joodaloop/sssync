@@ -214,4 +214,3 @@ function absoluteURL(label: string, url: string): string {
   )
   return parsed.ok ? url.replace(/\/+$/, '') : panic(`Invalid ${label}: ${JSON.stringify(url)}`)
 }
-

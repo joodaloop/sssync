@@ -1,5 +1,4 @@
 import { panic } from '../../result'
-
 import { mapEntries } from '../../shared'
 import type { JSONValue, SchemaValue } from '../schema-value'
 import type { PrimaryKey, TableSchema } from '../table-schema'

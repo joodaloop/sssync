@@ -1,6 +1,5 @@
-import type { Result } from '../result'
-
 import type { Failure } from '../errors'
+import type { Result } from '../result'
 import type { IdInputOf, IdOf, RowOf, TableName, Tables } from '../schema/infer'
 import type { ClientDatabaseSchema, TableSchema } from '../schema/table-schema'
 import type { JSONValue } from '../shared'

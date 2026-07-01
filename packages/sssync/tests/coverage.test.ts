@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 
 import { CoverageTracker } from '../src/coverage'
 import type { Failure } from '../src/errors'
-import type { ReporterFactory, Where } from '../src/sss'
 import type { IDBKVTransaction, IDBStorage } from '../src/idb/types'
 import { column, createSchema, table } from '../src/schema'
 import type { ClientDatabaseSchema } from '../src/schema'
 import { cacheKeyForItem, Observable, resolvedItemFor } from '../src/shared'
 import type { BatchStats, ResolvedItem } from '../src/shared'
+import type { ReporterFactory, Where } from '../src/sss'
 import { rowValidatorsFor, validateRowsByTable } from '../src/validate'
 
 const status = <S extends ClientDatabaseSchema>(tracker: CoverageTracker<S>, item: ResolvedItem) =>

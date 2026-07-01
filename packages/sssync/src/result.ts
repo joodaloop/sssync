@@ -4,9 +4,7 @@
  * discriminate on `ok` and thread failures with early returns — no throwing, no
  * `instanceof`, no wrapper class.
  */
-export type Result<T, E> =
-  | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly error: E }
+export type Result<T, E> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: E }
 
 export const ok = <T>(value: T): Result<T, never> => ({ ok: true, value })
 export const err = <E>(error: E): Result<never, E> => ({ ok: false, error })
@@ -27,10 +25,7 @@ export function attempt<T, E>(fn: () => T, onError: (error: unknown) => E): Resu
 }
 
 /** The async counterpart to {@link attempt}, for throwing `Promise`-returning calls. */
-export async function attemptAsync<T, E>(
-  fn: () => Promise<T>,
-  onError: (error: unknown) => E,
-): Promise<Result<T, E>> {
+export async function attemptAsync<T, E>(fn: () => Promise<T>, onError: (error: unknown) => E): Promise<Result<T, E>> {
   // eslint-disable-next-line eslint-js/no-restricted-syntax -- the one audited spot where a thrown exception is converted into a returned Result.
   try {
     return ok(await fn())

@@ -1,5 +1,5 @@
-import { attempt, attemptAsync, err, type Result } from './result'
 import type { HttpFailure, ValidationFailure } from './errors'
+import { attempt, attemptAsync, err, type Result } from './result'
 
 export async function fetchJSON<T = unknown>(
   input: RequestInfo | URL,

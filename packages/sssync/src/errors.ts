@@ -3,13 +3,18 @@ export type HttpFailure = {
   readonly offending: { status: number; statusText: string; url: string } | { error: unknown }
 }
 export type ValidationFailure = { readonly type: 'validation'; readonly offending: unknown }
-export type PersistenceFailure = {
-  readonly type: 'persistence'
+export type IDBReadFailure = {
+  readonly type: 'idb_read'
+  readonly offending: { store: string; key?: string; error: unknown }
+}
+
+export type IDBWriteFailure = {
+  readonly type: 'idb_write'
   readonly offending: { store: string; key?: string; error: unknown }
 }
 export type MutatorFailure = { readonly type: 'mutator'; readonly offending: unknown }
 
-export type Failure = HttpFailure | ValidationFailure | PersistenceFailure | MutatorFailure
+export type Failure = HttpFailure | ValidationFailure | IDBReadFailure | IDBWriteFailure | MutatorFailure
 
 // Renders a Failure as a human-readable line at the logging/display boundary.
 // Discrimination stays on `type`; the string is always derived, never stored.
@@ -21,7 +26,7 @@ export function describe(failure: Failure): string {
     }
     case 'validation':
       return `Validation failed for ${JSON.stringify(failure.offending)}`
-    case 'persistence': {
+    case 'idb_read': {
       const o = failure.offending
       return `Persistence error in ${o.store}${o.key ? ` (${o.key})` : ''}: ${String(o.error)}`
     }

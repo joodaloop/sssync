@@ -1,7 +1,8 @@
 import { openDB } from 'idb'
+import type { IDBPDatabase, IDBPTransaction } from 'idb'
+
 import { describe } from '../errors'
 import { panic } from '../result'
-import type { IDBPDatabase, IDBPTransaction } from 'idb'
 import type { ClientDatabaseSchema, IdInputOf, Relationship, RowOf, TableName, TableSchema, Tables } from '../schema'
 import { primaryKeyFor, tupleKey } from '../shared'
 import type { ValidatePayload } from '../validate'
