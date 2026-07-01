@@ -28,7 +28,11 @@ export function describe(failure: Failure): string {
       return `Validation failed for ${JSON.stringify(failure.offending)}`
     case 'idb_read': {
       const o = failure.offending
-      return `Persistence error in ${o.store}${o.key ? ` (${o.key})` : ''}: ${String(o.error)}`
+      return `IDB read error in ${o.store}${o.key ? ` (${o.key})` : ''}: ${String(o.error)}`
+    }
+    case 'idb_write': {
+      const o = failure.offending
+      return `IDB write error in ${o.store}${o.key ? ` (${o.key})` : ''}: ${String(o.error)}`
     }
     case 'mutator':
       return typeof failure.offending === 'string'

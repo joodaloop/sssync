@@ -1,5 +1,6 @@
 import { Bootstrap } from './bootstrap'
 import type { BootstrapsSnapshot } from './bootstrap'
+import { rowValidatorsFor, validateRowsByTable } from './boundaries'
 import { CoverageTracker } from './coverage'
 import { describe } from './errors'
 import type { Failure } from './errors'
@@ -21,7 +22,6 @@ import type { ClientDatabaseSchema } from './schema/table-schema'
 import { Observable } from './shared'
 import type { BatchStats, ReadonlyObservable } from './shared'
 import { Store } from './store'
-import { rowValidatorsFor, validateRowsByTable } from './validate'
 
 /** Which subsystem a failure came from; attached at the reporting boundary. */
 export type Where = 'batcher' | 'bootstrap' | 'coverage' | 'sssync'
@@ -188,9 +188,9 @@ export class SSSync<
     return failure => this.report({ ...failure, where })
   }
 
-  async bootstrapload<Name extends TableName<S>>(table: Name): Promise<readonly RowOf<Tables<S>[Name]>[] | undefined> {
+  async bootstrapload<Name extends TableName<S>>(table: Name): Promise<void> {
     const bootstrap = await this.#bootstrap
-    return bootstrap.load(table) as Promise<readonly RowOf<Tables<S>[Name]>[] | undefined>
+    return bootstrap.load(table)
   }
 
   all<Name extends TableName<S>>(table: Name): Query<readonly RowOf<Tables<S>[Name]>[], AllQueryPlan<Name>> {

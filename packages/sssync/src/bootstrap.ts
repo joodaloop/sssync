@@ -1,6 +1,6 @@
-import { fetchJSON } from './boundaries';
-import type { ValidatePayload } from './boundaries';
-import type { HttpFailure, IDBReadFailure, ValidationFailure } from './errors'
+import { fetchJSON } from './boundaries'
+import type { ValidatePayload } from './boundaries'
+import type { Failure } from './errors'
 import type { IDBKVTransaction, IDBStorage } from './idb/types'
 import { object, string } from './json-validator'
 import { listenChannel } from './listen-channel'
@@ -23,13 +23,13 @@ import type { RowsByTable } from './store'
   - SUCCEEDS:
     - Call .addToStoreIfNotExist()
         - Set `this.bootstrapStatuses[tableName]` to "success"
-        - Attempt to persist the boostrap success
+        - Persist the boostrap success
           - Notify other tabs through the `bootstrap-broadcast-channel`
   - FAILS:
     - Set `this.bootstrapStatuses[tableName]` to the corresponding Failure
 */
 
-type BootstrapStatus = 'pending' | 'success' | HttpFailure | ValidationFailure | IDBReadFailure
+type BootstrapStatus = 'pending' | 'success' | Failure
 
 export type BootstrapsSnapshot<S extends ClientDatabaseSchema> = Readonly<
   Partial<Record<TableName<S>, BootstrapStatus>>
@@ -66,8 +66,10 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
   }
 
   async hydrate(): Promise<void> {
+    if (!this.storage) return
+
     const loaded: Partial<Record<string, BootstrapStatus>> = {}
-    await this.storage?.transactionKVStore(async kv => {
+    await this.storage.transactionKVStore(async kv => {
       for (const tableName of this.tableNames) {
         loaded[tableName] = await this.readPersistedBootstrapStatus(tableName, kv)
       }
@@ -77,8 +79,10 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
   }
 
   private rescan = async (modelName: string): Promise<void> => {
-    const status = await this.storage?.transactionKVStore(kv => this.readPersistedBootstrapStatus(modelName, kv))
-    this.bootstrapStatuses.set({ ...this.bootstrapStatuses.get(), [modelName]: status })
+    if (!this.storage) return
+
+    const status = await this.storage.transactionKVStore(kv => this.readPersistedBootstrapStatus(modelName, kv))
+    this.setStatus(modelName, status)
   }
 
   private async readPersistedBootstrapStatus(tableName: string, kv: IDBKVTransaction): Promise<'success' | undefined> {
@@ -91,10 +95,45 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
     return read.value === 'success' ? 'success' : undefined
   }
 
-  async load(modelName: string) {
+  private setStatus(modelName: string, status: BootstrapStatus | undefined): void {
+    this.bootstrapStatuses.set({ ...this.bootstrapStatuses.get(), [modelName]: status })
+  }
+
+  async load(modelName: string): Promise<void> {
+    const current = this.bootstrapStatuses.get()[modelName as TableName<S>]
+    if (current === 'success' || current === 'pending') return undefined
+
+    this.setStatus(modelName, 'pending')
+
     const url = `${this.bootstrapURL}?model=${encodeURIComponent(modelName)}`
     const payload = await fetchJSON(url)
-    if (!payload.ok) return payload
-    return this.validatePayload(payload.value)
+    if (!payload.ok) {
+      this.setStatus(modelName, payload.error)
+      return undefined
+    }
+
+    const validated = this.validatePayload(payload.value)
+    if (!validated.ok) {
+      this.setStatus(modelName, validated.error)
+      return undefined
+    }
+
+    this.addToStoreIfNotExist(validated.value)
+    this.setStatus(modelName, 'success')
+    await this.persistSuccess(modelName)
+  }
+
+  // Best-effort persistence of a bootstrap success, then notify other tabs so
+  // they can rescan and pick up the persisted status without re-fetching.
+  private async persistSuccess(modelName: string): Promise<void> {
+    if (!this.storage) return
+
+    const key = bootstrapKVKey(modelName)
+    const write = await this.storage.transactionKVStore(kv => kv.put(key, 'success'))
+    if (!write.ok) {
+      this.report({ type: write.error.type, offending: write.error.offending })
+      return
+    }
+    this.channel.post({ id: modelName })
   }
 }

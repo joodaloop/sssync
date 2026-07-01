@@ -1,7 +1,9 @@
 import type { Failure, HttpFailure, ValidationFailure } from './errors'
 import { safeValidate } from './json-validator'
-import { attempt, attemptAsync, err, ok, type Result } from './result'
-import { rowSchemaFor, type ClientDatabaseSchema } from './schema'
+import { attempt, attemptAsync, err, ok } from './result';
+import type { Result } from './result';
+import { rowSchemaFor } from './schema';
+import type { ClientDatabaseSchema } from './schema';
 import type { RowsByTable } from './store'
 
 export async function fetchJSON<T = unknown>(

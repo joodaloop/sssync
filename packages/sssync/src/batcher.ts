@@ -1,4 +1,5 @@
 import { fetchJSON } from './boundaries'
+import type { ValidatePayload } from './boundaries'
 import type { Failure } from './errors'
 import type { Result } from './result'
 import type { ClientDatabaseSchema } from './schema/table-schema'
@@ -6,7 +7,6 @@ import { cacheKeyForItem, rowKeyForItem } from './shared'
 import type { BatchStats, MergedRequest, Observable, ResolvedItem } from './shared'
 import type { Reporter, ReporterFactory } from './sss'
 import type { RowsByTable } from './store'
-import type { ValidatePayload } from './validate'
 
 export type ResolvedBatch = {
   readonly items: readonly ResolvedItem[]
