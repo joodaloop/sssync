@@ -1,10 +1,9 @@
-import { openDB, type IDBPDatabase, type IDBPTransaction } from 'idb'
-
+import { openDB } from 'idb'
+import type { IDBPDatabase, IDBPTransaction } from 'idb'
 import type { ClientDatabaseSchema, IdInputOf, Relationship, RowOf, TableName, TableSchema, Tables } from '../schema'
 import { primaryKeyFor, tupleKey } from '../shared'
+import type { ValidatePayload } from '../validate'
 import type { IDBKVTransaction, IDBReadTransaction, IDBStorage, IDBStorageInitOptions } from './types'
-
-export type { IDBKVTransaction, IDBReadTransaction, IDBStorage, IDBStorageInitOptions } from './types'
 
 type StorageRecord = {
   readonly key: string
@@ -42,6 +41,7 @@ export class IndexedDBStorage<S extends ClientDatabaseSchema = ClientDatabaseSch
 
   #db: Promise<IDBPDatabase> | undefined
   #plan: DatabasePlan | undefined
+  #validatePayload: ValidatePayload<S> | undefined
 
   init(options: IDBStorageInitOptions<S>): void {
     if (this.#db) {
@@ -51,6 +51,7 @@ export class IndexedDBStorage<S extends ClientDatabaseSchema = ClientDatabaseSch
     const plan = planForSchema(options.schema)
     const databaseName = databaseNameFor(options)
     this.#plan = plan
+    this.#validatePayload = options.validatePayload
     this.#db = openDB(databaseName, options.schemaVersion, {
       upgrade(db, _oldVersion, _newVersion, transaction) {
         if (!db.objectStoreNames.contains(KV_STORE_NAME)) {
@@ -81,8 +82,16 @@ export class IndexedDBStorage<S extends ClientDatabaseSchema = ClientDatabaseSch
 
   async read<T>(callback: (transaction: IDBReadTransaction<S>) => Promise<T>): Promise<T> {
     const db = await this.ready
+    const validatePayload = this.#validatePayload
+    if (!validatePayload) {
+      throw new Error('IndexedDBStorage has not been initialized')
+    }
     const transaction = db.transaction(this.storeNames(), 'readonly')
-    const reader = new IndexedDBReadTransaction<S>(transaction, tableName => this.tablePlanFor(tableName))
+    const reader = new IndexedDBReadTransaction<S>(
+      transaction,
+      tableName => this.tablePlanFor(tableName),
+      validatePayload,
+    )
     return callback(reader)
   }
 
@@ -139,6 +148,7 @@ class IndexedDBReadTransaction<S extends ClientDatabaseSchema> implements IDBRea
   constructor(
     private readonly transaction: IDBPTransaction,
     private readonly tablePlanFor: (tableName: string) => TablePlan,
+    private readonly validatePayload: ValidatePayload<S>,
   ) {}
 
   async getRow<Name extends TableName<S>>(
@@ -149,7 +159,9 @@ class IndexedDBReadTransaction<S extends ClientDatabaseSchema> implements IDBRea
     const record = (await this.transaction.objectStore(tableName).get(primaryKeyFor(tablePlan.table, id))) as
       | StorageRecord
       | undefined
-    return record?.row as RowOf<Tables<S>[Name]> | undefined
+    if (!record) return undefined
+    const validated = this.validatePayload({ [tableName]: [record.row] }).unwrap()
+    return validated[tableName]?.[0]
   }
 
   async getRowsByRelation<Name extends TableName<S>>(
@@ -167,7 +179,8 @@ class IndexedDBReadTransaction<S extends ClientDatabaseSchema> implements IDBRea
       .objectStore(tableName)
       .index(indexName)
       .getAll(tupleKey(values))) as StorageRecord[]
-    return records.map(record => record.row as RowOf<Tables<S>[Name]>)
+    const rows = records.map(record => record.row)
+    return this.validatePayload({ [tableName]: rows }).unwrap()[tableName] ?? []
   }
 }
 

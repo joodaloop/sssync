@@ -10,7 +10,7 @@ const TMP_DIR = join(ROOT, 'node_modules', '.bundle-size-tmp')
 rmSync(TMP_DIR, { recursive: true, force: true })
 
 const ENTRY_CANDIDATES = (pkgDir: string) => [
-  'src/index.ts',
+  'src/sss.ts',
   `src/${basename(pkgDir)}/index.ts`,
   `src/${basename(pkgDir).replace(/^@.*\//, '')}/index.ts`,
 ]

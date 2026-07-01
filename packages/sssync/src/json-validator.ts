@@ -1,18 +1,16 @@
+import { Result } from 'better-result'
+
 import type { StandardSchemaV1 } from './types'
 
 export type Issue = StandardSchemaV1.Issue
 
 export type Validator<Output> = StandardSchemaV1<unknown, Output>
 
-type ValidationResult<Output> =
-  | { readonly success: true; readonly output: Output }
-  | { readonly success: false; readonly issues: readonly Issue[] }
-
 type Check<Output> = (value: unknown, path: readonly PropertyKey[]) => Output
 
 const vendor = 'sssync'
 
-export function validator<Output>(check: Check<Output>): Validator<Output> {
+function validator<Output>(check: Check<Output>): Validator<Output> {
   return {
     '~standard': {
       version: 1,
@@ -37,15 +35,15 @@ export function validator<Output>(check: Check<Output>): Validator<Output> {
 export function safeValidate<Output>(
   schema: StandardSchemaV1<unknown, Output>,
   value: unknown,
-): ValidationResult<Output> {
+): Result<Output, readonly Issue[]> {
   const result = schema['~standard'].validate(value)
   if (result instanceof Promise) {
     throw new Error('Async schemas are not supported')
   }
   if (result.issues) {
-    return { success: false, issues: result.issues }
+    return Result.err(result.issues)
   }
-  return { success: true, output: result.value }
+  return Result.ok(result.value)
 }
 
 export function string(): Validator<string> {

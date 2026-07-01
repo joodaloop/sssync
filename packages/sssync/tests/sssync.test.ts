@@ -75,13 +75,12 @@ describe('SSSync.bootstrapload', () => {
 
     await db.bootstrapload('issues')
 
-    expect(db.stats.errors.get()[0]).toEqual({
-      type: 'bootstrap.http_failed',
-      model: 'issues',
-      response: {
+    expect(db.stats.errors.get()[0]).toMatchObject({
+      type: 'http',
+      where: 'bootstrap',
+      offending: {
         status: 500,
         statusText: 'Server Error',
-        url: 'https://example.test/bootstrap?model=issues',
       },
     })
   })

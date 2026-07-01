@@ -1,11 +1,12 @@
 import { Result } from 'better-result'
 
-import type { SyncError } from './errors'
+import { fetchJSON } from './better'
+import type { Report, Reported } from './better'
 import type { TableName } from './schema/infer'
 import type { ClientDatabaseSchema } from './schema/table-schema'
 import type { LoadingStatus, Observable } from './shared'
 import type { RowsByTable } from './store'
-import type { RowValidationProblem } from './validate'
+import type { ValidatePayload } from './validate'
 
 // Per-model bootstrap state.
 export type BootstrapState = {
@@ -21,7 +22,7 @@ export type StatusChange<Name extends string = string> = {
 } & BootstrapState
 
 type LoadResult = Promise<readonly unknown[] | undefined>
-type Reporter = (error: SyncError) => void
+type Reporter = (error: Reported) => void
 
 export class Bootstrap<S extends ClientDatabaseSchema> {
   // In-flight loads keyed by model. Recorded synchronously in `load` so
@@ -31,7 +32,7 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
   constructor(
     private readonly bootstrapURL: string,
     private readonly bootstraps: Observable<BootstrapsSnapshot<S>>,
-    private readonly validatePayload: (payload: unknown) => Result<RowsByTable<S>, RowValidationProblem>,
+    private readonly validatePayload: ValidatePayload<S>,
     private readonly addIfNotExist: (rowsByTable: RowsByTable<S>) => void = () => {},
     private readonly report: Reporter = () => {},
   ) {}
@@ -68,51 +69,16 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
     return result.value[modelName as TableName<S>] ?? []
   }
 
-  private async fetchRows(modelName: string): Promise<Result<RowsByTable<S>, SyncError>> {
+  private async fetchRows(modelName: string): Promise<Result<RowsByTable<S>, Report>> {
     const url = `${this.bootstrapURL}?model=${encodeURIComponent(modelName)}`
-    const response = await Result.tryPromise({
-      try: () => fetch(url),
-      catch: error =>
-        ({
-          type: 'bootstrap.fetch_failed',
-          model: modelName,
-          url,
-          cause: errorCause(error),
-        }) satisfies SyncError,
-    })
-
-    if (Result.isError(response)) return Result.err(response.error)
-
-    if (!response.value.ok) {
-      return Result.err({
-        type: 'bootstrap.http_failed',
-        model: modelName,
-        response: {
-          status: response.value.status,
-          statusText: response.value.statusText,
-          url: response.value.url || url,
-        },
-      })
-    }
-
-    const payload = await Result.tryPromise({
-      try: () => response.value.json() as Promise<unknown>,
-      catch: error =>
-        ({
-          type: 'validation.invalid_json',
-          context: 'bootstrap_response',
-          cause: errorCause(error),
-        }) satisfies SyncError,
-    })
-
+    const payload = await fetchJSON(url)
     if (Result.isError(payload)) return Result.err(payload.error)
-
-    return this.validatePayload(payload.value).mapError(problem => bootstrapErrorForProblem(modelName, problem))
+    return this.validatePayload(payload.value)
   }
 
-  private fail(modelName: string, error: SyncError): undefined {
-    this.report(error)
-    this.changeStatus({ name: modelName, status: 'error', error: messageFor(error) })
+  private fail(modelName: string, error: Report): undefined {
+    this.report({ ...error, where: 'bootstrap' })
+    this.changeStatus({ name: modelName, status: 'error', error: error.type })
     return undefined
   }
 
@@ -124,50 +90,5 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
         ...(change.error === undefined ? {} : { error: change.error }),
       },
     })
-  }
-}
-
-function errorCause(error: unknown) {
-  if (error instanceof Error) {
-    return {
-      message: error.message,
-      name: error.name,
-      ...(error.stack === undefined ? {} : { stack: error.stack }),
-    }
-  }
-  return { message: String(error) }
-}
-
-function bootstrapErrorForProblem(requestedModel: string, problem: RowValidationProblem): SyncError {
-  switch (problem.type) {
-    case 'payload_not_object':
-      return { type: 'bootstrap.response_missing_data', model: requestedModel }
-    case 'unknown_model':
-      return { type: 'bootstrap.unknown_model', model: problem.model }
-    case 'rows_not_array':
-      return { type: 'bootstrap.response_data_not_array', model: problem.model }
-    case 'invalid_row':
-      return { type: 'bootstrap.invalid_row', model: problem.model, issues: problem.issues }
-  }
-}
-
-function messageFor(error: SyncError): string {
-  switch (error.type) {
-    case 'bootstrap.unknown_model':
-      return `Unknown model "${error.model}"`
-    case 'bootstrap.fetch_failed':
-      return error.cause.message
-    case 'bootstrap.http_failed':
-      return `Bootstrap fetch failed: ${error.response.status} ${error.response.statusText}`
-    case 'bootstrap.response_missing_data':
-      return 'Bootstrap response was not an object of rows'
-    case 'bootstrap.response_data_not_array':
-      return 'Bootstrap response "data" was not an array'
-    case 'bootstrap.invalid_row':
-      return `Invalid row: ${error.issues.map(issue => issue.message).join('; ')}`
-    case 'validation.invalid_json':
-      return error.cause.message
-    default:
-      return error.type
   }
 }

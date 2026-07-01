@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
+import { Result } from 'better-result'
 import * as v from 'valibot'
 
 import { defineMutators } from '../src/mutators'
@@ -44,68 +45,86 @@ const mutators = defineMutators(schema, defineMutator => ({
 
 describe('mutators', () => {
   test('parses a mutation envelope using the named mutator schema', () => {
-    expect(
-      mutators.parse({
+    const parsed = mutators.parse({
+      name: 'updateIssueTitle',
+      args: {
+        id: 'issue-1',
+        title: 'New title',
+      },
+    })
+
+    expect(Result.isOk(parsed)).toBe(true)
+    if (Result.isOk(parsed)) {
+      expect(parsed.value).toEqual({
         name: 'updateIssueTitle',
         args: {
           id: 'issue-1',
           title: 'New title',
         },
-      }),
-    ).toEqual({
-      name: 'updateIssueTitle',
-      args: {
-        id: 'issue-1',
-        title: 'New title',
-      },
-    })
+      })
+    }
   })
 
   test('rejects unknown mutation names', () => {
-    expect(() =>
-      mutators.parse({
-        name: 'missingMutator',
-        args: {},
-      }),
-    ).toThrow('Unknown mutation "missingMutator"')
+    const parsed = mutators.parse({
+      name: 'missingMutator',
+      args: {},
+    })
+
+    expect(Result.isError(parsed)).toBe(true)
+    if (Result.isError(parsed)) {
+      expect(parsed.error).toEqual({ type: 'mutator', offending: 'missingMutator' })
+    }
   })
 
   test('applies a mutator and collects optimistic table mutations', async () => {
-    const envelope = mutators.parse({
+    const parsed = mutators.parse({
       name: 'updateIssueTitle',
       args: {
         id: 'issue-1',
         title: 'New title',
       },
     })
-    const mutations = await mutators.apply(envelope)
+    expect(Result.isOk(parsed)).toBe(true)
+    if (!Result.isOk(parsed)) return
 
-    expect(mutations).toEqual([
-      {
-        type: 'UPDATE',
-        table: 'issues',
-        id: { id: 'issue-1' },
-        changes: { title: 'New title' },
-      },
-    ])
+    const mutations = await mutators.apply(parsed.value)
+
+    expect(Result.isOk(mutations)).toBe(true)
+    if (Result.isOk(mutations)) {
+      expect(mutations.value).toEqual([
+        {
+          type: 'UPDATE',
+          table: 'issues',
+          id: { id: 'issue-1' },
+          changes: { title: 'New title' },
+        },
+      ])
+    }
   })
 
   test('snapshots update changes when collecting mutations', async () => {
-    const envelope = mutators.parse({
+    const parsed = mutators.parse({
       name: 'mutateSharedChangesObject',
       args: {
         id: 'issue-1',
       },
     })
-    const mutations = await mutators.apply(envelope)
+    expect(Result.isOk(parsed)).toBe(true)
+    if (!Result.isOk(parsed)) return
 
-    expect(mutations).toEqual([
-      {
-        type: 'UPDATE',
-        table: 'issues',
-        id: { id: 'issue-1' },
-        changes: { title: 'Initial title' },
-      },
-    ])
+    const mutations = await mutators.apply(parsed.value)
+
+    expect(Result.isOk(mutations)).toBe(true)
+    if (Result.isOk(mutations)) {
+      expect(mutations.value).toEqual([
+        {
+          type: 'UPDATE',
+          table: 'issues',
+          id: { id: 'issue-1' },
+          changes: { title: 'Initial title' },
+        },
+      ])
+    }
   })
 })

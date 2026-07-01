@@ -1,7 +1,7 @@
+import type { Reported } from './better'
 import { Bootstrap } from './bootstrap'
 import type { BootstrapsSnapshot } from './bootstrap'
 import { CoverageTracker } from './coverage'
-import type { SyncError } from './errors'
 import type { IDBStorage } from './idb/types'
 import type { AnyMutatorDefinition, MutationEnvelope, Mutators } from './mutators'
 import { store } from './query'
@@ -73,7 +73,7 @@ export class SSSync<
     readonly batches: ReadonlyObservable<BatchStats>
     readonly mutationQueue: ReadonlyObservable<readonly MutationEnvelope<Mutators<S, Definitions>>[]>
     readonly queries: ReadonlyObservable<Readonly<Record<string, QueryDetails>>>
-    readonly errors: ReadonlyObservable<readonly SyncError[]>
+    readonly errors: ReadonlyObservable<readonly Reported[]>
   }
   readonly #store: QueryStore<S>
   readonly #rows: Store<S>
@@ -85,19 +85,21 @@ export class SSSync<
   readonly #batches = new Observable<BatchStats>({ pending: [], inflight: [] })
   readonly #mutationQueue = new Observable<readonly MutationEnvelope<Mutators<S, Definitions>>[]>([])
   readonly #queries = new Observable<Readonly<Record<string, QueryDetails>>>({})
-  readonly #errors = new Observable<readonly SyncError[]>([])
+  readonly #errors = new Observable<readonly Reported[]>([])
   readonly #maxErrors = 100
 
   constructor(options: SSSyncOptions<S, Definitions>) {
     this.schema = options.schema
     this.mutators = options.mutators
-    const validatePayload = (payload: unknown) => validateRowsByTable<S>(payload, rowValidatorsFor(options.schema))
+    const v = rowValidatorsFor(options.schema)
+    const validatePayload = (payload: unknown) => validateRowsByTable<S>(payload, v)
     this.#storage = options.storage
     this.#storage?.init({
       name: options.name,
       id: options.id,
       schema: options.schema,
       schemaVersion: options.schemaVersion,
+      validatePayload,
     })
     this.#isPersistent.set(options.storage !== null)
     this.#rows = new Store(options.schema)
@@ -121,8 +123,8 @@ export class SSSync<
       this.#batches,
       validatePayload,
       response => this.#rows.addIfNotExist(response),
-      this.#storage,
       error => this.report(error),
+      this.#storage,
     )
     this.#bootstrap = this.ready.then(
       () =>
@@ -148,10 +150,9 @@ export class SSSync<
                 })
                 .catch(error => {
                   this.report({
-                    type: 'persistence.write_failed',
-                    store: key,
-                    key,
-                    cause: { message: String(error) },
+                    type: 'persistence',
+                    where: 'sssync',
+                    offending: { store: key, key, error },
                   })
                 })
             }
@@ -178,10 +179,9 @@ export class SSSync<
             }
           } catch (error) {
             this.report({
-              type: 'persistence.read_failed',
-              store: key,
-              key,
-              cause: { message: String(error) },
+              type: 'persistence',
+              where: 'sssync',
+              offending: { store: key, key, error },
             })
           }
         }
@@ -192,9 +192,9 @@ export class SSSync<
       }
     } catch (error) {
       this.report({
-        type: 'persistence.read_failed',
-        store: BOOTSTRAPS_KV_PREFIX,
-        cause: { message: String(error) },
+        type: 'persistence',
+        where: 'sssync',
+        offending: { store: BOOTSTRAPS_KV_PREFIX, error },
       })
     }
   }
@@ -219,11 +219,11 @@ export class SSSync<
     return this.#queries
   }
 
-  get errors(): ReadonlyObservable<readonly SyncError[]> {
+  get errors(): ReadonlyObservable<readonly Reported[]> {
     return this.#errors
   }
 
-  report(error: SyncError): void {
+  report(error: Reported): void {
     this.#errors.set([error, ...this.#errors.get()].slice(0, this.#maxErrors))
   }
 

@@ -1,15 +1,19 @@
 import { Result } from 'better-result'
 
+import { fetchJSON } from './better'
+import type { Report, Reported } from './better'
 import type { ClientDatabaseSchema } from './schema/table-schema'
 import { cacheKeyForItem, rowKeyForItem } from './shared'
 import type { BatchStats, MergedRequest, Observable, ResolvedItem } from './shared'
 import type { RowsByTable } from './store'
-import type { RowValidationProblem } from './validate'
+import type { ValidatePayload } from './validate'
 
 export type ResolvedBatch = {
   readonly items: readonly ResolvedItem[]
   readonly success: boolean
 }
+
+type Reporter = (error: Reported) => void
 
 // Collapses requests for the same model + id into a single payload entry,
 // gathering all of their relations into one array. A bare-row request and its
@@ -41,9 +45,10 @@ export class Batcher<S extends ClientDatabaseSchema> {
   constructor(
     private readonly batchURL: string,
     private readonly batches: Observable<BatchStats>,
-    private readonly validatePayload: (payload: unknown) => Result<RowsByTable<S>, RowValidationProblem>,
+    private readonly validatePayload: ValidatePayload<S>,
     private readonly addIfNotExist: (rowsByTable: RowsByTable<S>) => void,
     private readonly resolve: (batch: ResolvedBatch) => void,
+    private readonly report: Reporter = () => {},
   ) {}
 
   request(item: ResolvedItem) {
@@ -64,35 +69,41 @@ export class Batcher<S extends ClientDatabaseSchema> {
     const items = entries.map(([, item]) => item)
     for (const [k, item] of entries) this.inflight.set(k, item)
     this.publish()
-    try {
-      const res = await fetch(this.batchURL, {
-        headers: { 'Content-Type': 'application/json' },
-        method: 'POST',
-        body: JSON.stringify(mergeRequests(items)),
-      })
-      if (!res.ok) {
-        throw new Error(`Batch fetch failed: ${res.status} ${res.statusText}`)
-      }
+
+    const rowsByTable = await Result.gen(async function* () {
+      const payload = yield* Result.await(this.fetchBatch(items))
+
       // Only report success if every incoming row passes its write schema.
-      const payload = await res.json()
-      const rowsByTable = this.validatePayload(payload)
-      if (Result.isError(rowsByTable)) {
-        console.warn(messageFor(rowsByTable.error))
-      }
-      // Seed the validated rows into the store before resolving, so waiters see
-      // the data the moment their request settles. Invalid payloads are skipped.
-      if (Result.isOk(rowsByTable)) this.addIfNotExist(rowsByTable.value)
-      // The resolver expands a relation item into its bare row, so resolving the
-      // fetched items also resolves any bare rows we subsumed into them.
-      this.resolve({ items, success: Result.isOk(rowsByTable) })
-    } catch {
-      // Unblock waiters so a failed batch doesn't leave its requests hanging.
-      this.resolve({ items, success: false })
-    } finally {
-      // Clear only this batch's keys; a concurrent flush may still own others.
-      for (const [k] of entries) this.inflight.delete(k)
-      this.publish()
-    }
+      return this.validatePayload(payload)
+    }, this)
+
+    // Clear only this batch's keys; a concurrent flush may still own others.
+    for (const [k] of entries) this.inflight.delete(k)
+    this.publish()
+
+    rowsByTable.match({
+      ok: rows => {
+        // Seed the validated rows into the store before resolving, so waiters
+        // see the data the moment their request settles.
+        this.addIfNotExist(rows)
+        // The resolver expands a relation item into its bare row, so resolving
+        // the fetched items also resolves any bare rows we subsumed into them.
+        this.resolve({ items, success: true })
+      },
+      err: error => {
+        this.report({ ...error, where: 'batcher' })
+        // Unblock waiters so a failed batch doesn't leave its requests hanging.
+        this.resolve({ items, success: false })
+      },
+    })
+  }
+
+  private async fetchBatch(items: readonly ResolvedItem[]): Promise<Result<unknown, Report>> {
+    return fetchJSON(this.batchURL, {
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      body: JSON.stringify(mergeRequests(items)),
+    })
   }
 
   private publish(): void {
@@ -100,18 +111,5 @@ export class Batcher<S extends ClientDatabaseSchema> {
       pending: mergeRequests([...this.pending.values()]),
       inflight: mergeRequests([...this.inflight.values()]),
     })
-  }
-}
-
-function messageFor(problem: RowValidationProblem): string {
-  switch (problem.type) {
-    case 'payload_not_object':
-      return 'Batch response was not an object of rows'
-    case 'unknown_model':
-      return `Batch response referenced unknown table "${problem.model}"`
-    case 'rows_not_array':
-      return `Rows for table "${problem.model}" were not an array`
-    case 'invalid_row':
-      return `Invalid "${problem.model}" row: ${problem.issues.map(issue => issue.message).join('; ')}`
   }
 }

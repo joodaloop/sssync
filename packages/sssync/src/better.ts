@@ -1,7 +1,7 @@
 import { Result } from 'better-result'
 
 export type Report = {
-  readonly type: 'validation' | 'url' | 'http' | 'persistence' | 'store'
+  readonly type: 'validation' | 'url' | 'http' | 'persistence' | 'store' | 'mutator'
   readonly offending: unknown
 }
 
@@ -26,10 +26,7 @@ class JSONParseError extends Error {
   }
 }
 
-export async function fetchJSON<T = unknown>(
-  input: RequestInfo | URL,
-  init?: RequestInit,
-) {
+export async function fetchJSON<T = unknown>(input: RequestInfo | URL, init?: RequestInit) {
   return Result.tryPromise({
     try: async () => {
       const response = await fetch(input, init)

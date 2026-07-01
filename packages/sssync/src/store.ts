@@ -1,3 +1,6 @@
+import { Result } from 'better-result'
+
+import type { Report } from './better'
 import type { Mutation } from './mutators/types'
 import type { IdInputOf, RowOf, TableName, Tables } from './schema/infer'
 import type { ClientDatabaseSchema, TableSchema } from './schema/table-schema'
@@ -86,9 +89,7 @@ export class Store<S extends ClientDatabaseSchema> {
   }
 
   getRowFromTable: GetRowFromTable<S> = (tableName, id) => {
-    return this.tableFor(tableName).get(this.keyFor(tableName, id)) as
-      | RowOf<Tables<S>[typeof tableName]>
-      | undefined
+    return this.tableFor(tableName).get(this.keyFor(tableName, id)) as RowOf<Tables<S>[typeof tableName]> | undefined
   }
 
   subscribeToRowChanges: SubscribeToRowChanges = listener => {
@@ -98,20 +99,24 @@ export class Store<S extends ClientDatabaseSchema> {
     }
   }
 
-  applyMutation(mutations: readonly Mutation<S>[]) {
-    this.transact(() => {
+  applyMutation(mutations: readonly Mutation<S>[]): Result<void, Report> {
+    return this.transact(() => {
       for (const mutation of mutations) {
-        this.applyOne(mutation)
+        const result = this.applyOne(mutation)
+        if (Result.isError(result)) return result
       }
+      return Result.ok()
     })
   }
 
-  applySyncerUpdate(mutations: readonly Mutation<S>[]) {
+  applySyncerUpdate(mutations: readonly Mutation<S>[]): Result<void, Report> {
     // undo mutations
-    this.transact(() => {
+    return this.transact(() => {
       for (const mutation of mutations) {
-        this.applyOne(mutation)
+        const result = this.applyOne(mutation)
+        if (Result.isError(result)) return result
       }
+      return Result.ok()
     })
     // redo mutations
   }
@@ -119,7 +124,9 @@ export class Store<S extends ClientDatabaseSchema> {
   // Adds rows from a table-keyed response, but only fills in rows that are
   // currently absent. Used to seed the store without clobbering existing
   // (e.g. locally mutated) rows.
-  addIfNotExist(rowsByTable: RowsByTable<S>) {
+  addIfNotExist(rowsByTable: RowsByTable<S>): void {
+    // Seeding can only throw (unknown table); it never produces a Report, so the
+    // Ok result from transact is discarded.
     this.transact(() => {
       // undo mutations
 
@@ -137,6 +144,7 @@ export class Store<S extends ClientDatabaseSchema> {
       }
 
       // redo mutations
+      return Result.ok()
     })
   }
 
@@ -145,13 +153,12 @@ export class Store<S extends ClientDatabaseSchema> {
     return primaryKeyFor(this.#schema.tables[tableName], record)
   }
 
-  private transact(applyUpdates: () => void): void {
+  private transact(applyUpdates: () => Result<void, Report>): Result<void, Report> {
     // Re-entrant: a nested call joins the in-progress transaction, writing into
     // the same transitions map. The outermost call owns commit/rollback and
     // fires listeners once, so a group of nested writes lands as one change set.
     if (this.#transaction) {
-      applyUpdates()
-      return
+      return applyUpdates()
     }
 
     const transitions = new Map<string, RowTransition>()
@@ -159,7 +166,14 @@ export class Store<S extends ClientDatabaseSchema> {
     let changes: StoreRowChange[] | undefined
 
     try {
-      applyUpdates()
+      const result = applyUpdates()
+      // An error result aborts the batch: roll back to the pre-transaction
+      // state and return the Report without firing listeners.
+      if (Result.isError(result)) {
+        this.rollback(transitions)
+        return result
+      }
+
       changes = []
 
       for (const transition of transitions.values()) {
@@ -199,8 +213,9 @@ export class Store<S extends ClientDatabaseSchema> {
       this.#transaction = undefined
     }
 
-    if (!changes || changes.length === 0) return
+    if (!changes || changes.length === 0) return Result.ok()
     for (const listener of this.#rowChangeListeners) listener(changes)
+    return Result.ok()
   }
 
   // Reverts each touched row to its pre-transaction state: restore the prior
@@ -239,16 +254,14 @@ export class Store<S extends ClientDatabaseSchema> {
   }
 
   private tableFor(tableName: string): Map<string, RowOf<TableSchema> | undefined> {
-    const table = this.tables[tableName as TableName<S>] as
-      | Map<string, RowOf<TableSchema> | undefined>
-      | undefined
+    const table = this.tables[tableName as TableName<S>] as Map<string, RowOf<TableSchema> | undefined> | undefined
     if (!table) {
       throw new Error(`Unknown table "${tableName}"`)
     }
     return table
   }
 
-  private applyOne(mutation: Mutation<S>): void {
+  private applyOne(mutation: Mutation<S>): Result<void, Report> {
     switch (mutation.type) {
       case 'INSERT': {
         this.setRow(mutation.table, this.keyFor(mutation.table, mutation.data), mutation.data)
@@ -261,7 +274,7 @@ export class Store<S extends ClientDatabaseSchema> {
         if (existing !== undefined) {
           this.setRow(mutation.table, key, { ...existing, ...mutation.changes })
         } else if (table.has(key)) {
-          throw new Error(`Cannot UPDATE deleted "${mutation.table}" row ${key}`)
+          return Result.err({ type: 'store', offending: mutation })
         } else {
           console.warn(`UPDATE ignored for missing "${mutation.table}" row ${key}`)
         }
@@ -273,5 +286,6 @@ export class Store<S extends ClientDatabaseSchema> {
         break
       }
     }
+    return Result.ok()
   }
 }

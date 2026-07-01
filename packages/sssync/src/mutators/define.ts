@@ -1,6 +1,9 @@
+import { Result } from 'better-result'
+
+import type { Report } from '../better'
+import { safeValidate } from '../json-validator'
 import type { IdInputOf, IdOf } from '../schema/infer'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
-import type { StandardSchemaV1 } from '../types'
 import type {
   AnyMutatorDefinition,
   DefineMutator,
@@ -37,11 +40,15 @@ export function defineMutators<
 async function applyEnvelope<
   const S extends ClientDatabaseSchema,
   const Definitions extends Record<string, AnyMutatorDefinition<S>>,
->(schema: S, definitions: Definitions, envelope: ParsedMutatorEnvelope<Definitions>): Promise<readonly Mutation<S>[]> {
+>(
+  schema: S,
+  definitions: Definitions,
+  envelope: ParsedMutatorEnvelope<Definitions>,
+): Promise<Result<readonly Mutation<S>[], Report>> {
   const definition = (definitions as Record<string, AnyMutatorDefinition<S>>)[envelope.name]
 
   if (!definition) {
-    throw new Error(`Unknown mutation "${envelope.name}"`)
+    return Result.err({ type: 'mutator', offending: envelope.name })
   }
 
   const mutations: Mutation<S>[] = []
@@ -49,44 +56,45 @@ async function applyEnvelope<
     mutate: createCollectingDb(schema, mutations),
   }
 
-  await definition.effect({ tx, args: envelope.args })
-  return mutations
+  return Result.tryPromise({
+    try: async (): Promise<readonly Mutation<S>[]> => {
+      await definition.effect({ tx, args: envelope.args })
+      return mutations
+    },
+    catch: (error): Report => ({ type: 'mutator', offending: error }),
+  })
 }
 
 function parseEnvelope<const Definitions extends Record<string, AnyMutatorDefinition>>(
   definitions: Definitions,
   input: unknown,
-): ParsedMutatorEnvelope<Definitions> {
+): Result<ParsedMutatorEnvelope<Definitions>, Report> {
   if (input === null || typeof input !== 'object') {
-    throw new Error('Mutation envelope must be an object')
+    return Result.err({ type: 'validation', offending: input })
   }
 
   const envelope = input as { name?: unknown; args?: unknown }
 
   if (typeof envelope.name !== 'string') {
-    throw new Error('Mutation envelope name must be a string')
+    return Result.err({ type: 'validation', offending: input })
   }
 
   const definition = (definitions as Record<string, AnyMutatorDefinition>)[envelope.name]
 
   if (!definition) {
-    throw new Error(`Unknown mutation "${envelope.name}"`)
+    return Result.err({ type: 'mutator', offending: envelope.name })
   }
 
-  const result = definition.args['~standard'].validate(envelope.args)
+  const result = safeValidate(definition.args, envelope.args)
 
-  if (result instanceof Promise) {
-    throw new Error('Async mutator argument schemas are not supported')
+  if (Result.isError(result)) {
+    return Result.err({ type: 'validation', offending: envelope.args })
   }
 
-  if (result.issues) {
-    throw new Error(result.issues.map((issue: StandardSchemaV1.Issue) => issue.message).join('; '))
-  }
-
-  return {
+  return Result.ok({
     name: envelope.name,
     args: result.value,
-  } as ParsedMutatorEnvelope<Definitions>
+  } as ParsedMutatorEnvelope<Definitions>)
 }
 
 function createCollectingDb<const S extends ClientDatabaseSchema>(schema: S, mutations: Mutation<S>[]): MutationDb<S> {

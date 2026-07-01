@@ -1,10 +1,14 @@
 import type { ClientDatabaseSchema, IdInputOf, RowOf, TableName, Tables } from '../schema'
+import type { ValidatePayload } from '../validate'
 
 export type IDBStorageInitOptions<S extends ClientDatabaseSchema = ClientDatabaseSchema> = {
   readonly name: string
   readonly id: string
   readonly schema: S
   readonly schemaVersion: number
+  // Same validator the sync core feeds to its network paths, reused here so
+  // persisted rows are validated against their write schema on read.
+  readonly validatePayload: ValidatePayload<S>
 }
 
 export interface IDBReadTransaction<S extends ClientDatabaseSchema = ClientDatabaseSchema> {

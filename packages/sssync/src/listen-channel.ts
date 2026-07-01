@@ -1,5 +1,7 @@
-import { safeValidate } from '../json-validator'
-import type { Validator } from '../json-validator'
+import { Result } from 'better-result'
+
+import { safeValidate } from './json-validator'
+import type { Validator } from './json-validator'
 
 export type ChannelHandler<S extends Validator<unknown>> = (
   message: S extends Validator<infer Output> ? Output : never,
@@ -21,12 +23,12 @@ export function listenChannel<S extends Validator<unknown>>(
     handle(handler) {
       const listener = (event: MessageEvent<unknown>) => {
         const parsed = safeValidate(schema, event.data)
-        if (!parsed.success) {
-          console.warn(`Invalid ${name} channel message:`, parsed.issues)
+        if (Result.isError(parsed)) {
+          console.warn(`Invalid ${name} channel message:`, parsed.error)
           return
         }
 
-        handler(parsed.output as S extends Validator<infer Output> ? Output : never)
+        handler(parsed.value as S extends Validator<infer Output> ? Output : never)
       }
 
       channel.addEventListener('message', listener)

@@ -1,3 +1,4 @@
+import { Result } from 'better-result'
 import * as v from 'valibot'
 
 import { defineMutators } from '../src/mutators'
@@ -71,21 +72,23 @@ const parsed = mutators.parse({
   args: { id: 'issue-1', title: 'hello' },
 })
 
-void mutators.apply(parsed)
-
 // @ts-expect-error apply accepts a parsed envelope, not separate name and args
 void mutators.apply('updateIssueTitle', { id: 'issue-1', title: 'hello' })
 
-switch (parsed.name) {
-  case 'updateIssueTitle': {
-    const title: string = parsed.args.title
-    title
-    break
-  }
-  case 'createMembership': {
-    const role: 'admin' | 'member' = parsed.args.role
-    role
-    break
+if (Result.isOk(parsed)) {
+  void mutators.apply(parsed.value)
+
+  switch (parsed.value.name) {
+    case 'updateIssueTitle': {
+      const title: string = parsed.value.args.title
+      title
+      break
+    }
+    case 'createMembership': {
+      const role: 'admin' | 'member' = parsed.value.args.role
+      role
+      break
+    }
   }
 }
 

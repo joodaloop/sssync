@@ -1,14 +1,12 @@
-import type { Result } from 'better-result'
-
 import { Batcher } from './batcher'
 import type { ResolvedBatch } from './batcher'
-import type { PersistenceError } from './errors'
+import type { Reported } from './better'
 import type { IDBStorage } from './idb/types'
 import type { ClientDatabaseSchema } from './schema/table-schema'
 import { cacheKeyForItem, coveredKeysForItem } from './shared'
 import type { BatchStats, Observable, ResolvedItem } from './shared'
 import type { RowsByTable } from './store'
-import type { RowValidationProblem } from './validate'
+import type { ValidatePayload } from './validate'
 
 export type Coverage = 'success' | 'error'
 
@@ -19,8 +17,6 @@ type Pending = {
 
 const COVERAGE_KV_PREFIX = 'coverage'
 
-type Reporter = (error: PersistenceError) => void
-
 export class CoverageTracker<S extends ClientDatabaseSchema> {
   readonly coverage = new Map<string, Coverage>()
 
@@ -30,10 +26,10 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
   constructor(
     batchURL: string,
     batches: Observable<BatchStats>,
-    validatePayload: (payload: unknown) => Result<RowsByTable<S>, RowValidationProblem>,
+    validatePayload: ValidatePayload<S>,
     addIfNotExist: (rowsByTable: RowsByTable<S>) => void = () => {},
+    private readonly report: (error: Reported) => void,
     private readonly storage: null | IDBStorage<S> = null,
-    private readonly report: Reporter = () => {},
   ) {
     this.batcher = new Batcher(batchURL, batches, validatePayload, addIfNotExist, this.resolveItems)
   }
@@ -86,10 +82,13 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
       }
     } catch (error) {
       this.report({
-        type: 'persistence.read_failed',
-        store: COVERAGE_KV_PREFIX,
-        key: coverageKVKey(key),
-        cause: { message: String(error) },
+        type: 'persistence',
+        where: 'coverage',
+        offending: {
+          store: COVERAGE_KV_PREFIX,
+          key: coverageKVKey(key),
+          error,
+        },
       })
       return false
     }
@@ -124,9 +123,12 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
       })
     } catch (error) {
       this.report({
-        type: 'persistence.write_failed',
-        store: COVERAGE_KV_PREFIX,
-        cause: { message: String(error) },
+        type: 'persistence',
+        where: 'coverage',
+        offending: {
+          store: COVERAGE_KV_PREFIX,
+          error,
+        },
       })
     }
   }

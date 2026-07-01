@@ -92,9 +92,9 @@ const badQueueItem = {
 badQueueItem
 
 sync.report({
-  type: 'bootstrap.http_failed',
-  model: 'issues',
-  response: {
+  type: 'http',
+  where: 'bootstrap',
+  offending: {
     status: 500,
     statusText: 'Internal Server Error',
     url: '/bootstrap?model=issues',
@@ -102,7 +102,7 @@ sync.report({
 })
 
 const error = sync.errors.get()[0]
-if (error?.type === 'bootstrap.http_failed') {
-  const status: number = error.response.status
-  status
+if (error?.type === 'http') {
+  const offending: unknown = error.offending
+  offending
 }
