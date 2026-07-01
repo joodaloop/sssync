@@ -1,7 +1,8 @@
 import { Result, panic } from 'better-result'
 
-import { describe } from './better'
-import type { Report, Reported } from './better'
+import { describe } from './errors'
+import type { Failure } from './errors'
+import { attempt } from './result'
 import { Bootstrap } from './bootstrap'
 import type { BootstrapState, BootstrapsSnapshot } from './bootstrap'
 import { CoverageTracker } from './coverage'
@@ -26,6 +27,19 @@ import { Store } from './store'
 import { rowValidatorsFor, validateRowsByTable } from './validate'
 
 const BOOTSTRAPS_KV_PREFIX = 'bootstraps'
+
+/** Which subsystem a failure came from; attached at the reporting boundary. */
+export type Where = 'batcher' | 'bootstrap' | 'coverage' | 'sssync'
+
+/** A subsystem-facing sink: hand it a plain Failure, it gets tagged and forwarded. */
+export type Reporter = (failure: Failure) => void
+
+/**
+ * Mints a Reporter bound to a given Where. SSSync owns the real sink and hands
+ * this factory down; each subsystem calls it for its own `where` and passes it
+ * along to anything it builds.
+ */
+export type ReporterFactory = (where: Where) => Reporter
 
 /** Arguments for a single-row query: the row id plus relations to include. */
 export type OneArgs<
@@ -77,7 +91,7 @@ export class SSSync<
     readonly batches: ReadonlyObservable<BatchStats>
     readonly mutationQueue: ReadonlyObservable<readonly MutationEnvelope<Mutators<S, Definitions>>[]>
     readonly queries: ReadonlyObservable<Readonly<Record<string, QueryDetails>>>
-    readonly errors: ReadonlyObservable<readonly Reported[]>
+    readonly errors: ReadonlyObservable<readonly (Failure & { where: Where })[]>
   }
   readonly #store: QueryStore<S>
   readonly #rows: Store<S>
@@ -89,7 +103,7 @@ export class SSSync<
   readonly #batches = new Observable<BatchStats>({ pending: [], inflight: [] })
   readonly #mutationQueue = new Observable<readonly MutationEnvelope<Mutators<S, Definitions>>[]>([])
   readonly #queries = new Observable<Readonly<Record<string, QueryDetails>>>({})
-  readonly #errors = new Observable<readonly Reported[]>([])
+  readonly #errors = new Observable<readonly (Failure & { where: Where })[]>([])
   readonly #maxErrors = 100
 
   constructor(options: SSSyncOptions<S, Definitions>) {
@@ -120,20 +134,14 @@ export class SSSync<
       queries: this.#queries,
       errors: this.#errors,
     }
-    const batchURL = absoluteURL('batchURL', options.batchURL).match({
-      ok: url => url,
-      err: report => panic(describe(report)),
-    })
-    const bootstrapURL = absoluteURL('bootstrapURL', options.bootstrapURL).match({
-      ok: url => url,
-      err: report => panic(describe(report)),
-    })
+    const batchURL = absoluteURL('batchURL', options.batchURL)
+    const bootstrapURL = absoluteURL('bootstrapURL', options.bootstrapURL)
     this.#coverage = new CoverageTracker(
       batchURL,
       this.#batches,
       validatePayload,
       response => this.#rows.addIfNotExist(response),
-      error => this.report(error),
+      this.#reporterFor,
       this.#storage,
     )
     this.#bootstrap = this.ready.then(
@@ -143,7 +151,7 @@ export class SSSync<
           this.#bootstraps,
           validatePayload,
           rowsByTable => this.#rows.addIfNotExist(rowsByTable),
-          error => this.report(error),
+          this.#reporterFor,
         ),
     )
     const storage = this.#storage
@@ -234,13 +242,19 @@ export class SSSync<
     return this.#queries
   }
 
-  get errors(): ReadonlyObservable<readonly Reported[]> {
+  get errors(): ReadonlyObservable<readonly (Failure & { where: Where })[]> {
     return this.#errors
   }
 
-  report(error: Reported): void {
+  report(error: Failure & { where: Where }): void {
     console.error(`[sssync:${error.where}] ${describe(error)}`)
     this.#errors.set([error, ...this.#errors.get()].slice(0, this.#maxErrors))
+  }
+
+  // Mints a Reporter bound to `where`; subsystems get this so their own bodies
+  // never touch `where`, and pass it along to anything they build.
+  #reporterFor = (where: Where): Reporter => {
+    return failure => this.report({ ...failure, where })
   }
 
   async bootstrapload<Name extends TableName<S>>(table: Name): Promise<readonly RowOf<Tables<S>[Name]>[] | undefined> {
@@ -262,10 +276,9 @@ export class SSSync<
 
 // Requires an absolute URL and strips any trailing slash, so callers can append
 // paths/query strings (e.g. `${url}?model=...`) without a double slash.
-function absoluteURL(label: string, url: string): Result<string, Report> {
-  return Result.try(() => new URL(url))
-    .map(() => url.replace(/\/+$/, ''))
-    .mapError(() => ({ type: 'url', offending: { label, url } }))
+function absoluteURL(label: string, url: string): string {
+  const parsed = attempt(() => new URL(url), error => error)
+  return parsed.ok ? url.replace(/\/+$/, '') : panic(`Invalid ${label}: ${JSON.stringify(url)}`)
 }
 
 function bootstrapKVKey(tableName: string): string {

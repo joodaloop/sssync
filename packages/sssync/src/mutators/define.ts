@@ -1,6 +1,6 @@
 import { Result } from 'better-result'
 
-import type { Report } from '../better'
+import type { Failure } from '../errors'
 import { safeValidate } from '../json-validator'
 import type { IdInputOf, IdOf } from '../schema/infer'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
@@ -44,7 +44,7 @@ async function applyEnvelope<
   schema: S,
   definitions: Definitions,
   envelope: ParsedMutatorEnvelope<Definitions>,
-): Promise<Result<readonly Mutation<S>[], Report>> {
+): Promise<Result<readonly Mutation<S>[], Failure>> {
   const definition = (definitions as Record<string, AnyMutatorDefinition<S>>)[envelope.name]
 
   if (!definition) {
@@ -61,14 +61,14 @@ async function applyEnvelope<
       await definition.effect({ tx, args: envelope.args })
       return mutations
     },
-    catch: (error): Report => ({ type: 'mutator', offending: error }),
+    catch: (error): Failure => ({ type: 'mutator', offending: error }),
   })
 }
 
 function parseEnvelope<const Definitions extends Record<string, AnyMutatorDefinition>>(
   definitions: Definitions,
   input: unknown,
-): Result<ParsedMutatorEnvelope<Definitions>, Report> {
+): Result<ParsedMutatorEnvelope<Definitions>, Failure> {
   if (input === null || typeof input !== 'object') {
     return Result.err({ type: 'validation', offending: input })
   }

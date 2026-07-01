@@ -66,5 +66,6 @@ export const isPanic = (value: unknown): value is Panic => Panic.is(value)
 
 /** Throw an unrecoverable {@link Panic}. Never returns. */
 export const panic = (message: string, cause?: unknown): never => {
+  // eslint-disable-next-line eslint-js/no-restricted-syntax -- a panic is a deliberate crash for an unrecoverable bug, not a threaded Result.
   throw new Panic({ message, cause })
 }

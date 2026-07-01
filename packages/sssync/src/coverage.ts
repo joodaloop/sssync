@@ -2,11 +2,11 @@ import { Result } from 'better-result'
 
 import { Batcher } from './batcher'
 import type { ResolvedBatch } from './batcher'
-import type { Reported } from './better'
 import type { IDBStorage } from './idb/types'
 import type { ClientDatabaseSchema } from './schema/table-schema'
 import { cacheKeyForItem, coveredKeysForItem } from './shared'
 import type { BatchStats, Observable, ResolvedItem } from './shared'
+import type { Reporter, ReporterFactory } from './sss'
 import type { RowsByTable } from './store'
 import type { ValidatePayload } from './validate'
 
@@ -24,16 +24,18 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
 
   private readonly pending = new Map<string, Pending>()
   private readonly batcher: Batcher<S>
+  private readonly report: Reporter
 
   constructor(
     batchURL: string,
     batches: Observable<BatchStats>,
     validatePayload: ValidatePayload<S>,
     addIfNotExist: (rowsByTable: RowsByTable<S>) => void = () => {},
-    private readonly report: (error: Reported) => void,
+    reporterFor: ReporterFactory,
     private readonly storage: null | IDBStorage<S> = null,
   ) {
-    this.batcher = new Batcher(batchURL, batches, validatePayload, addIfNotExist, this.resolveItems, this.report)
+    this.report = reporterFor('coverage')
+    this.batcher = new Batcher(batchURL, batches, validatePayload, addIfNotExist, this.resolveItems, reporterFor('batcher'))
   }
 
   // Requests coverage for `item`:
@@ -83,7 +85,6 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
       .tapError(error => {
         this.report({
           type: 'persistence',
-          where: 'coverage',
           offending: { store: COVERAGE_KV_PREFIX, key: coverageKVKey(key), error },
         })
       })
@@ -135,7 +136,6 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
     ).tapError(error => {
       this.report({
         type: 'persistence',
-        where: 'coverage',
         offending: { store: COVERAGE_KV_PREFIX, error },
       })
     })

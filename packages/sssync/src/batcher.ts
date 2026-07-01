@@ -1,8 +1,10 @@
-import { fetchJSON } from './better'
-import type { Report, Reported } from './better'
+import { fetchJSON } from './boundaries'
+import type { Failure } from './errors'
+import type { Result } from './result'
 import type { ClientDatabaseSchema } from './schema/table-schema'
 import { cacheKeyForItem, rowKeyForItem } from './shared'
 import type { BatchStats, MergedRequest, Observable, ResolvedItem } from './shared'
+import type { Reporter, ReporterFactory } from './sss'
 import type { RowsByTable } from './store'
 import type { ValidatePayload } from './validate'
 
@@ -36,6 +38,7 @@ export class Batcher<S extends ClientDatabaseSchema> {
   readonly wait = 100
   private readonly inflight = new Map<string, ResolvedItem>()
   private readonly pending = new Map<string, ResolvedItem>()
+  private readonly report: Reporter
   timer: ReturnType<typeof setTimeout> | undefined
 
   constructor(
@@ -44,8 +47,10 @@ export class Batcher<S extends ClientDatabaseSchema> {
     private readonly validatePayload: ValidatePayload<S>,
     private readonly addIfNotExist: (rowsByTable: RowsByTable<S>) => void,
     private readonly resolve: (batch: ResolvedBatch) => void,
-    private readonly report: (error: Reported) => void,
-  ) {}
+    reporterFor: ReporterFactory,
+  ) {
+    this.report = reporterFor('batcher')
+  }
 
   request(item: ResolvedItem) {
     const key = cacheKeyForItem(item)
@@ -66,35 +71,29 @@ export class Batcher<S extends ClientDatabaseSchema> {
     for (const [k, item] of entries) this.inflight.set(k, item)
     this.publish()
 
-    const rowsByTable = await Result.gen(async function* () {
-      const payload = yield* Result.await(this.fetchBatch(items))
-
-      // Only report success if every incoming row passes its write schema.
-      return this.validatePayload(payload)
-    }, this)
+    const payload = await this.fetchBatch(items)
+    // Only report success if every incoming row passes its write schema.
+    const rowsByTable = payload.ok ? this.validatePayload(payload.value) : payload
 
     // Clear only this batch's keys; a concurrent flush may still own others.
     for (const [k] of entries) this.inflight.delete(k)
     this.publish()
 
-    rowsByTable.match({
-      ok: rows => {
-        // Seed the validated rows into the store before resolving, so waiters
-        // see the data the moment their request settles.
-        this.addIfNotExist(rows)
-        // The resolver expands a relation item into its bare row, so resolving
-        // the fetched items also resolves any bare rows we subsumed into them.
-        this.resolve({ items, success: true })
-      },
-      err: error => {
-        this.report({ ...error, where: 'batcher' })
-        // Unblock waiters so a failed batch doesn't leave its requests hanging.
-        this.resolve({ items, success: false })
-      },
-    })
+    if (rowsByTable.ok) {
+      // Seed the validated rows into the store before resolving, so waiters
+      // see the data the moment their request settles.
+      this.addIfNotExist(rowsByTable.value)
+      // The resolver expands a relation item into its bare row, so resolving
+      // the fetched items also resolves any bare rows we subsumed into them.
+      this.resolve({ items, success: true })
+    } else {
+      this.report(rowsByTable.error)
+      // Unblock waiters so a failed batch doesn't leave its requests hanging.
+      this.resolve({ items, success: false })
+    }
   }
 
-  private async fetchBatch(items: readonly ResolvedItem[]): Promise<Result<unknown, Report>> {
+  private async fetchBatch(items: readonly ResolvedItem[]): Promise<Result<unknown, Failure>> {
     return fetchJSON(this.batchURL, {
       headers: { 'Content-Type': 'application/json' },
       method: 'POST',

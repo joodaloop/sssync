@@ -1,23 +1,6 @@
 import { Result } from 'better-result'
 import type { Result as ResultType } from 'better-result'
 
-import type { HttpReport, ValidationReport } from './boundaries'
-
-export type { HttpReport, ValidationReport }
-
-export type UrlReport = { readonly type: 'url'; readonly offending: unknown }
-export type PersistenceReport = {
-  readonly type: 'persistence'
-  readonly offending: { store: string; key?: string; error: unknown }
-}
-export type MutatorReport = { readonly type: 'mutator'; readonly offending: unknown }
-
-export type Report = HttpReport | ValidationReport | UrlReport | PersistenceReport | MutatorReport
-
-export type Reported = Report & {
-  where: 'batcher' | 'bootstrap' | 'coverage' | 'sssync'
-}
-
 // Renders a Report as a human-readable line at the logging/display boundary.
 // Discrimination stays on `type`; the string is always derived, never stored.
 export function describe(report: Report): string {

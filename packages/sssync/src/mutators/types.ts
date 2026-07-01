@@ -1,6 +1,6 @@
 import type { Result } from 'better-result'
 
-import type { Report } from '../better'
+import type { Failure } from '../errors'
 import type { IdInputOf, IdOf, RowOf, TableName, Tables } from '../schema/infer'
 import type { ClientDatabaseSchema, TableSchema } from '../schema/table-schema'
 import type { JSONValue } from '../shared'
@@ -94,8 +94,8 @@ export type Mutators<
     [K in keyof Definitions]: AnyMutatorDefinition<S>
   },
 > = {
-  parse: (input: unknown) => Result<MutationEnvelope<Mutators<S, Definitions>>, Report>
-  apply: (envelope: MutationEnvelope<Mutators<S, Definitions>>) => Promise<Result<readonly Mutation<S>[], Report>>
+  parse: (input: unknown) => Result<MutationEnvelope<Mutators<S, Definitions>>, Failure>
+  apply: (envelope: MutationEnvelope<Mutators<S, Definitions>>) => Promise<Result<readonly Mutation<S>[], Failure>>
 }
 
 export type MutationEnvelope<Registry extends Mutators<any, any>> =

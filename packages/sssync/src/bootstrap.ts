@@ -1,10 +1,10 @@
-import { Result } from 'better-result'
-
-import { fetchJSON } from './better'
-import type { Report, Reported } from './better'
+import { fetchJSON } from './boundaries'
+import type { Failure } from './errors'
+import type { Result } from './result'
 import type { TableName } from './schema/infer'
 import type { ClientDatabaseSchema } from './schema/table-schema'
 import type { LoadingStatus, Observable } from './shared'
+import type { Reporter, ReporterFactory } from './sss'
 import type { RowsByTable } from './store'
 import type { ValidatePayload } from './validate'
 
@@ -27,14 +27,17 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
   // In-flight loads keyed by model. Recorded synchronously in `load` so
   // concurrent calls share one fetch before consulting the bootstrap registry.
   private readonly inflight = new Map<string, LoadResult>()
+  private readonly report: Reporter
 
   constructor(
     private readonly bootstrapURL: string,
     private readonly bootstraps: Observable<BootstrapsSnapshot<S>>,
     private readonly validatePayload: ValidatePayload<S>,
     private readonly addIfNotExist: (rowsByTable: RowsByTable<S>) => void,
-    private readonly report: (error: Reported) => void,
-  ) {}
+    reporterFor: ReporterFactory,
+  ) {
+    this.report = reporterFor('bootstrap')
+  }
 
   // Fetches every row for `modelName` via `GET /bootstrap?model=<name>`.
   // Concurrent loads for the same model share one
@@ -61,22 +64,22 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
     this.changeStatus({ name: modelName, status: 'pending' })
 
     const result = await this.fetchRows(modelName)
-    if (Result.isError(result)) return this.fail(modelName, result.error)
+    if (!result.ok) return this.fail(modelName, result.error)
 
     this.addIfNotExist(result.value)
     this.changeStatus({ name: modelName, status: 'success' })
     return result.value[modelName as TableName<S>] ?? []
   }
 
-  private async fetchRows(modelName: string): Promise<Result<RowsByTable<S>, Report>> {
+  private async fetchRows(modelName: string): Promise<Result<RowsByTable<S>, Failure>> {
     const url = `${this.bootstrapURL}?model=${encodeURIComponent(modelName)}`
     const payload = await fetchJSON(url)
-    if (Result.isError(payload)) return Result.err(payload.error)
+    if (!payload.ok) return payload
     return this.validatePayload(payload.value)
   }
 
-  private fail(modelName: string, error: Report): undefined {
-    this.report({ ...error, where: 'bootstrap' })
+  private fail(modelName: string, error: Failure): undefined {
+    this.report(error)
     this.changeStatus({ name: modelName, status: 'error', error: error.type })
     return undefined
   }
