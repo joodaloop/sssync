@@ -24,7 +24,8 @@ description: Todo list & progress tracking
 ## Network requests
 - [x] [Build bootstrap lifecycle manager](https://github.com/joodaloop/sssync/commit/fb47175bf0f13d76d9d0c43247ca3a65e3d3f694)
 - [x] [Design batch loader that dedupes query satisfactions and validates responses](https://github.com/joodaloop/sssync/commit/a96a3bfef518a3c44f3be8f6470fa5ba5dfa4fbc)
-- [ ] Handle the `kv-store-updated` Broadcast Channel coordinator
+- [x] Handle the `bootstrap-store-updated` Broadcast Channel coordinator
+- [ ] Handle the `coverage-updated` Broadcast Channel coordinator
 
 ## Store
 - [ ] Design APIs to write to the store from:
@@ -34,7 +35,7 @@ description: Todo list & progress tracking
 - [ ] Handle the `store-updated` Broadcast Channel coordinator
 
 ## SSSync class
-- [ ] Design error types for library
+- [x] Design error types for library
 - [ ] Handle the `schema-changed` Broadcast Channel coordinator
 - [ ] Figure out how to play well with SSR:
   1. Make IDB storage purely pluggable
@@ -63,7 +64,7 @@ description: Todo list & progress tracking
 
 ## QoL
 - [x] ~~[Switch to using `better-result` for typed error handling](https://github.com/joodaloop/sssync/commit/a7d7db728759c1e1fe64387cbd8a213ea9c0ed63)~~
-- [x] [Switch to using tagged union Result type for typed error handling]()
+- [x] [Switch to using tagged union Result type for typed error handling](https://github.com/joodaloop/sssync/commit/1fadf96a23db72fde0ef75cebdbb0d2662b5b10c)
 - [x] [Flatten all table row vaildation into one shape (across network + persistence)](https://github.com/joodaloop/sssync/commit/d5cdd8df0184687eda048468189122052754fcfa)
 
 <br/>

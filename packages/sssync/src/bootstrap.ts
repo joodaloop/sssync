@@ -1,5 +1,10 @@
 import { fetchJSON } from './boundaries'
 import type { Failure } from './errors'
+import type { IDBStorage } from './idb/types'
+import { enums, object, optional, safeValidate, string } from './json-validator'
+import { listenChannel } from './listen-channel'
+import type { ChannelListener } from './listen-channel'
+import { attemptAsync } from './result'
 import type { Result } from './result'
 import type { TableName } from './schema/infer'
 import type { ClientDatabaseSchema } from './schema/table-schema'
@@ -23,11 +28,33 @@ export type StatusChange<Name extends string = string> = {
 
 type LoadResult = Promise<readonly unknown[] | undefined>
 
+// Cross-tab notification that a model's persisted bootstrap state changed.
+// `id` is the model/table name.
+const bootstrapMessageSchema = object({ id: string() })
+
+export const BOOTSTRAPS_KV_PREFIX = 'bootstraps'
+
+export function bootstrapKVKey(tableName: string): string {
+  return `${BOOTSTRAPS_KV_PREFIX}:${tableName}`
+}
+
+const bootstrapStateSchema = object({
+  status: enums(['pending', 'success', 'error']),
+  error: optional(string()),
+})
+
+export function isBootstrapState(value: unknown): value is BootstrapState {
+  return safeValidate(bootstrapStateSchema, value).ok
+}
+
 export class Bootstrap<S extends ClientDatabaseSchema> {
   // In-flight loads keyed by model. Recorded synchronously in `load` so
   // concurrent calls share one fetch before consulting the bootstrap registry.
   private readonly inflight = new Map<string, LoadResult>()
   private readonly report: Reporter
+  // Cross-tab channel; null in environments without BroadcastChannel (e.g. the
+  // server) so bootstrap still works there.
+  private readonly channel: ChannelListener<typeof bootstrapMessageSchema> | null
 
   constructor(
     private readonly bootstrapURL: string,
@@ -35,8 +62,87 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
     private readonly validatePayload: ValidatePayload<S>,
     private readonly addIfNotExist: (rowsByTable: RowsByTable<S>) => void,
     reporterFor: ReporterFactory,
+    sssyncId: string,
+    private readonly storage: IDBStorage<S> | null,
+    private readonly tableNames: readonly string[],
   ) {
     this.report = reporterFor('bootstrap')
+    this.channel = typeof BroadcastChannel === 'undefined'
+      ? null
+      : listenChannel(sssyncId, 'bootstrap', bootstrapMessageSchema)
+    // Another tab persisted a status change (e.g. marked a model succeeded);
+    // rescan the persisted state so this tab's observable catches up.
+    this.channel?.handle(message => void this.rescan(message.id))
+  }
+
+  close(): void {
+    this.channel?.close()
+  }
+
+  // Loads every model's persisted bootstrap state into the observable. Call
+  // once before serving loads so already-bootstrapped models are recognised.
+  async hydrate(): Promise<void> {
+    if (!this.storage) return
+
+    const snapshot: Record<string, BootstrapState> = {}
+    const result = await attemptAsync(
+      () =>
+        this.storage!.transactionKVStore(async kv => {
+          for (const tableName of this.tableNames) {
+            const key = bootstrapKVKey(tableName)
+            const read = await attemptAsync(() => kv.get(key), error => error)
+            if (!read.ok) {
+              this.report({ type: 'persistence', offending: { store: key, key, error: read.error } })
+            }
+            const value = read.ok ? read.value : undefined
+            if (isBootstrapState(value)) snapshot[tableName] = value
+          }
+        }),
+      error => error,
+    )
+
+    if (!result.ok) {
+      this.report({ type: 'persistence', offending: { store: BOOTSTRAPS_KV_PREFIX, error: result.error } })
+      return
+    }
+    if (Object.keys(snapshot).length > 0) {
+      this.bootstraps.set(snapshot as BootstrapsSnapshot<S>)
+    }
+  }
+
+  // Re-reads a model's persisted bootstrap state and applies it locally. Does
+  // not persist or broadcast: this only reflects a change another tab made.
+  private rescan = async (modelName: string): Promise<void> => {
+    const state = await this.readPersistedState(modelName)
+    if (state) this.setState(modelName, state)
+  }
+
+  private async readPersistedState(modelName: string): Promise<BootstrapState | undefined> {
+    if (!this.storage) return undefined
+
+    const key = bootstrapKVKey(modelName)
+    const result = await attemptAsync(
+      () => this.storage!.transactionKVStore(kv => kv.get(key)),
+      error => error,
+    )
+    if (!result.ok) {
+      this.report({ type: 'persistence', offending: { store: key, key, error: result.error } })
+      return undefined
+    }
+    return isBootstrapState(result.value) ? result.value : undefined
+  }
+
+  private async persist(name: string, state: BootstrapState): Promise<void> {
+    if (!this.storage) return
+
+    const key = bootstrapKVKey(name)
+    const result = await attemptAsync(
+      () => this.storage!.transactionKVStore(kv => kv.put(key, state)),
+      error => error,
+    )
+    if (!result.ok) {
+      this.report({ type: 'persistence', offending: { store: key, key, error: result.error } })
+    }
   }
 
   // Fetches every row for `modelName` via `GET /bootstrap?model=<name>`.
@@ -85,12 +191,19 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
   }
 
   private changeStatus(change: StatusChange): void {
+    const state: BootstrapState = {
+      status: change.status,
+      ...(change.error === undefined ? {} : { error: change.error }),
+    }
+    this.setState(change.name, state)
+    // Persist, then tell other tabs so they can rescan the new state.
+    void this.persist(change.name, state).then(() => this.channel?.post({ id: change.name }))
+  }
+
+  private setState(name: string, state: BootstrapState): void {
     this.bootstraps.set({
       ...this.bootstraps.get(),
-      [change.name]: {
-        status: change.status,
-        ...(change.error === undefined ? {} : { error: change.error }),
-      },
+      [name]: state,
     })
   }
 }

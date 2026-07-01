@@ -7,15 +7,16 @@ export type ChannelHandler<S extends Validator<unknown>> = (
 
 export interface ChannelListener<S extends Validator<unknown>> {
   handle(handler: ChannelHandler<S>): () => void
+  post(message: S extends Validator<infer Output> ? Output : never): void
   close(): void
 }
 
 export function listenChannel<S extends Validator<unknown>>(
-  sssyncId: string,
+  dbName: string,
   name: string,
   schema: S,
 ): ChannelListener<S> {
-  const channel = new BroadcastChannel(`sssync:${sssyncId}:${name}`)
+  const channel = new BroadcastChannel(`sssync:${dbName}:${name}`)
 
   return {
     handle(handler) {
@@ -33,6 +34,9 @@ export function listenChannel<S extends Validator<unknown>>(
       return () => {
         channel.removeEventListener('message', listener)
       }
+    },
+    post(message) {
+      channel.postMessage(message)
     },
     close() {
       channel.close()

@@ -1,10 +1,9 @@
 import { Bootstrap } from './bootstrap'
-import type { BootstrapState, BootstrapsSnapshot } from './bootstrap'
+import type { BootstrapsSnapshot } from './bootstrap'
 import { CoverageTracker } from './coverage'
 import { describe } from './errors'
 import type { Failure } from './errors'
 import type { IDBStorage } from './idb/types'
-import { enums, object, optional, safeValidate, string } from './json-validator'
 import type { AnyMutatorDefinition, MutationEnvelope, Mutators } from './mutators'
 import { store } from './query'
 import type {
@@ -16,15 +15,13 @@ import type {
   RelationName,
   RowWithIncludes,
 } from './query'
-import { attempt, attemptAsync, panic } from './result'
+import { attempt, panic } from './result'
 import type { IdInputOf, RowOf, TableName, Tables } from './schema'
 import type { ClientDatabaseSchema } from './schema/table-schema'
 import { Observable } from './shared'
 import type { BatchStats, ReadonlyObservable } from './shared'
 import { Store } from './store'
 import { rowValidatorsFor, validateRowsByTable } from './validate'
-
-const BOOTSTRAPS_KV_PREFIX = 'bootstraps'
 
 /** Which subsystem a failure came from; attached at the reporting boundary. */
 export type Where = 'batcher' | 'bootstrap' | 'coverage' | 'sssync'
@@ -123,7 +120,6 @@ export class SSSync<
       getRowFromTable: this.#rows.getRowFromTable,
       subscribeToRowChanges: this.#rows.subscribeToRowChanges,
     })
-    this.ready = this.#hydrateBootstrapsFromStorage()
     this.stats = {
       isPersistent: this.#isPersistent,
       bootstraps: this.#bootstraps,
@@ -142,82 +138,19 @@ export class SSSync<
       this.#reporterFor,
       this.#storage,
     )
-    this.#bootstrap = this.ready.then(
-      () =>
-        new Bootstrap(
-          bootstrapURL,
-          this.#bootstraps,
-          validatePayload,
-          rowsByTable => this.#rows.addIfNotExist(rowsByTable),
-          this.#reporterFor,
-        ),
+    const bootstrap = new Bootstrap(
+      bootstrapURL,
+      this.#bootstraps,
+      validatePayload,
+      rowsByTable => this.#rows.addIfNotExist(rowsByTable),
+      this.#reporterFor,
+      options.id,
+      this.#storage,
+      Object.keys(options.schema.tables),
     )
-    const storage = this.#storage
-    if (storage) {
-      void this.ready.then(() => {
-        let previous = this.#bootstraps.get()
-        this.#bootstraps.subscribe(() => {
-          const next = this.#bootstraps.get()
-          for (const [tableName, state] of Object.entries(next)) {
-            if (state && previous[tableName as TableName<S>] !== state) {
-              const key = bootstrapKVKey(tableName)
-              void attemptAsync(
-                () =>
-                  storage.transactionKVStore(async kv => {
-                    await kv.put(key, state)
-                  }),
-                error => error,
-              ).then(result => {
-                if (!result.ok) {
-                  this.report({
-                    type: 'persistence',
-                    where: 'sssync',
-                    offending: { store: key, key, error: result.error },
-                  })
-                }
-              })
-            }
-          }
-          previous = next
-        })
-      })
-    }
-  }
-
-  async #hydrateBootstrapsFromStorage(): Promise<void> {
-    const storage = this.#storage
-    if (!storage) return
-
-    const snapshot: Record<string, BootstrapState> = {}
-    const result = await attemptAsync(
-      () =>
-        storage.transactionKVStore(async kv => {
-          for (const tableName of Object.keys(this.schema.tables)) {
-            const key = bootstrapKVKey(tableName)
-            const read = await attemptAsync(() => kv.get(key), error => error)
-            if (!read.ok) {
-              this.report({ type: 'persistence', where: 'sssync', offending: { store: key, key, error: read.error } })
-            }
-            const value = read.ok ? read.value : undefined
-            if (isBootstrapState(value)) {
-              snapshot[tableName] = value
-            }
-          }
-        }),
-      error => error,
-    )
-
-    if (!result.ok) {
-      this.report({
-        type: 'persistence',
-        where: 'sssync',
-        offending: { store: BOOTSTRAPS_KV_PREFIX, error: result.error },
-      })
-    }
-
-    if (result.ok && Object.keys(snapshot).length > 0) {
-      this.#bootstraps.set(snapshot as BootstrapsSnapshot<S>)
-    }
+    // Load any persisted bootstrap state before serving loads.
+    this.ready = bootstrap.hydrate()
+    this.#bootstrap = this.ready.then(() => bootstrap)
   }
 
   get isPersistent(): ReadonlyObservable<boolean> {
@@ -282,15 +215,3 @@ function absoluteURL(label: string, url: string): string {
   return parsed.ok ? url.replace(/\/+$/, '') : panic(`Invalid ${label}: ${JSON.stringify(url)}`)
 }
 
-function bootstrapKVKey(tableName: string): string {
-  return `${BOOTSTRAPS_KV_PREFIX}:${tableName}`
-}
-
-const bootstrapStateSchema = object({
-  status: enums(['pending', 'success', 'error']),
-  error: optional(string()),
-})
-
-function isBootstrapState(value: unknown): value is BootstrapState {
-  return safeValidate(bootstrapStateSchema, value).ok
-}
