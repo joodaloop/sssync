@@ -1,3 +1,4 @@
+import { describe } from './better'
 import type { Reported } from './better'
 import { Bootstrap } from './bootstrap'
 import type { BootstrapsSnapshot } from './bootstrap'
@@ -102,7 +103,7 @@ export class SSSync<
       validatePayload,
     })
     this.#isPersistent.set(options.storage !== null)
-    this.#rows = new Store(options.schema)
+    this.#rows = new Store(options.schema, error => this.report(error))
     this.#store = store(options.schema, {
       getRowFromTable: this.#rows.getRowFromTable,
       subscribeToRowChanges: this.#rows.subscribeToRowChanges,
@@ -224,6 +225,7 @@ export class SSSync<
   }
 
   report(error: Reported): void {
+    console.error(`[sssync:${error.where}] ${describe(error)}`)
     this.#errors.set([error, ...this.#errors.get()].slice(0, this.#maxErrors))
   }
 

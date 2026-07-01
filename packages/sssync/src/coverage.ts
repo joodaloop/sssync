@@ -31,7 +31,7 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
     private readonly report: (error: Reported) => void,
     private readonly storage: null | IDBStorage<S> = null,
   ) {
-    this.batcher = new Batcher(batchURL, batches, validatePayload, addIfNotExist, this.resolveItems)
+    this.batcher = new Batcher(batchURL, batches, validatePayload, addIfNotExist, this.resolveItems, this.report)
   }
 
   // Requests coverage for `item`:

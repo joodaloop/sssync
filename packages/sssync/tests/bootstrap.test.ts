@@ -70,7 +70,7 @@ describe('Bootstrap', () => {
 
   test('fetches GET /bootstrap?model=<name>', async () => {
     const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
-    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload)
+    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload, () => {}, () => {})
 
     await bootstrap.load('issues')
 
@@ -82,7 +82,7 @@ describe('Bootstrap', () => {
     mockFetch(() => jsonResponse({ issues: [validRow] }))
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
-    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload)
+    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, () => {})
 
     const rows = await bootstrap.load('issues')
 
@@ -98,7 +98,7 @@ describe('Bootstrap', () => {
     const added: unknown[] = []
     const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload, rowsByTable => {
       added.push(rowsByTable)
-    })
+    }, () => {})
 
     await bootstrap.load('issues')
 
@@ -111,7 +111,7 @@ describe('Bootstrap', () => {
       const bootstraps = bootstrapRegistry()
       bootstraps.set({ issues: { status: existing } })
       const changes = recordChanges(bootstraps)
-      const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload)
+      const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, () => {})
 
       const rows = await bootstrap.load('issues')
 
@@ -131,7 +131,7 @@ describe('Bootstrap', () => {
       await gate
       return jsonResponse({ issues: [validRow] })
     })
-    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload)
+    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload, () => {}, () => {})
 
     const a = bootstrap.load('issues')
     const b = bootstrap.load('issues')
@@ -146,7 +146,7 @@ describe('Bootstrap', () => {
 
   test('a fresh load after one succeeds is skipped by the registry', async () => {
     const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
-    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload)
+    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload, () => {}, () => {})
 
     await bootstrap.load('issues')
     await bootstrap.load('issues')
@@ -158,7 +158,7 @@ describe('Bootstrap', () => {
     const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
     const bootstraps = bootstrapRegistry()
     bootstraps.set({ issues: { status: 'success' } })
-    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload)
+    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, () => {})
 
     await bootstrap.load('issues')
 
@@ -171,7 +171,7 @@ describe('Bootstrap', () => {
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
     const reports: unknown[] = []
-    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, undefined, error => {
+    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, error => {
       reports.push(error)
     })
 
@@ -180,8 +180,8 @@ describe('Bootstrap', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(rows).toBeUndefined()
     expect(changes.map(c => c.status)).toEqual(['pending', 'error'])
-    expect(changes[1].error).toContain('widgets')
-    expect(reports).toEqual([{ type: 'bootstrap.unknown_model', model: 'widgets' }])
+    expect(changes[1].error).toBe('validation')
+    expect(reports).toEqual([{ type: 'validation', where: 'bootstrap', offending: 'widgets' }])
   })
 
   test('marks error with a message when a row fails validation', async () => {
@@ -207,13 +207,9 @@ describe('Bootstrap', () => {
     expect(rows).toBeUndefined()
     expect(added).toEqual([])
     expect(changes.map(c => c.status)).toEqual(['pending', 'error'])
-    expect(changes[1].error).toBeTruthy()
+    expect(changes[1].error).toBe('validation')
     expect(reports).toEqual([
-      {
-        type: 'bootstrap.invalid_row',
-        model: 'issues',
-        issues: [{ message: 'Expected number but received string' }],
-      },
+      { type: 'validation', where: 'bootstrap', offending: { ...validRow, priority: 'high' } },
     ])
   })
 
@@ -221,23 +217,23 @@ describe('Bootstrap', () => {
     mockFetch(() => jsonResponse({ issues: { id: '1' } }))
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
-    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload)
+    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, () => {})
 
     await bootstrap.load('issues')
 
     expect(changes.map(c => c.status)).toEqual(['pending', 'error'])
-    expect(changes[1].error).toContain('array')
+    expect(changes[1].error).toBe('validation')
   })
 
   test('marks error on a non-ok response', async () => {
     mockFetch(() => jsonResponse({}, { status: 500 }))
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
-    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload)
+    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, () => {})
 
     await bootstrap.load('issues')
 
     expect(changes.map(c => c.status)).toEqual(['pending', 'error'])
-    expect(changes[1].error).toContain('500')
+    expect(changes[1].error).toBe('http')
   })
 })

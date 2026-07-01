@@ -22,7 +22,6 @@ export type StatusChange<Name extends string = string> = {
 } & BootstrapState
 
 type LoadResult = Promise<readonly unknown[] | undefined>
-type Reporter = (error: Reported) => void
 
 export class Bootstrap<S extends ClientDatabaseSchema> {
   // In-flight loads keyed by model. Recorded synchronously in `load` so
@@ -33,8 +32,8 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
     private readonly bootstrapURL: string,
     private readonly bootstraps: Observable<BootstrapsSnapshot<S>>,
     private readonly validatePayload: ValidatePayload<S>,
-    private readonly addIfNotExist: (rowsByTable: RowsByTable<S>) => void = () => {},
-    private readonly report: Reporter = () => {},
+    private readonly addIfNotExist: (rowsByTable: RowsByTable<S>) => void,
+    private readonly report: (error: Reported) => void,
   ) {}
 
   // Fetches every row for `modelName` via `GET /bootstrap?model=<name>`.

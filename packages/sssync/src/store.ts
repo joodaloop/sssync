@@ -1,6 +1,6 @@
 import { Result } from 'better-result'
 
-import type { Report } from './better'
+import type { Report, Reported } from './better'
 import type { Mutation } from './mutators/types'
 import type { IdInputOf, RowOf, TableName, Tables } from './schema/infer'
 import type { ClientDatabaseSchema, TableSchema } from './schema/table-schema'
@@ -81,7 +81,10 @@ export class Store<S extends ClientDatabaseSchema> {
   readonly #rowChangeListeners = new Set<RowChangeListener>()
   #transaction: Map<string, RowTransition> | undefined
 
-  constructor(schema: S) {
+  constructor(
+    schema: S,
+    private readonly report: (error: Reported) => void = () => {},
+  ) {
     this.#schema = schema
     this.tables = Object.fromEntries(Object.keys(schema.tables).map(name => [name, new Map()])) as {
       [Name in TableName<S>]: TableStore<Tables<S>[Name]>
@@ -273,10 +276,11 @@ export class Store<S extends ClientDatabaseSchema> {
         const existing = table.get(key)
         if (existing !== undefined) {
           this.setRow(mutation.table, key, { ...existing, ...mutation.changes })
-        } else if (table.has(key)) {
-          return Result.err({ type: 'store', offending: mutation })
         } else {
-          console.warn(`UPDATE ignored for missing "${mutation.table}" row ${key}`)
+          // Target row isn't live — a tombstone (deleted locally) or never seen.
+          // The update can't apply; drop it and record it, but don't return Err:
+          // that would roll back every other mutation in the batch too.
+          this.report({ type: 'store', where: 'store', offending: mutation })
         }
         break
       }

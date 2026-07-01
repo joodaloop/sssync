@@ -76,17 +76,13 @@ describe('Store.applyMutation', () => {
   })
 
   test('ignores UPDATE for a missing row', () => {
-    const store = new Store(schema)
-    const warn = spyOn(console, 'warn').mockImplementation(() => {})
+    const reports: unknown[] = []
+    const store = new Store(schema, error => reports.push(error))
 
-    try {
-      store.applyMutation([updateIssue('99', { done: true })])
+    store.applyMutation([updateIssue('99', { done: true })])
 
-      expect(store.tables.issues.has('["99"]')).toBe(false)
-      expect(warn).toHaveBeenCalledWith('UPDATE ignored for missing "issues" row ["99"]')
-    } finally {
-      warn.mockRestore()
-    }
+    expect(store.tables.issues.has('["99"]')).toBe(false)
+    expect(reports).toEqual([{ type: 'store', where: 'store', offending: updateIssue('99', { done: true }) }])
   })
 
   test('removes rows on DELETE', () => {

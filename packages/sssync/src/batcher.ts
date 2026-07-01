@@ -13,8 +13,6 @@ export type ResolvedBatch = {
   readonly success: boolean
 }
 
-type Reporter = (error: Reported) => void
-
 // Collapses requests for the same model + id into a single payload entry,
 // gathering all of their relations into one array. A bare-row request and its
 // related-relation requests for the same id go out as one request.
@@ -48,7 +46,7 @@ export class Batcher<S extends ClientDatabaseSchema> {
     private readonly validatePayload: ValidatePayload<S>,
     private readonly addIfNotExist: (rowsByTable: RowsByTable<S>) => void,
     private readonly resolve: (batch: ResolvedBatch) => void,
-    private readonly report: Reporter = () => {},
+    private readonly report: (error: Reported) => void,
   ) {}
 
   request(item: ResolvedItem) {
