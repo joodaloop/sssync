@@ -146,7 +146,8 @@ export class SSSync<
           error => this.report(error),
         ),
     )
-    if (this.#storage) {
+    const storage = this.#storage
+    if (storage) {
       void this.ready.then(() => {
         let previous = this.#bootstraps.get()
         this.#bootstraps.subscribe(() => {
@@ -154,17 +155,21 @@ export class SSSync<
           for (const [tableName, state] of Object.entries(next)) {
             if (state && previous[tableName as TableName<S>] !== state) {
               const key = bootstrapKVKey(tableName)
-              this.#storage
-                ?.transactionKVStore(async kv => {
-                  await kv.put(key, state)
-                })
-                .catch(error => {
+              void Result.tryPromise({
+                try: () =>
+                  storage.transactionKVStore(async kv => {
+                    await kv.put(key, state)
+                  }),
+                catch: error => error,
+              }).then(result => {
+                result.tapError(error => {
                   this.report({
                     type: 'persistence',
                     where: 'sssync',
                     offending: { store: key, key, error },
                   })
                 })
+              })
             }
           }
           previous = next
@@ -177,31 +182,35 @@ export class SSSync<
     const storage = this.#storage
     if (!storage) return
 
-    try {
-      const snapshot: Record<string, BootstrapState> = {}
-      await storage.transactionKVStore(async kv => {
-        for (const tableName of Object.keys(this.schema.tables)) {
-          const key = bootstrapKVKey(tableName)
-          const value = (await Result.tryPromise({ try: () => kv.get(key), catch: error => error }))
-            .tapError(error => {
-              this.report({ type: 'persistence', where: 'sssync', offending: { store: key, key, error } })
-            })
-            .unwrapOr(undefined)
-          if (isBootstrapState(value)) {
-            snapshot[tableName] = value
+    const snapshot: Record<string, BootstrapState> = {}
+    const result = await Result.tryPromise({
+      try: () =>
+        storage.transactionKVStore(async kv => {
+          for (const tableName of Object.keys(this.schema.tables)) {
+            const key = bootstrapKVKey(tableName)
+            const value = (await Result.tryPromise({ try: () => kv.get(key), catch: error => error }))
+              .tapError(error => {
+                this.report({ type: 'persistence', where: 'sssync', offending: { store: key, key, error } })
+              })
+              .unwrapOr(undefined)
+            if (isBootstrapState(value)) {
+              snapshot[tableName] = value
+            }
           }
-        }
-      })
+        }),
+      catch: error => error,
+    })
 
-      if (Object.keys(snapshot).length > 0) {
-        this.#bootstraps.set(snapshot as BootstrapsSnapshot<S>)
-      }
-    } catch (error) {
+    result.tapError(error => {
       this.report({
         type: 'persistence',
         where: 'sssync',
         offending: { store: BOOTSTRAPS_KV_PREFIX, error },
       })
+    })
+
+    if (result.isOk() && Object.keys(snapshot).length > 0) {
+      this.#bootstraps.set(snapshot as BootstrapsSnapshot<S>)
     }
   }
 

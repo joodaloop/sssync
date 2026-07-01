@@ -1,3 +1,4 @@
+import { panic } from 'better-result'
 import { openDB } from 'idb'
 import type { IDBPDatabase, IDBPTransaction } from 'idb'
 import type { ClientDatabaseSchema, IdInputOf, Relationship, RowOf, TableName, TableSchema, Tables } from '../schema'
@@ -25,6 +26,14 @@ type DatabasePlan = {
   readonly tables: readonly TablePlan[]
 }
 
+// The state that only exists after init(). Held as a single unit so callers
+// prove initialization once via #initialized() rather than re-checking each field.
+type InitializedState<S extends ClientDatabaseSchema> = {
+  readonly db: Promise<IDBPDatabase>
+  readonly plan: DatabasePlan
+  readonly validatePayload: ValidatePayload<S>
+}
+
 const KV_STORE_NAME = 'sss_kv'
 
 /**
@@ -39,20 +48,27 @@ export class IndexedDBStorage<S extends ClientDatabaseSchema = ClientDatabaseSch
   // `declare` satisfies the nominal brand without emitting a runtime field.
   declare readonly __idbStorage: 'IDBStorage'
 
-  #db: Promise<IDBPDatabase> | undefined
-  #plan: DatabasePlan | undefined
-  #validatePayload: ValidatePayload<S> | undefined
+  // The fields below only exist together, after init(). Bundling them into a
+  // single optional makes the pre-/post-init states explicit: any method that
+  // needs them calls #initialized() once, and a half-initialized state can't
+  // be represented.
+  #state: InitializedState<S> | undefined
+
+  #initialized(): InitializedState<S> {
+    if (!this.#state) {
+      panic('IndexedDBStorage has not been initialized')
+    }
+    return this.#state
+  }
 
   init(options: IDBStorageInitOptions<S>): void {
-    if (this.#db) {
-      throw new Error('IndexedDBStorage has already been initialized')
+    if (this.#state) {
+      panic('IndexedDBStorage has already been initialized')
     }
 
     const plan = planForSchema(options.schema)
     const databaseName = databaseNameFor(options)
-    this.#plan = plan
-    this.#validatePayload = options.validatePayload
-    this.#db = openDB(databaseName, options.schemaVersion, {
+    const db = openDB(databaseName, options.schemaVersion, {
       upgrade(db, _oldVersion, _newVersion, transaction) {
         if (!db.objectStoreNames.contains(KV_STORE_NAME)) {
           db.createObjectStore(KV_STORE_NAME)
@@ -71,26 +87,21 @@ export class IndexedDBStorage<S extends ClientDatabaseSchema = ClientDatabaseSch
         }
       },
     })
+    this.#state = { db, plan, validatePayload: options.validatePayload }
   }
 
   get ready(): Promise<IDBPDatabase> {
-    if (!this.#db) {
-      throw new Error('IndexedDBStorage has not been initialized')
-    }
-    return this.#db
+    return this.#initialized().db
   }
 
   async read<T>(callback: (transaction: IDBReadTransaction<S>) => Promise<T>): Promise<T> {
-    const db = await this.ready
-    const validatePayload = this.#validatePayload
-    if (!validatePayload) {
-      throw new Error('IndexedDBStorage has not been initialized')
-    }
+    const state = this.#initialized()
+    const db = await state.db
     const transaction = db.transaction(this.storeNames(), 'readonly')
     const reader = new IndexedDBReadTransaction<S>(
       transaction,
       tableName => this.tablePlanFor(tableName),
-      validatePayload,
+      state.validatePayload,
     )
     return callback(reader)
   }
@@ -116,19 +127,15 @@ export class IndexedDBStorage<S extends ClientDatabaseSchema = ClientDatabaseSch
   }
 
   private tablePlanFor(tableName: string): TablePlan {
-    const tablePlan = this.#plan?.tables.find(plan => plan.table.name === tableName)
+    const tablePlan = this.#initialized().plan.tables.find(plan => plan.table.name === tableName)
     if (!tablePlan) {
-      throw new Error(`Unknown table "${tableName}"`)
+      panic(`Unknown table "${tableName}"`)
     }
     return tablePlan
   }
 
   private storeNames(): string[] {
-    const storeNames = this.#plan?.tables.map(plan => plan.table.name)
-    if (!storeNames) {
-      throw new Error('IndexedDBStorage has not been initialized')
-    }
-    return storeNames
+    return this.#initialized().plan.tables.map(plan => plan.table.name)
   }
 }
 

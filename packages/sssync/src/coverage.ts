@@ -1,3 +1,5 @@
+import { Result } from 'better-result'
+
 import { Batcher } from './batcher'
 import type { ResolvedBatch } from './batcher'
 import type { Reported } from './better'
@@ -68,29 +70,32 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
   }
 
   private async resolveFromStorage(item: ResolvedItem, pending: Pending): Promise<boolean> {
+    const storage = this.storage
+    if (!storage) return false
     const key = cacheKeyForItem(item)
 
-    try {
-      const match = await this.storage?.transactionKVStore(kv => kv.get(coverageKVKey(key)))
-      if (match === 'success') {
-        for (const coveredKey of coveredKeysForItem(item)) {
-          this.coverage.set(coveredKey, 'success')
-          this.pending.delete(coveredKey)
-        }
-        pending.resolve('success')
-        return true
-      }
-    } catch (error) {
-      this.report({
-        type: 'persistence',
-        where: 'coverage',
-        offending: {
-          store: COVERAGE_KV_PREFIX,
-          key: coverageKVKey(key),
-          error,
-        },
+    const match = (
+      await Result.tryPromise({
+        try: () => storage.transactionKVStore(kv => kv.get(coverageKVKey(key))),
+        catch: error => error,
       })
-      return false
+    )
+      .tapError(error => {
+        this.report({
+          type: 'persistence',
+          where: 'coverage',
+          offending: { store: COVERAGE_KV_PREFIX, key: coverageKVKey(key), error },
+        })
+      })
+      .unwrapOr(undefined)
+
+    if (match === 'success') {
+      for (const coveredKey of coveredKeysForItem(item)) {
+        this.coverage.set(coveredKey, 'success')
+        this.pending.delete(coveredKey)
+      }
+      pending.resolve('success')
+      return true
     }
 
     return false
@@ -117,20 +122,23 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
   }
 
   private async writeSuccessesToStorage(keys: readonly string[]): Promise<void> {
-    try {
-      await this.storage?.transactionKVStore(async kv => {
-        await Promise.all(keys.map(key => kv.put(coverageKVKey(key), 'success')))
+    const storage = this.storage
+    if (!storage) return
+    ;(
+      await Result.tryPromise({
+        try: () =>
+          storage.transactionKVStore(async kv => {
+            await Promise.all(keys.map(key => kv.put(coverageKVKey(key), 'success')))
+          }),
+        catch: error => error,
       })
-    } catch (error) {
+    ).tapError(error => {
       this.report({
         type: 'persistence',
         where: 'coverage',
-        offending: {
-          store: COVERAGE_KV_PREFIX,
-          error,
-        },
+        offending: { store: COVERAGE_KV_PREFIX, error },
       })
-    }
+    })
   }
 }
 

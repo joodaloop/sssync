@@ -1,5 +1,3 @@
-import { Result } from 'better-result'
-
 import { fetchJSON } from './better'
 import type { Report, Reported } from './better'
 import type { ClientDatabaseSchema } from './schema/table-schema'

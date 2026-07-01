@@ -1,18 +1,18 @@
 import { Result } from 'better-result'
 import type { Result as ResultType } from 'better-result'
 
-export type Report =
-  | {
-      readonly type: 'http'
-      readonly offending: { status: number; statusText: string; url: string } | { error: unknown }
-    }
-  | { readonly type: 'validation'; readonly offending: unknown }
-  | { readonly type: 'url'; readonly offending: unknown }
-  | { readonly type: 'persistence'; readonly offending: { store: string; key?: string; error: unknown } }
-  | { readonly type: 'mutator'; readonly offending: unknown }
+import type { HttpReport, ValidationReport } from './boundaries'
 
-export type HttpReport = Extract<Report, { readonly type: 'http' }>
-export type ValidationReport = Extract<Report, { readonly type: 'validation' }>
+export type { HttpReport, ValidationReport }
+
+export type UrlReport = { readonly type: 'url'; readonly offending: unknown }
+export type PersistenceReport = {
+  readonly type: 'persistence'
+  readonly offending: { store: string; key?: string; error: unknown }
+}
+export type MutatorReport = { readonly type: 'mutator'; readonly offending: unknown }
+
+export type Report = HttpReport | ValidationReport | UrlReport | PersistenceReport | MutatorReport
 
 export type Reported = Report & {
   where: 'batcher' | 'bootstrap' | 'coverage' | 'sssync'

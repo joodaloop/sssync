@@ -1,4 +1,4 @@
-import { Result } from 'better-result'
+import { Result, panic } from 'better-result'
 
 import type { StandardSchemaV1 } from './types'
 
@@ -16,8 +16,7 @@ function validator<Output>(check: Check<Output>): Validator<Output> {
       version: 1,
       vendor,
       validate(value) {
-        // eslint-disable-next-line no-restricted-syntax -- schema boundary: converts the throw-based
-        // check/run machinery into StandardSchema's return-based { issues } contract.
+        // eslint-disable-next-line eslint-js/no-restricted-syntax -- schema boundary: converts the throw-based check/run machinery into StandardSchema's return-based { issues } contract.
         try {
           return { value: check(value, []) }
         } catch (error) {
@@ -40,7 +39,7 @@ export function safeValidate<Output>(
 ): Result<Output, readonly Issue[]> {
   const result = schema['~standard'].validate(value)
   if (result instanceof Promise) {
-    throw new Error('Async schemas are not supported')
+    panic('Async schemas are not supported')
   }
   if (result.issues) {
     return Result.err(result.issues)
@@ -51,6 +50,7 @@ export function safeValidate<Output>(
 export function string(): Validator<string> {
   return validator((value, path) => {
     if (typeof value !== 'string') {
+      // eslint-disable-next-line eslint-js/no-restricted-syntax -- throw-based check caught by the validator() boundary and converted to { issues }.
       throw issueError(path, `Expected string but received ${describe(value)}`)
     }
     return value
@@ -60,6 +60,7 @@ export function string(): Validator<string> {
 export function number(): Validator<number> {
   return validator((value, path) => {
     if (typeof value !== 'number') {
+      // eslint-disable-next-line eslint-js/no-restricted-syntax -- throw-based check caught by the validator() boundary and converted to { issues }.
       throw issueError(path, `Expected number but received ${describe(value)}`)
     }
     return value
@@ -69,6 +70,7 @@ export function number(): Validator<number> {
 export function boolean(): Validator<boolean> {
   return validator((value, path) => {
     if (typeof value !== 'boolean') {
+      // eslint-disable-next-line eslint-js/no-restricted-syntax -- throw-based check caught by the validator() boundary and converted to { issues }.
       throw issueError(path, `Expected boolean but received ${describe(value)}`)
     }
     return value
@@ -78,6 +80,7 @@ export function boolean(): Validator<boolean> {
 export function nullValue(): Validator<null> {
   return validator((value, path) => {
     if (value !== null) {
+      // eslint-disable-next-line eslint-js/no-restricted-syntax -- throw-based check caught by the validator() boundary and converted to { issues }.
       throw issueError(path, `Expected null but received ${describe(value)}`)
     }
     return value
@@ -101,6 +104,7 @@ export function enums<const T extends readonly (string | number | boolean)[]>(va
   return validator((value, path) => {
     if (!allowed.has(value)) {
       const expected = values.map(v => JSON.stringify(v)).join(' | ')
+      // eslint-disable-next-line eslint-js/no-restricted-syntax -- throw-based check caught by the validator() boundary and converted to { issues }.
       throw issueError(path, `Expected one of ${expected} but received ${describe(value)}`)
     }
     return value as T[number]
@@ -115,6 +119,7 @@ export function object<const Shape extends Record<string, Validator<unknown>>>(
   type Out = { readonly [K in keyof Shape]: Shape[K] extends Validator<infer Output> ? Output : never }
   return validator((value, path) => {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      // eslint-disable-next-line eslint-js/no-restricted-syntax -- throw-based check caught by the validator() boundary and converted to { issues }.
       throw issueError(path, `Expected object but received ${describe(value)}`)
     }
 
@@ -133,9 +138,10 @@ export function object<const Shape extends Record<string, Validator<unknown>>>(
 function run<Output>(schema: Validator<Output>, value: unknown, _path: readonly PropertyKey[]): Output {
   const result = schema['~standard'].validate(value)
   if (result instanceof Promise) {
-    throw new Error('Async schemas are not supported')
+    panic('Async schemas are not supported')
   }
   if (result.issues) {
+    // eslint-disable-next-line eslint-js/no-restricted-syntax -- throw-based check caught by the validator() boundary and converted to { issues }.
     throw new ValidationError(result.issues[0] ?? { message: 'Invalid value' })
   }
   return result.value
