@@ -70,6 +70,7 @@ description: Todo list & progress tracking
 <br/>
 
 ## Future
+- Play code golf on largest modules to get things down to <10kb total
 - Add https://rxdb.info/key-compression.html
 - Go through https://github.com/rocicorp/replicache/releases and implement all useful features.
 - Eviction
