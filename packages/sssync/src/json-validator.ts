@@ -16,6 +16,8 @@ function validator<Output>(check: Check<Output>): Validator<Output> {
       version: 1,
       vendor,
       validate(value) {
+        // eslint-disable-next-line no-restricted-syntax -- schema boundary: converts the throw-based
+        // check/run machinery into StandardSchema's return-based { issues } contract.
         try {
           return { value: check(value, []) }
         } catch (error) {
@@ -88,6 +90,21 @@ export function unknown(): Validator<unknown> {
 
 export function nullable<Output>(schema: Validator<Output>): Validator<Output | null> {
   return validator((value, path) => (value === null ? null : run(schema, value, path)))
+}
+
+export function optional<Output>(schema: Validator<Output>): Validator<Output | undefined> {
+  return validator((value, path) => (value === undefined ? undefined : run(schema, value, path)))
+}
+
+export function enums<const T extends readonly (string | number | boolean)[]>(values: T): Validator<T[number]> {
+  const allowed = new Set<unknown>(values)
+  return validator((value, path) => {
+    if (!allowed.has(value)) {
+      const expected = values.map(v => JSON.stringify(v)).join(' | ')
+      throw issueError(path, `Expected one of ${expected} but received ${describe(value)}`)
+    }
+    return value as T[number]
+  })
 }
 
 export function object<const Shape extends Record<string, Validator<unknown>>>(

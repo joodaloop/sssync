@@ -1,9 +1,12 @@
+import { Result, panic } from 'better-result'
+
 import { describe } from './better'
-import type { Reported } from './better'
+import type { Report, Reported } from './better'
 import { Bootstrap } from './bootstrap'
-import type { BootstrapsSnapshot } from './bootstrap'
+import type { BootstrapState, BootstrapsSnapshot } from './bootstrap'
 import { CoverageTracker } from './coverage'
 import type { IDBStorage } from './idb/types'
+import { enums, object, optional, safeValidate, string } from './json-validator'
 import type { AnyMutatorDefinition, MutationEnvelope, Mutators } from './mutators'
 import { store } from './query'
 import type {
@@ -17,7 +20,7 @@ import type {
 } from './query'
 import type { IdInputOf, RowOf, TableName, Tables } from './schema'
 import type { ClientDatabaseSchema } from './schema/table-schema'
-import { isRecord, Observable } from './shared'
+import { Observable } from './shared'
 import type { BatchStats, ReadonlyObservable } from './shared'
 import { Store } from './store'
 import { rowValidatorsFor, validateRowsByTable } from './validate'
@@ -117,8 +120,14 @@ export class SSSync<
       queries: this.#queries,
       errors: this.#errors,
     }
-    const batchURL = absoluteURL('batchURL', options.batchURL)
-    const bootstrapURL = absoluteURL('bootstrapURL', options.bootstrapURL)
+    const batchURL = absoluteURL('batchURL', options.batchURL).match({
+      ok: url => url,
+      err: report => panic(describe(report)),
+    })
+    const bootstrapURL = absoluteURL('bootstrapURL', options.bootstrapURL).match({
+      ok: url => url,
+      err: report => panic(describe(report)),
+    })
     this.#coverage = new CoverageTracker(
       batchURL,
       this.#batches,
@@ -169,21 +178,17 @@ export class SSSync<
     if (!storage) return
 
     try {
-      const snapshot: Record<string, unknown> = {}
+      const snapshot: Record<string, BootstrapState> = {}
       await storage.transactionKVStore(async kv => {
         for (const tableName of Object.keys(this.schema.tables)) {
           const key = bootstrapKVKey(tableName)
-          try {
-            const value = await kv.get(key)
-            if (isBootstrapState(value)) {
-              snapshot[tableName] = value
-            }
-          } catch (error) {
-            this.report({
-              type: 'persistence',
-              where: 'sssync',
-              offending: { store: key, key, error },
+          const value = (await Result.tryPromise({ try: () => kv.get(key), catch: error => error }))
+            .tapError(error => {
+              this.report({ type: 'persistence', where: 'sssync', offending: { store: key, key, error } })
             })
+            .unwrapOr(undefined)
+          if (isBootstrapState(value)) {
+            snapshot[tableName] = value
           }
         }
       })
@@ -248,21 +253,21 @@ export class SSSync<
 
 // Requires an absolute URL and strips any trailing slash, so callers can append
 // paths/query strings (e.g. `${url}?model=...`) without a double slash.
-function absoluteURL(label: string, url: string): string {
-  try {
-    new URL(url)
-  } catch {
-    throw new Error(`${label} must be an absolute URL, got "${url}"`)
-  }
-  return url.replace(/\/+$/, '')
+function absoluteURL(label: string, url: string): Result<string, Report> {
+  return Result.try(() => new URL(url))
+    .map(() => url.replace(/\/+$/, ''))
+    .mapError(() => ({ type: 'url', offending: { label, url } }))
 }
 
 function bootstrapKVKey(tableName: string): string {
   return `${BOOTSTRAPS_KV_PREFIX}:${tableName}`
 }
 
-function isBootstrapState(value: unknown): boolean {
-  if (!isRecord(value)) return false
-  if (value.status !== 'pending' && value.status !== 'success' && value.status !== 'error') return false
-  return value.error === undefined || typeof value.error === 'string'
+const bootstrapStateSchema = object({
+  status: enums(['pending', 'success', 'error']),
+  error: optional(string()),
+})
+
+function isBootstrapState(value: unknown): value is BootstrapState {
+  return safeValidate(bootstrapStateSchema, value).isOk()
 }
