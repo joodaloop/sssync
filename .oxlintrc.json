@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["import", "typescript", "unicorn", "oxc"],
+  "jsPlugins": [{ "name": "eslint-js", "specifier": "oxlint-plugin-eslint" }],
   "categories": {
     "correctness": "error",
     "suspicious": "warn",
@@ -27,6 +28,29 @@
     "prefer-object-spread": "warn",
     "prefer-template": "warn",
     "require-await": "warn",
+    "eslint-js/no-restricted-syntax": [
+      "error",
+      {
+        "selector": "ThrowStatement",
+        "message": "Return Result.err(...) instead of throwing."
+      },
+      {
+        "selector": "TryStatement",
+        "message": "Use Result.try / Result.tryPromise instead of try/catch."
+      },
+      {
+        "selector": "CallExpression[callee.object.name='Promise'][callee.property.name='reject']",
+        "message": "Return Result.err(...) instead of Promise.reject(...)."
+      },
+      {
+        "selector": "CallExpression[callee.property.name='catch']",
+        "message": "Use Result.tryPromise(...) instead of .catch(...)."
+      },
+      {
+        "selector": "CallExpression[callee.property.name='unwrap']",
+        "message": "Avoid unchecked unwrap(); use match, Result.isOk/isErr, or yield* in Result.gen."
+      }
+    ],
     "import/consistent-type-specifier-style": ["warn", "prefer-top-level"],
     "import/no-cycle": "warn",
     "import/no-absolute-path": "error",

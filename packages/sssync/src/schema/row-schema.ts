@@ -1,3 +1,5 @@
+import { panic } from 'better-result'
+
 import * as j from '../json-validator'
 import type { SchemaValue, ValueType } from './schema-value'
 import type { TableSchema } from './table-schema'
@@ -17,7 +19,7 @@ function baseSchemaFor(type: ValueType) {
     case 'json':
       return j.unknown()
     default:
-      throw new Error(`Unknown column type: ${String(type)}`)
+      return panic(`Unknown column type: ${String(type)}`)
   }
 }
 

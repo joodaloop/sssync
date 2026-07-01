@@ -1,12 +1,19 @@
 import { Result } from 'better-result'
+import type { Result as ResultType } from 'better-result'
 
 export type Report =
-  | { readonly type: 'http'; readonly offending: { status: number; statusText: string; url: string } | { error: unknown } }
+  | {
+      readonly type: 'http'
+      readonly offending: { status: number; statusText: string; url: string } | { error: unknown }
+    }
   | { readonly type: 'validation'; readonly offending: unknown }
   | { readonly type: 'url'; readonly offending: unknown }
   | { readonly type: 'persistence'; readonly offending: { store: string; key?: string; error: unknown } }
   | { readonly type: 'store'; readonly offending: { type: 'INSERT' | 'UPDATE' | 'DELETE'; table: string } }
   | { readonly type: 'mutator'; readonly offending: unknown }
+
+export type HttpReport = Extract<Report, { readonly type: 'http' }>
+export type ValidationReport = Extract<Report, { readonly type: 'validation' }>
 
 export type Reported = Report & {
   where: 'batcher' | 'bootstrap' | 'coverage' | 'sssync' | 'store'
@@ -41,54 +48,43 @@ export function describe(report: Report): string {
   }
 }
 
-class HTTPError extends Error {
-  constructor(readonly response: Response) {
-    super(`Fetch failed: ${response.status} ${response.statusText}`)
-    this.name = 'HTTPError'
-  }
-}
-
-class JSONParseError extends Error {
-  constructor(
-    readonly text: string,
-    readonly originalError: unknown,
-  ) {
-    super('Response body was not valid JSON')
-    this.name = 'JSONParseError'
-  }
-}
-
 export async function fetchJSON<T = unknown>(input: RequestInfo | URL, init?: RequestInit) {
-  return Result.tryPromise({
-    try: async () => {
-      const response = await fetch(input, init)
-      if (!response.ok) throw new HTTPError(response)
-      const text = await response.text()
-      try {
-        return JSON.parse(text) as T
-      } catch (error) {
-        throw new JSONParseError(text, error)
-      }
-    },
-    catch: errorFor,
+  const text = await fetchText(input, init)
+
+  return text.andThen(parseJSON<T>)
+}
+
+async function fetchText(input: RequestInfo | URL, init?: RequestInit): Promise<ResultType<string, HttpReport>> {
+  const response = await Result.tryPromise({
+    try: () => fetch(input, init),
+    catch: (error): HttpReport => ({ type: 'http', offending: { error } }),
+  })
+
+  return response.andThenAsync(fetched => {
+    if (!fetched.ok) {
+      return Promise.resolve(
+        Result.err<string, HttpReport>({
+          type: 'http',
+          offending: {
+            status: fetched.status,
+            statusText: fetched.statusText,
+            url: fetched.url,
+          },
+        }),
+      )
+    }
+
+    return Result.tryPromise({
+      try: () => fetched.text(),
+      catch: (error): HttpReport => ({ type: 'http', offending: { error } }),
+    })
   })
 }
 
-function errorFor(error: unknown): Report {
-  if (error instanceof HTTPError) {
-    return {
-      type: 'http',
-      offending: {
-        status: error.response.status,
-        statusText: error.response.statusText,
-        url: error.response.url,
-      },
-    }
-  }
-
-  if (error instanceof JSONParseError) {
-    return { type: 'validation', offending: error.text }
-  }
-
-  return { type: 'http', offending: { error } }
+function parseJSON<T>(text: string): ResultType<T, ValidationReport> {
+  return Result.try<T, ValidationReport>({
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- fetchJSON<T> is a typed JSON boundary.
+    try: () => JSON.parse(text) as unknown as Awaited<T>,
+    catch: () => ({ type: 'validation', offending: text }),
+  })
 }
