@@ -52,9 +52,8 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
   // concurrent calls share one fetch before consulting the bootstrap registry.
   private readonly inflight = new Map<string, LoadResult>()
   private readonly report: Reporter
-  // Cross-tab channel; null in environments without BroadcastChannel (e.g. the
-  // server) so bootstrap still works there.
-  private readonly channel: ChannelListener<typeof bootstrapMessageSchema> | null
+  // Cross-tab channel. Off-browser (e.g. the server) its methods are no-ops.
+  private readonly channel: ChannelListener<typeof bootstrapMessageSchema>
 
   constructor(
     private readonly bootstrapURL: string,
@@ -67,16 +66,14 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
     private readonly tableNames: readonly string[],
   ) {
     this.report = reporterFor('bootstrap')
-    this.channel = typeof BroadcastChannel === 'undefined'
-      ? null
-      : listenChannel(sssyncId, 'bootstrap', bootstrapMessageSchema)
+    this.channel = listenChannel(sssyncId, 'bootstrap', bootstrapMessageSchema)
     // Another tab persisted a status change (e.g. marked a model succeeded);
     // rescan the persisted state so this tab's observable catches up.
-    this.channel?.handle(message => void this.rescan(message.id))
+    this.channel.handle(message => void this.rescan(message.id))
   }
 
   close(): void {
-    this.channel?.close()
+    this.channel.close()
   }
 
   // Loads every model's persisted bootstrap state into the observable. Call
@@ -197,7 +194,7 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
     }
     this.setState(change.name, state)
     // Persist, then tell other tabs so they can rescan the new state.
-    void this.persist(change.name, state).then(() => this.channel?.post({ id: change.name }))
+    void this.persist(change.name, state).then(() => this.channel.post({ id: change.name }))
   }
 
   private setState(name: string, state: BootstrapState): void {

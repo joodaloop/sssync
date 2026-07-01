@@ -16,6 +16,12 @@ export function listenChannel<S extends Validator<unknown>>(
   name: string,
   schema: S,
 ): ChannelListener<S> {
+  // No BroadcastChannel outside the browser (e.g. the server): return a channel
+  // whose methods are no-ops so callers don't have to guard the environment.
+  if (typeof BroadcastChannel === 'undefined') {
+    return { handle: () => () => {}, post: () => {}, close: () => {} }
+  }
+
   const channel = new BroadcastChannel(`sssync:${dbName}:${name}`)
 
   return {

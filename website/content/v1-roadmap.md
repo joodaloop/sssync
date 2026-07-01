@@ -24,7 +24,7 @@ description: Todo list & progress tracking
 ## Network requests
 - [x] [Build bootstrap lifecycle manager](https://github.com/joodaloop/sssync/commit/fb47175bf0f13d76d9d0c43247ca3a65e3d3f694)
 - [x] [Design batch loader that dedupes query satisfactions and validates responses](https://github.com/joodaloop/sssync/commit/a96a3bfef518a3c44f3be8f6470fa5ba5dfa4fbc)
-- [x] Handle the `bootstrap-store-updated` Broadcast Channel coordinator
+- [x] [Handle the `bootstrap-store-updated` Broadcast Channel coordinator](https://github.com/joodaloop/sssync/commit/74e8d6d3b1781efca79094acb81996f080b83b61)
 - [ ] Handle the `coverage-updated` Broadcast Channel coordinator
 
 ## Store
