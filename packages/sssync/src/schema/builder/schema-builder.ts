@@ -1,4 +1,4 @@
-import { panic } from 'better-result'
+import { panic } from '../../result'
 
 import { hasOwn, mapAllEntries } from '../../shared'
 import type { ClientDatabaseSchema, Relationship, RelationshipsSchema, TableSchema } from '../table-schema'

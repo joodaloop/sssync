@@ -70,7 +70,7 @@ describe('Bootstrap', () => {
 
   test('fetches GET /bootstrap?model=<name>', async () => {
     const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
-    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload, () => {}, () => {})
+    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload, () => {}, () => () => {})
 
     await bootstrap.load('issues')
 
@@ -82,7 +82,7 @@ describe('Bootstrap', () => {
     mockFetch(() => jsonResponse({ issues: [validRow] }))
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
-    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, () => {})
+    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, () => () => {})
 
     const rows = await bootstrap.load('issues')
 
@@ -98,7 +98,7 @@ describe('Bootstrap', () => {
     const added: unknown[] = []
     const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload, rowsByTable => {
       added.push(rowsByTable)
-    }, () => {})
+    }, () => () => {})
 
     await bootstrap.load('issues')
 
@@ -111,7 +111,7 @@ describe('Bootstrap', () => {
       const bootstraps = bootstrapRegistry()
       bootstraps.set({ issues: { status: existing } })
       const changes = recordChanges(bootstraps)
-      const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, () => {})
+      const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, () => () => {})
 
       const rows = await bootstrap.load('issues')
 
@@ -131,7 +131,7 @@ describe('Bootstrap', () => {
       await gate
       return jsonResponse({ issues: [validRow] })
     })
-    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload, () => {}, () => {})
+    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload, () => {}, () => () => {})
 
     const a = bootstrap.load('issues')
     const b = bootstrap.load('issues')
@@ -146,7 +146,7 @@ describe('Bootstrap', () => {
 
   test('a fresh load after one succeeds is skipped by the registry', async () => {
     const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
-    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload, () => {}, () => {})
+    const bootstrap = new Bootstrap('/bootstrap', bootstrapRegistry(), validatePayload, () => {}, () => () => {})
 
     await bootstrap.load('issues')
     await bootstrap.load('issues')
@@ -158,7 +158,7 @@ describe('Bootstrap', () => {
     const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
     const bootstraps = bootstrapRegistry()
     bootstraps.set({ issues: { status: 'success' } })
-    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, () => {})
+    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, () => () => {})
 
     await bootstrap.load('issues')
 
@@ -171,8 +171,8 @@ describe('Bootstrap', () => {
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
     const reports: unknown[] = []
-    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, error => {
-      reports.push(error)
+    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, where => error => {
+      reports.push({ ...error, where })
     })
 
     const rows = await bootstrap.load('widgets')
@@ -197,8 +197,8 @@ describe('Bootstrap', () => {
       rowsByTable => {
         added.push(rowsByTable)
       },
-      error => {
-        reports.push(error)
+      where => error => {
+        reports.push({ ...error, where })
       },
     )
 
@@ -217,7 +217,7 @@ describe('Bootstrap', () => {
     mockFetch(() => jsonResponse({ issues: { id: '1' } }))
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
-    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, () => {})
+    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, () => () => {})
 
     await bootstrap.load('issues')
 
@@ -229,7 +229,7 @@ describe('Bootstrap', () => {
     mockFetch(() => jsonResponse({}, { status: 500 }))
     const bootstraps = bootstrapRegistry()
     const changes = recordChanges(bootstraps)
-    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, () => {})
+    const bootstrap = new Bootstrap('/bootstrap', bootstraps, validatePayload, () => {}, () => () => {})
 
     await bootstrap.load('issues')
 

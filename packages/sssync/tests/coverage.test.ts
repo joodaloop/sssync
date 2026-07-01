@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 
-import type { Reported } from '../src/better'
 import { CoverageTracker } from '../src/coverage'
+import type { Failure } from '../src/errors'
+import type { ReporterFactory, Where } from '../src/sss'
 import type { IDBKVTransaction, IDBStorage } from '../src/idb/types'
 import { column, createSchema, table } from '../src/schema'
 import type { ClientDatabaseSchema } from '../src/schema'
@@ -73,14 +74,14 @@ function fakeStorage(
   return { storage, values, puts }
 }
 
+type Reported = Failure & { where: Where }
+
 const recordErrors = () => {
   const errors: Reported[] = []
-  return {
-    errors,
-    report(error: Reported) {
-      errors.push(error)
-    },
+  const reporterFor: ReporterFactory = where => failure => {
+    errors.push({ ...failure, where })
   }
+  return { errors, reporterFor }
 }
 
 const coverageKVKey = (item: ResolvedItem) => `coverage:${cacheKeyForItem(item)}`
@@ -114,7 +115,7 @@ describe('CoverageTracker', () => {
 
   test('records success for items in a resolved batch', async () => {
     mockFetch(() => jsonResponse({ issues: [validRow] }))
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => {})
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => () => {})
 
     const issue = item('1')
     expect(status(tracker, issue)).toBeUndefined()
@@ -129,7 +130,7 @@ describe('CoverageTracker', () => {
 
   test('records error when validation fails', async () => {
     mockFetch(() => jsonResponse({ issues: [{ ...validRow, priority: 'x' }] }))
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => {})
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => () => {})
 
     const issue = item('1')
     void tracker.request(issue)
@@ -140,7 +141,7 @@ describe('CoverageTracker', () => {
 
   test('records error on a non-ok response', async () => {
     mockFetch(() => jsonResponse({}, { status: 500 }))
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => {})
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => () => {})
 
     const issue = item('1')
     void tracker.request(issue)
@@ -151,7 +152,7 @@ describe('CoverageTracker', () => {
 
   test('request resolves to success once the batch settles', async () => {
     mockFetch(() => jsonResponse({ issues: [validRow] }))
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => {})
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => () => {})
 
     const pending = tracker.request(item('1'))
     expect(pending).toBeInstanceOf(Promise)
@@ -162,7 +163,7 @@ describe('CoverageTracker', () => {
 
   test('request returns "success" synchronously when already covered', async () => {
     mockFetch(() => jsonResponse({ issues: [validRow] }))
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => {})
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => () => {})
     const issue = item('1')
 
     void tracker.request(issue)
@@ -173,7 +174,7 @@ describe('CoverageTracker', () => {
 
   test('concurrent requests for the same item share one promise', async () => {
     mockFetch(() => jsonResponse({ issues: [validRow] }))
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => {})
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => () => {})
     const issue = item('1')
 
     const a = tracker.request(issue)
@@ -183,7 +184,7 @@ describe('CoverageTracker', () => {
 
   test('a failed item is retried on the next request', async () => {
     mockFetch(() => jsonResponse({}, { status: 500 }))
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => {})
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => () => {})
     const issue = item('1')
 
     const first = tracker.request(issue)
@@ -203,7 +204,7 @@ describe('CoverageTracker', () => {
 
   test('keys each item by model, id, and relation', async () => {
     mockFetch(() => jsonResponse({ issues: [validRow] }))
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => {})
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => () => {})
 
     void tracker.request(item('1'))
     await tracker['batcher'].flush()
@@ -222,7 +223,7 @@ describe('CoverageTracker', () => {
       await gate
       return jsonResponse({ issues: [validRow] })
     })
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => {})
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => () => {})
 
     const relation = tracker.request(item('1', 'comments'))
     const flushed = tracker['batcher'].flush()
@@ -241,7 +242,7 @@ describe('CoverageTracker', () => {
 
   test('bare-row coverage does not satisfy a relation request', async () => {
     const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => {})
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => () => {})
 
     const bare = tracker.request(item('1'))
     await tracker['batcher'].flush()
@@ -258,7 +259,7 @@ describe('CoverageTracker', () => {
   test('persists successful coverage to the kv store', async () => {
     mockFetch(() => jsonResponse({ issues: [validRow] }))
     const { storage, values } = fakeStorage()
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => {}, storage)
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => () => {}, storage)
     const issue = item('1')
 
     const result = tracker.request(issue)
@@ -273,7 +274,7 @@ describe('CoverageTracker', () => {
   test('does not persist failed coverage to the kv store', async () => {
     mockFetch(() => jsonResponse({}, { status: 500 }))
     const { storage, puts } = fakeStorage()
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => {}, storage)
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => () => {}, storage)
 
     const result = tracker.request(item('1'))
     await settleStorageLookup()
@@ -287,8 +288,8 @@ describe('CoverageTracker', () => {
   test('reports kv store read failures and falls back to fetching', async () => {
     const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
     const { storage } = fakeStorage([], { failGet: true })
-    const { errors, report } = recordErrors()
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, report, storage)
+    const { errors, reporterFor } = recordErrors()
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, reporterFor, storage)
     const issue = item('1')
 
     const result = tracker.request(issue)
@@ -311,8 +312,8 @@ describe('CoverageTracker', () => {
   test('reports kv store write failures without changing successful coverage', async () => {
     mockFetch(() => jsonResponse({ issues: [validRow] }))
     const { storage } = fakeStorage([], { failPut: true })
-    const { errors, report } = recordErrors()
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, report, storage)
+    const { errors, reporterFor } = recordErrors()
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, reporterFor, storage)
 
     const result = tracker.request(item('1'))
     await settleStorageLookup()
@@ -334,7 +335,7 @@ describe('CoverageTracker', () => {
     const fetchMock = mockFetch(() => jsonResponse({ issues: [validRow] }))
     const issue = item('1')
     const { storage } = fakeStorage([[coverageKVKey(issue), 'success']])
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => {}, storage)
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => () => {}, storage)
 
     const result = tracker.request(issue)
 
@@ -349,7 +350,7 @@ describe('CoverageTracker', () => {
     const bare = item('1')
     const relation = item('1', 'comments')
     const { storage } = fakeStorage([[coverageKVKey(bare), 'success']])
-    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => {}, storage)
+    const tracker = new CoverageTracker('/batch', batchStats(), validatePayload, undefined, () => () => {}, storage)
 
     const result = tracker.request(relation)
     expect(result).toBeInstanceOf(Promise)

@@ -1,5 +1,4 @@
-import { panic } from 'better-result'
-
+import { panic } from './result'
 import type { TableSchema } from './schema/table-schema'
 
 export function mapEntries<T, U>(

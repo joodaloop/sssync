@@ -1,6 +1,5 @@
-import { panic } from 'better-result'
-
 import type { Mutation } from './mutators/types'
+import { panic } from './result'
 import type { IdInputOf, RowOf, TableName, Tables } from './schema/infer'
 import type { ClientDatabaseSchema, TableSchema } from './schema/table-schema'
 import { hasOwn, primaryKeyFor } from './shared'

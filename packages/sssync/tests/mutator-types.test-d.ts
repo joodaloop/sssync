@@ -1,4 +1,3 @@
-import { Result } from 'better-result'
 import * as v from 'valibot'
 
 import { defineMutators } from '../src/mutators'
@@ -75,7 +74,7 @@ const parsed = mutators.parse({
 // @ts-expect-error apply accepts a parsed envelope, not separate name and args
 void mutators.apply('updateIssueTitle', { id: 'issue-1', title: 'hello' })
 
-if (Result.isOk(parsed)) {
+if (parsed.ok) {
   void mutators.apply(parsed.value)
 
   switch (parsed.value.name) {

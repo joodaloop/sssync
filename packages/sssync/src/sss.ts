@@ -1,11 +1,8 @@
-import { Result, panic } from 'better-result'
-
-import { describe } from './errors'
-import type { Failure } from './errors'
-import { attempt } from './result'
 import { Bootstrap } from './bootstrap'
 import type { BootstrapState, BootstrapsSnapshot } from './bootstrap'
 import { CoverageTracker } from './coverage'
+import { describe } from './errors'
+import type { Failure } from './errors'
 import type { IDBStorage } from './idb/types'
 import { enums, object, optional, safeValidate, string } from './json-validator'
 import type { AnyMutatorDefinition, MutationEnvelope, Mutators } from './mutators'
@@ -19,6 +16,7 @@ import type {
   RelationName,
   RowWithIncludes,
 } from './query'
+import { attempt, attemptAsync, panic } from './result'
 import type { IdInputOf, RowOf, TableName, Tables } from './schema'
 import type { ClientDatabaseSchema } from './schema/table-schema'
 import { Observable } from './shared'
@@ -163,20 +161,20 @@ export class SSSync<
           for (const [tableName, state] of Object.entries(next)) {
             if (state && previous[tableName as TableName<S>] !== state) {
               const key = bootstrapKVKey(tableName)
-              void Result.tryPromise({
-                try: () =>
+              void attemptAsync(
+                () =>
                   storage.transactionKVStore(async kv => {
                     await kv.put(key, state)
                   }),
-                catch: error => error,
-              }).then(result => {
-                result.tapError(error => {
+                error => error,
+              ).then(result => {
+                if (!result.ok) {
                   this.report({
                     type: 'persistence',
                     where: 'sssync',
-                    offending: { store: key, key, error },
+                    offending: { store: key, key, error: result.error },
                   })
-                })
+                }
               })
             }
           }
@@ -191,33 +189,33 @@ export class SSSync<
     if (!storage) return
 
     const snapshot: Record<string, BootstrapState> = {}
-    const result = await Result.tryPromise({
-      try: () =>
+    const result = await attemptAsync(
+      () =>
         storage.transactionKVStore(async kv => {
           for (const tableName of Object.keys(this.schema.tables)) {
             const key = bootstrapKVKey(tableName)
-            const value = (await Result.tryPromise({ try: () => kv.get(key), catch: error => error }))
-              .tapError(error => {
-                this.report({ type: 'persistence', where: 'sssync', offending: { store: key, key, error } })
-              })
-              .unwrapOr(undefined)
+            const read = await attemptAsync(() => kv.get(key), error => error)
+            if (!read.ok) {
+              this.report({ type: 'persistence', where: 'sssync', offending: { store: key, key, error: read.error } })
+            }
+            const value = read.ok ? read.value : undefined
             if (isBootstrapState(value)) {
               snapshot[tableName] = value
             }
           }
         }),
-      catch: error => error,
-    })
+      error => error,
+    )
 
-    result.tapError(error => {
+    if (!result.ok) {
       this.report({
         type: 'persistence',
         where: 'sssync',
-        offending: { store: BOOTSTRAPS_KV_PREFIX, error },
+        offending: { store: BOOTSTRAPS_KV_PREFIX, error: result.error },
       })
-    })
+    }
 
-    if (result.isOk() && Object.keys(snapshot).length > 0) {
+    if (result.ok && Object.keys(snapshot).length > 0) {
       this.#bootstraps.set(snapshot as BootstrapsSnapshot<S>)
     }
   }
@@ -277,7 +275,10 @@ export class SSSync<
 // Requires an absolute URL and strips any trailing slash, so callers can append
 // paths/query strings (e.g. `${url}?model=...`) without a double slash.
 function absoluteURL(label: string, url: string): string {
-  const parsed = attempt(() => new URL(url), error => error)
+  const parsed = attempt(
+    () => new URL(url),
+    error => error,
+  )
   return parsed.ok ? url.replace(/\/+$/, '') : panic(`Invalid ${label}: ${JSON.stringify(url)}`)
 }
 
@@ -291,5 +292,5 @@ const bootstrapStateSchema = object({
 })
 
 function isBootstrapState(value: unknown): value is BootstrapState {
-  return safeValidate(bootstrapStateSchema, value).isOk()
+  return safeValidate(bootstrapStateSchema, value).ok
 }

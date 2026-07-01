@@ -1,5 +1,6 @@
-import { panic } from 'better-result'
 import { openDB } from 'idb'
+import { describe } from '../errors'
+import { panic } from '../result'
 import type { IDBPDatabase, IDBPTransaction } from 'idb'
 import type { ClientDatabaseSchema, IdInputOf, Relationship, RowOf, TableName, TableSchema, Tables } from '../schema'
 import { primaryKeyFor, tupleKey } from '../shared'
@@ -167,8 +168,9 @@ class IndexedDBReadTransaction<S extends ClientDatabaseSchema> implements IDBRea
       | StorageRecord
       | undefined
     if (!record) return undefined
-    const validated = this.validatePayload({ [tableName]: [record.row] }).unwrap()
-    return validated[tableName]?.[0]
+    const validated = this.validatePayload({ [tableName]: [record.row] })
+    if (!validated.ok) panic(describe(validated.error))
+    return validated.value[tableName]?.[0]
   }
 
   async getRowsByRelation<Name extends TableName<S>>(
@@ -179,7 +181,7 @@ class IndexedDBReadTransaction<S extends ClientDatabaseSchema> implements IDBRea
     const tablePlan = this.tablePlanFor(tableName)
     const indexName = indexNameFor(fields)
     if (!tablePlan.indexes.some(index => index.name === indexName)) {
-      throw new Error(`Unknown index "${indexName}" on table "${tableName}"`)
+      panic(`Unknown index "${indexName}" on table "${tableName}"`)
     }
 
     const records = (await this.transaction
@@ -187,7 +189,9 @@ class IndexedDBReadTransaction<S extends ClientDatabaseSchema> implements IDBRea
       .index(indexName)
       .getAll(tupleKey(values))) as StorageRecord[]
     const rows = records.map(record => record.row)
-    return this.validatePayload({ [tableName]: rows }).unwrap()[tableName] ?? []
+    const validated = this.validatePayload({ [tableName]: rows })
+    if (!validated.ok) panic(describe(validated.error))
+    return validated.value[tableName] ?? []
   }
 }
 
@@ -200,7 +204,7 @@ function planForSchema(schema: ClientDatabaseSchema): DatabasePlan {
 
   for (const tableName of Object.keys(schema.tables)) {
     if (tableName === KV_STORE_NAME) {
-      throw new Error(`Table name "${KV_STORE_NAME}" is reserved for sssync IndexedDB metadata`)
+      panic(`Table name "${KV_STORE_NAME}" is reserved for sssync IndexedDB metadata`)
     }
     indexesByTable.set(tableName, new Map())
   }
@@ -223,7 +227,7 @@ function addRelationshipIndexes(indexesByTable: Map<string, Map<string, IndexPla
   for (const connection of relationship) {
     const tableIndexes = indexesByTable.get(connection.destSchema)
     if (!tableIndexes) {
-      throw new Error(`Relationship destination table "${connection.destSchema}" is missing`)
+      panic(`Relationship destination table "${connection.destSchema}" is missing`)
     }
 
     const name = indexNameFor(connection.destField)

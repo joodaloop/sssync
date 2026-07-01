@@ -1,4 +1,4 @@
-import type { Result } from 'better-result'
+import type { Result } from '../result'
 
 import type { Failure } from '../errors'
 import type { IdInputOf, IdOf, RowOf, TableName, Tables } from '../schema/infer'

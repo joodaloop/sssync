@@ -1,7 +1,6 @@
-import { Result } from 'better-result'
-
 import { Batcher } from './batcher'
 import type { ResolvedBatch } from './batcher'
+import { attemptAsync } from './result'
 import type { IDBStorage } from './idb/types'
 import type { ClientDatabaseSchema } from './schema/table-schema'
 import { cacheKeyForItem, coveredKeysForItem } from './shared'
@@ -35,7 +34,7 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
     private readonly storage: null | IDBStorage<S> = null,
   ) {
     this.report = reporterFor('coverage')
-    this.batcher = new Batcher(batchURL, batches, validatePayload, addIfNotExist, this.resolveItems, reporterFor('batcher'))
+    this.batcher = new Batcher(batchURL, batches, validatePayload, addIfNotExist, this.resolveItems, reporterFor)
   }
 
   // Requests coverage for `item`:
@@ -76,19 +75,17 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
     if (!storage) return false
     const key = cacheKeyForItem(item)
 
-    const match = (
-      await Result.tryPromise({
-        try: () => storage.transactionKVStore(kv => kv.get(coverageKVKey(key))),
-        catch: error => error,
-      })
+    const read = await attemptAsync(
+      () => storage.transactionKVStore(kv => kv.get(coverageKVKey(key))),
+      error => error,
     )
-      .tapError(error => {
-        this.report({
-          type: 'persistence',
-          offending: { store: COVERAGE_KV_PREFIX, key: coverageKVKey(key), error },
-        })
+    if (!read.ok) {
+      this.report({
+        type: 'persistence',
+        offending: { store: COVERAGE_KV_PREFIX, key: coverageKVKey(key), error: read.error },
       })
-      .unwrapOr(undefined)
+    }
+    const match = read.ok ? read.value : undefined
 
     if (match === 'success') {
       for (const coveredKey of coveredKeysForItem(item)) {
@@ -125,20 +122,19 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
   private async writeSuccessesToStorage(keys: readonly string[]): Promise<void> {
     const storage = this.storage
     if (!storage) return
-    ;(
-      await Result.tryPromise({
-        try: () =>
-          storage.transactionKVStore(async kv => {
-            await Promise.all(keys.map(key => kv.put(coverageKVKey(key), 'success')))
-          }),
-        catch: error => error,
-      })
-    ).tapError(error => {
+    const result = await attemptAsync(
+      () =>
+        storage.transactionKVStore(async kv => {
+          await Promise.all(keys.map(key => kv.put(coverageKVKey(key), 'success')))
+        }),
+      error => error,
+    )
+    if (!result.ok) {
       this.report({
         type: 'persistence',
-        offending: { store: COVERAGE_KV_PREFIX, error },
+        offending: { store: COVERAGE_KV_PREFIX, error: result.error },
       })
-    })
+    }
   }
 }
 

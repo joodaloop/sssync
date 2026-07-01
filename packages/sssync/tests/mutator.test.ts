@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test'
 
-import { Result } from 'better-result'
 import * as v from 'valibot'
 
 import { defineMutators } from '../src/mutators'
@@ -53,8 +52,8 @@ describe('mutators', () => {
       },
     })
 
-    expect(Result.isOk(parsed)).toBe(true)
-    if (Result.isOk(parsed)) {
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) {
       expect(parsed.value).toEqual({
         name: 'updateIssueTitle',
         args: {
@@ -71,8 +70,8 @@ describe('mutators', () => {
       args: {},
     })
 
-    expect(Result.isError(parsed)).toBe(true)
-    if (Result.isError(parsed)) {
+    expect(!parsed.ok).toBe(true)
+    if (!parsed.ok) {
       expect(parsed.error).toEqual({ type: 'mutator', offending: 'missingMutator' })
     }
   })
@@ -85,13 +84,13 @@ describe('mutators', () => {
         title: 'New title',
       },
     })
-    expect(Result.isOk(parsed)).toBe(true)
-    if (!Result.isOk(parsed)) return
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
 
     const mutations = await mutators.apply(parsed.value)
 
-    expect(Result.isOk(mutations)).toBe(true)
-    if (Result.isOk(mutations)) {
+    expect(mutations.ok).toBe(true)
+    if (mutations.ok) {
       expect(mutations.value).toEqual([
         {
           type: 'UPDATE',
@@ -110,13 +109,13 @@ describe('mutators', () => {
         id: 'issue-1',
       },
     })
-    expect(Result.isOk(parsed)).toBe(true)
-    if (!Result.isOk(parsed)) return
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
 
     const mutations = await mutators.apply(parsed.value)
 
-    expect(Result.isOk(mutations)).toBe(true)
-    if (Result.isOk(mutations)) {
+    expect(mutations.ok).toBe(true)
+    if (mutations.ok) {
       expect(mutations.value).toEqual([
         {
           type: 'UPDATE',

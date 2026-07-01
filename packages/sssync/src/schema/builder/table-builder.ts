@@ -1,4 +1,4 @@
-import { panic } from 'better-result'
+import { panic } from '../../result'
 
 import { mapEntries } from '../../shared'
 import type { JSONValue, SchemaValue } from '../schema-value'

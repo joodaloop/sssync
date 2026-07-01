@@ -1,4 +1,4 @@
-import { Result } from 'better-result'
+import { attemptAsync, err, ok, type Result } from '../result'
 
 import type { Failure } from '../errors'
 import { safeValidate } from '../json-validator'
@@ -48,7 +48,7 @@ async function applyEnvelope<
   const definition = (definitions as Record<string, AnyMutatorDefinition<S>>)[envelope.name]
 
   if (!definition) {
-    return Result.err({ type: 'mutator', offending: envelope.name })
+    return err({ type: 'mutator', offending: envelope.name })
   }
 
   const mutations: Mutation<S>[] = []
@@ -56,13 +56,13 @@ async function applyEnvelope<
     mutate: createCollectingDb(schema, mutations),
   }
 
-  return Result.tryPromise({
-    try: async (): Promise<readonly Mutation<S>[]> => {
+  return attemptAsync(
+    async (): Promise<readonly Mutation<S>[]> => {
       await definition.effect({ tx, args: envelope.args })
       return mutations
     },
-    catch: (error): Failure => ({ type: 'mutator', offending: error }),
-  })
+    (error): Failure => ({ type: 'mutator', offending: error }),
+  )
 }
 
 function parseEnvelope<const Definitions extends Record<string, AnyMutatorDefinition>>(
@@ -70,28 +70,28 @@ function parseEnvelope<const Definitions extends Record<string, AnyMutatorDefini
   input: unknown,
 ): Result<ParsedMutatorEnvelope<Definitions>, Failure> {
   if (input === null || typeof input !== 'object') {
-    return Result.err({ type: 'validation', offending: input })
+    return err({ type: 'validation', offending: input })
   }
 
   const envelope = input as { name?: unknown; args?: unknown }
 
   if (typeof envelope.name !== 'string') {
-    return Result.err({ type: 'validation', offending: input })
+    return err({ type: 'validation', offending: input })
   }
 
   const definition = (definitions as Record<string, AnyMutatorDefinition>)[envelope.name]
 
   if (!definition) {
-    return Result.err({ type: 'mutator', offending: envelope.name })
+    return err({ type: 'mutator', offending: envelope.name })
   }
 
   const result = safeValidate(definition.args, envelope.args)
 
-  if (Result.isError(result)) {
-    return Result.err({ type: 'validation', offending: envelope.args })
+  if (!result.ok) {
+    return err({ type: 'validation', offending: envelope.args })
   }
 
-  return Result.ok({
+  return ok({
     name: envelope.name,
     args: result.value,
   } as ParsedMutatorEnvelope<Definitions>)

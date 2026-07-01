@@ -151,7 +151,7 @@ describe('Batcher', () => {
       validatePayload,
       () => {},
       () => {},
-      () => {},
+      () => () => {},
     )
 
     batcher.request(item('1'))
@@ -182,7 +182,7 @@ describe('Batcher', () => {
       validatePayload,
       () => {},
       () => {},
-      () => {},
+      () => () => {},
     )
 
     batcher.request(item('1'))
@@ -209,7 +209,7 @@ describe('Batcher', () => {
         added = response
       },
       b => batches.push(b),
-      () => {},
+      () => () => {},
     )
 
     batcher.request(item('1'))
@@ -231,7 +231,7 @@ describe('Batcher', () => {
       validatePayload,
       () => {},
       b => batches.push(b),
-      () => {},
+      () => () => {},
     )
 
     batcher.request(item('1'))
@@ -250,7 +250,7 @@ describe('Batcher', () => {
       validatePayload,
       () => {},
       b => batches.push(b),
-      () => {},
+      () => () => {},
     )
 
     batcher.request(item('1'))
@@ -268,7 +268,7 @@ describe('Batcher', () => {
       validatePayload,
       () => {},
       b => batches.push(b),
-      () => {},
+      () => () => {},
     )
 
     batcher.request(item('1'))
@@ -295,7 +295,7 @@ describe('Batcher', () => {
       validatePayload,
       () => {},
       () => {},
-      () => {},
+      () => () => {},
     )
 
     batcher.request(item('other'))
@@ -328,7 +328,7 @@ describe('Batcher', () => {
       validatePayload,
       () => {},
       () => {},
-      () => {},
+      () => () => {},
     )
 
     await batcher.flush()

@@ -62,7 +62,8 @@ description: Todo list & progress tracking
 - [ ] Ensure that rebasing is fast
 
 ## QoL
-- [x] [Switch to using `better-result` for typed error handling](https://github.com/joodaloop/sssync/commit/a7d7db728759c1e1fe64387cbd8a213ea9c0ed63)
+- [x] ~~[Switch to using `better-result` for typed error handling](https://github.com/joodaloop/sssync/commit/a7d7db728759c1e1fe64387cbd8a213ea9c0ed63)~~
+- [x] [Switch to using tagged union Result type for typed error handling]()
 - [x] [Flatten all table row vaildation into one shape (across network + persistence)](https://github.com/joodaloop/sssync/commit/d5cdd8df0184687eda048468189122052754fcfa)
 
 <br/>

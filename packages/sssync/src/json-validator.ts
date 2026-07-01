@@ -1,4 +1,4 @@
-import { Result, panic } from 'better-result'
+import { err, ok, panic, type Result } from './result'
 
 import type { StandardSchemaV1 } from './types'
 
@@ -42,9 +42,9 @@ export function safeValidate<Output>(
     panic('Async schemas are not supported')
   }
   if (result.issues) {
-    return Result.err(result.issues)
+    return err(result.issues)
   }
-  return Result.ok(result.value)
+  return ok(result.value)
 }
 
 export function string(): Validator<string> {

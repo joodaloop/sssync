@@ -1,4 +1,4 @@
-import { panic } from 'better-result'
+import { panic } from '../result'
 
 import * as j from '../json-validator'
 import type { SchemaValue, ValueType } from './schema-value'
