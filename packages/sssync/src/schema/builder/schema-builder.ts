@@ -1,3 +1,5 @@
+import { panic } from 'better-result'
+
 import { hasOwn, mapAllEntries } from '../../shared'
 import type { ClientDatabaseSchema, Relationship, RelationshipsSchema, TableSchema } from '../table-schema'
 import type { Relationships } from './relationship-builder'
@@ -30,13 +32,13 @@ export function createSchema<
 
   for (const table of options.tables) {
     if (hasOwn(retTables, table.schema.name)) {
-      throw new Error(`Table "${table.schema.name}" is defined more than once in the schema`)
+      panic(`Table "${table.schema.name}" is defined more than once in the schema`)
     }
     retTables[table.schema.name] = table.build()
   }
   for (const relationships of options.relationships ?? []) {
     if (retRelationships[relationships.name]) {
-      throw new Error(`Relationships for table "${relationships.name}" are defined more than once in the schema`)
+      panic(`Relationships for table "${relationships.name}" are defined more than once in the schema`)
     }
     retRelationships[relationships.name] = relationships.relationships
     checkRelationship(relationships.relationships, relationships.name, retTables)
@@ -58,18 +60,18 @@ function checkRelationship(
   for (const [name, rel] of Object.entries(relationships)) {
     let source = tables[tableName]
     if (source.columns[name] !== undefined) {
-      throw new Error(
+      panic(
         `Relationship "${tableName}"."${name}" cannot have the same name as the column "${name}" on the the table "${source.name}"`,
       )
     }
     for (const connection of rel) {
       if (!tables[connection.destSchema]) {
-        throw new Error(
+        panic(
           `For relationship "${tableName}"."${name}", destination table "${connection.destSchema}" is missing in the schema`,
         )
       }
       if (!source.columns[connection.sourceField[0]]) {
-        throw new Error(
+        panic(
           `For relationship "${tableName}"."${name}", the source field "${connection.sourceField[0]}" is missing in the table schema "${source.name}"`,
         )
       }

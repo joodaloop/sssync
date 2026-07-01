@@ -1,3 +1,5 @@
+import { panic } from 'better-result'
+
 import { mapEntries } from '../../shared'
 import type { JSONValue, SchemaValue } from '../schema-value'
 import type { PrimaryKey, TableSchema } from '../table-schema'
@@ -108,15 +110,15 @@ export class TableBuilderWithColumns<TShape extends TableSchema> {
     // before passing the schema to createSchema
     // Till then --
     if (this.#schema.primaryKey.length === 0) {
-      throw new Error(`Table "${this.#schema.name}" is missing a primary key`)
+      panic(`Table "${this.#schema.name}" is missing a primary key`)
     }
     for (const columnName of this.#schema.primaryKey) {
       const col = this.#schema.columns[columnName]
       if (col.type === 'json') {
-        throw new Error(`Primary key column "${this.#schema.name}"."${columnName}" cannot be json`)
+        panic(`Primary key column "${this.#schema.name}"."${columnName}" cannot be json`)
       }
       if (col.optional) {
-        throw new Error(`Primary key column "${this.#schema.name}"."${columnName}" cannot be optional`)
+        panic(`Primary key column "${this.#schema.name}"."${columnName}" cannot be optional`)
       }
     }
     return this.#schema

@@ -75,14 +75,14 @@ describe('Store.applyMutation', () => {
     })
   })
 
-  test('ignores UPDATE for a missing row', () => {
-    const reports: unknown[] = []
-    const store = new Store(schema, error => reports.push(error))
+  test('panics on UPDATE for a missing row', () => {
+    const store = new Store(schema)
 
-    store.applyMutation([updateIssue('99', { done: true })])
+    expect(() => store.applyMutation([updateIssue('99', { done: true })])).toThrow(
+      'UPDATE cannot apply: no live "issues" row',
+    )
 
     expect(store.tables.issues.has('["99"]')).toBe(false)
-    expect(reports).toEqual([{ type: 'store', where: 'store', offending: updateIssue('99', { done: true }) }])
   })
 
   test('removes rows on DELETE', () => {

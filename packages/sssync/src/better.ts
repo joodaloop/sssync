@@ -9,14 +9,13 @@ export type Report =
   | { readonly type: 'validation'; readonly offending: unknown }
   | { readonly type: 'url'; readonly offending: unknown }
   | { readonly type: 'persistence'; readonly offending: { store: string; key?: string; error: unknown } }
-  | { readonly type: 'store'; readonly offending: { type: 'INSERT' | 'UPDATE' | 'DELETE'; table: string } }
   | { readonly type: 'mutator'; readonly offending: unknown }
 
 export type HttpReport = Extract<Report, { readonly type: 'http' }>
 export type ValidationReport = Extract<Report, { readonly type: 'validation' }>
 
 export type Reported = Report & {
-  where: 'batcher' | 'bootstrap' | 'coverage' | 'sssync' | 'store'
+  where: 'batcher' | 'bootstrap' | 'coverage' | 'sssync'
 }
 
 // Renders a Report as a human-readable line at the logging/display boundary.
@@ -35,8 +34,6 @@ export function describe(report: Report): string {
       const o = report.offending
       return `Persistence error in ${o.store}${o.key ? ` (${o.key})` : ''}: ${String(o.error)}`
     }
-    case 'store':
-      return `${report.offending.type} dropped: no live "${report.offending.table}" row`
     case 'mutator':
       return typeof report.offending === 'string'
         ? `Unknown mutator: ${report.offending}`

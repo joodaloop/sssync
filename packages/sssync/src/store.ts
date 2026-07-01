@@ -1,10 +1,9 @@
-import { Result } from 'better-result'
+import { panic } from 'better-result'
 
-import type { Report, Reported } from './better'
 import type { Mutation } from './mutators/types'
 import type { IdInputOf, RowOf, TableName, Tables } from './schema/infer'
 import type { ClientDatabaseSchema, TableSchema } from './schema/table-schema'
-import { primaryKeyFor } from './shared'
+import { hasOwn, primaryKeyFor } from './shared'
 
 // The diff is `readonly DiffOperation[]` where each op is `{op:'add', key, newValue}` | `{op:'del', key, oldValue}` | `{op:'change', key, oldValue, newValue}`. The callback is never invoked with an empty diff. This add/del/change triple with old+new values is the canonical shape — worth matching exactly so downstream consumers can be generic.
 
@@ -48,10 +47,6 @@ type RowTransition = {
   readonly table: string
   readonly key: string
   readonly before: StoreRow | undefined
-  // Whether the key was present in the table before this transaction. Tells a
-  // pre-existing tombstone (present, value undefined) apart from a never-seen
-  // row (absent) when rolling back.
-  readonly beforeExisted: boolean
   after: StoreRow | undefined
 }
 
@@ -81,10 +76,7 @@ export class Store<S extends ClientDatabaseSchema> {
   readonly #rowChangeListeners = new Set<RowChangeListener>()
   #transaction: Map<string, RowTransition> | undefined
 
-  constructor(
-    schema: S,
-    private readonly report: (error: Reported) => void = () => {},
-  ) {
+  constructor(schema: S) {
     this.#schema = schema
     this.tables = Object.fromEntries(Object.keys(schema.tables).map(name => [name, new Map()])) as {
       [Name in TableName<S>]: TableStore<Tables<S>[Name]>
@@ -102,24 +94,20 @@ export class Store<S extends ClientDatabaseSchema> {
     }
   }
 
-  applyMutation(mutations: readonly Mutation<S>[]): Result<void, Report> {
-    return this.transact(() => {
+  applyMutation(mutations: readonly Mutation<S>[]): void {
+    this.transact(() => {
       for (const mutation of mutations) {
-        const result = this.applyOne(mutation)
-        if (Result.isError(result)) return result
+        this.applyOne(mutation)
       }
-      return Result.ok()
     })
   }
 
-  applySyncerUpdate(mutations: readonly Mutation<S>[]): Result<void, Report> {
+  applySyncerUpdate(mutations: readonly Mutation<S>[]): void {
     // undo mutations
-    return this.transact(() => {
+    this.transact(() => {
       for (const mutation of mutations) {
-        const result = this.applyOne(mutation)
-        if (Result.isError(result)) return result
+        this.applyOne(mutation)
       }
-      return Result.ok()
     })
     // redo mutations
   }
@@ -128,8 +116,6 @@ export class Store<S extends ClientDatabaseSchema> {
   // currently absent. Used to seed the store without clobbering existing
   // (e.g. locally mutated) rows.
   addIfNotExist(rowsByTable: RowsByTable<S>): void {
-    // Seeding can only throw (unknown table); it never produces a Report, so the
-    // Ok result from transact is discarded.
     this.transact(() => {
       // undo mutations
 
@@ -147,97 +133,75 @@ export class Store<S extends ClientDatabaseSchema> {
       }
 
       // redo mutations
-      return Result.ok()
     })
   }
 
   // Derives the Map key from a row or id object in primary-key order.
   private keyFor(tableName: string, record: unknown): string {
-    return primaryKeyFor(this.#schema.tables[tableName], record)
+    return primaryKeyFor(this.schemaFor(tableName), record)
   }
 
-  private transact(applyUpdates: () => Result<void, Report>): Result<void, Report> {
+  private schemaFor(tableName: string): TableSchema {
+    if (!hasOwn(this.#schema.tables, tableName)) {
+      panic(`Unknown table "${tableName}"`)
+    }
+    return this.#schema.tables[tableName]
+  }
+
+  private transact(applyUpdates: () => void): void {
     // Re-entrant: a nested call joins the in-progress transaction, writing into
-    // the same transitions map. The outermost call owns commit/rollback and
+    // the same transitions map. The outermost call owns change collection and
     // fires listeners once, so a group of nested writes lands as one change set.
     if (this.#transaction) {
-      return applyUpdates()
+      applyUpdates()
+      return
     }
 
     const transitions = new Map<string, RowTransition>()
     this.#transaction = transitions
-    let changes: StoreRowChange[] | undefined
 
-    try {
-      const result = applyUpdates()
-      // An error result aborts the batch: roll back to the pre-transaction
-      // state and return the Report without firing listeners.
-      if (Result.isError(result)) {
-        this.rollback(transitions)
-        return result
+    applyUpdates()
+
+    const changes: StoreRowChange[] = []
+
+    for (const transition of transitions.values()) {
+      const { table, key, before, after } = transition
+      if (before === undefined && after === undefined) continue
+
+      if (before === undefined) {
+        changes.push({ type: 'insert', table, key, row: after as StoreRow })
+        continue
       }
 
-      changes = []
+      if (after === undefined) {
+        changes.push({ type: 'remove', table, key })
+        continue
+      }
 
-      for (const transition of transitions.values()) {
-        const { table, key, before, after } = transition
-        if (before === undefined && after === undefined) continue
+      const patch: Record<string, unknown> = {}
+      const columns = new Set([...Object.keys(before), ...Object.keys(after)])
 
-        if (before === undefined) {
-          changes.push({ type: 'insert', table, key, row: after as StoreRow })
-          continue
-        }
-
-        if (after === undefined) {
-          changes.push({ type: 'remove', table, key })
-          continue
-        }
-
-        const patch: Record<string, unknown> = {}
-        const columns = new Set([...Object.keys(before), ...Object.keys(after)])
-
-        for (const column of columns) {
-          if (!Object.is(before[column], after[column])) {
-            patch[column] = after[column]
-          }
-        }
-
-        if (Object.keys(patch).length > 0) {
-          changes.push({ type: 'update', table, key, changes: patch })
+      for (const column of columns) {
+        if (!Object.is(before[column], after[column])) {
+          patch[column] = after[column]
         }
       }
-    } catch (error) {
-      // Restore every row this transaction touched to its pre-transaction value,
-      // so a mid-batch throw leaves the store unchanged rather than half-applied.
-      // No listeners fire, since `changes` is never assigned.
-      this.rollback(transitions)
-      throw error
-    } finally {
-      this.#transaction = undefined
+
+      if (Object.keys(patch).length > 0) {
+        changes.push({ type: 'update', table, key, changes: patch })
+      }
     }
 
-    if (!changes || changes.length === 0) return Result.ok()
+    this.#transaction = undefined
+
+    if (changes.length === 0) return
     for (const listener of this.#rowChangeListeners) listener(changes)
-    return Result.ok()
-  }
-
-  // Reverts each touched row to its pre-transaction state: restore the prior
-  // value if the key existed (which may be a tombstone), otherwise drop the key.
-  private rollback(transitions: Map<string, RowTransition>): void {
-    for (const { table, key, before, beforeExisted } of transitions.values()) {
-      const store = this.tableFor(table)
-      if (beforeExisted) {
-        store.set(key, before as RowOf<TableSchema> | undefined)
-      } else {
-        store.delete(key)
-      }
-    }
   }
 
   private setRow(tableName: string, key: string, row: StoreRow | undefined): void {
     const transaction = this.#transaction
     if (!transaction) {
-      throw new Error('Store writes must run inside a transaction')
+      panic('Store writes must run inside a transaction')
     }
 
     const table = this.tableFor(tableName)
@@ -245,7 +209,7 @@ export class Store<S extends ClientDatabaseSchema> {
     let transition = transaction.get(txKey)
     if (!transition) {
       const before = table.get(key)
-      transition = { table: tableName, key, before, beforeExisted: table.has(key), after: before }
+      transition = { table: tableName, key, before, after: before }
       transaction.set(txKey, transition)
     }
 
@@ -259,12 +223,12 @@ export class Store<S extends ClientDatabaseSchema> {
   private tableFor(tableName: string): Map<string, RowOf<TableSchema> | undefined> {
     const table = this.tables[tableName as TableName<S>] as Map<string, RowOf<TableSchema> | undefined> | undefined
     if (!table) {
-      throw new Error(`Unknown table "${tableName}"`)
+      panic(`Unknown table "${tableName}"`)
     }
     return table
   }
 
-  private applyOne(mutation: Mutation<S>): Result<void, Report> {
+  private applyOne(mutation: Mutation<S>): void {
     switch (mutation.type) {
       case 'INSERT': {
         this.setRow(mutation.table, this.keyFor(mutation.table, mutation.data), mutation.data)
@@ -278,9 +242,7 @@ export class Store<S extends ClientDatabaseSchema> {
           this.setRow(mutation.table, key, { ...existing, ...mutation.changes })
         } else {
           // Target row isn't live — a tombstone (deleted locally) or never seen.
-          // The update can't apply; drop it and record it, but don't return Err:
-          // that would roll back every other mutation in the batch too.
-          this.report({ type: 'store', where: 'store', offending: mutation })
+          panic(`UPDATE cannot apply: no live "${mutation.table}" row`)
         }
         break
       }
@@ -290,6 +252,5 @@ export class Store<S extends ClientDatabaseSchema> {
         break
       }
     }
-    return Result.ok()
   }
 }

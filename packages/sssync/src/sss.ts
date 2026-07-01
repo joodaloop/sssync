@@ -103,7 +103,7 @@ export class SSSync<
       validatePayload,
     })
     this.#isPersistent.set(options.storage !== null)
-    this.#rows = new Store(options.schema, error => this.report(error))
+    this.#rows = new Store(options.schema)
     this.#store = store(options.schema, {
       getRowFromTable: this.#rows.getRowFromTable,
       subscribeToRowChanges: this.#rows.subscribeToRowChanges,

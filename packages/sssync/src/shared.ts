@@ -1,3 +1,5 @@
+import { panic } from 'better-result'
+
 import type { TableSchema } from './schema/table-schema'
 
 export function mapEntries<T, U>(
@@ -111,13 +113,13 @@ export function primaryKeyValues(table: TableSchema, idOrRow: unknown): readonly
   }
 
   if (idOrRow === null || typeof idOrRow !== 'object' || Array.isArray(idOrRow)) {
-    throw new Error(`Composite primary key for table "${table.name}" requires an object`)
+    panic(`Composite primary key for table "${table.name}" requires an object`)
   }
 
   const record = idOrRow as Record<string, unknown>
   for (const key of table.primaryKey) {
     if (!(key in record)) {
-      throw new Error(`Composite primary key for table "${table.name}" is missing "${key}"`)
+      panic(`Composite primary key for table "${table.name}" is missing "${key}"`)
     }
   }
   return table.primaryKey.map(key => record[key])
