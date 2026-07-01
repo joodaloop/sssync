@@ -60,43 +60,8 @@ export class CoverageTracker<S extends ClientDatabaseSchema> {
         this.pending.set(coveredKey, pending)
       }
     }
-    if (this.storage) {
-      void this.resolveFromStorage(item, pending).then(resolved => {
-        if (!resolved) this.batcher.request(item)
-      })
-    } else {
-      this.batcher.request(item)
-    }
+    this.batcher.request(item)
     return promise
-  }
-
-  private async resolveFromStorage(item: ResolvedItem, pending: Pending): Promise<boolean> {
-    const storage = this.storage
-    if (!storage) return false
-    const key = cacheKeyForItem(item)
-
-    const read = await attemptAsync(
-      () => storage.transactionKVStore(kv => kv.get(coverageKVKey(key))),
-      error => error,
-    )
-    if (!read.ok) {
-      this.report({
-        type: 'persistence',
-        offending: { store: COVERAGE_KV_PREFIX, key: coverageKVKey(key), error: read.error },
-      })
-    }
-    const match = read.ok ? read.value : undefined
-
-    if (match === 'success') {
-      for (const coveredKey of coveredKeysForItem(item)) {
-        this.coverage.set(coveredKey, 'success')
-        this.pending.delete(coveredKey)
-      }
-      pending.resolve('success')
-      return true
-    }
-
-    return false
   }
 
   // Handed to the batcher as its resolver; records each item's outcome and
