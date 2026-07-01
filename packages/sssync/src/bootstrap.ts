@@ -10,25 +10,6 @@ import type { Observable } from './shared'
 import type { Reporter, ReporterFactory } from './sss'
 import type { RowsByTable } from './store'
 
-/*
-`this.bootstrapStatuses` is an Observable to track bootstrapping status (BootstrapStatus) across tables
-`this.load(tableName)` is the method to trigger a bootstrap for a particular table
-
- On initialisation:
-  - Load successes for all `tableNames` from IDBStorage's KVStore and write to `this.bootstrapStatuses`
-  - Set up listener on `bootstrap-broadcast-channel` to trigger rescans of bootstrap successes
-
- When .load(tableName) is called, and this.bootstrapStatuses[tableName] is not 'success' or 'pending', make a fetch request to BootstrapURL?model=tableName and set `this.bootstrapStatuses[tableName]` to "pending"
- If the fetch and validation:
-  - SUCCEEDS:
-    - Call .addToStoreIfNotExist()
-        - Set `this.bootstrapStatuses[tableName]` to "success"
-        - Persist the boostrap success
-          - Notify other tabs through the `bootstrap-broadcast-channel`
-  - FAILS:
-    - Set `this.bootstrapStatuses[tableName]` to the corresponding Failure
-*/
-
 type BootstrapStatus = 'pending' | 'success' | Failure
 
 export type BootstrapsSnapshot<S extends ClientDatabaseSchema> = Readonly<
@@ -42,10 +23,17 @@ export function bootstrapKVKey(tableName: string): string {
   return `${BOOTSTRAPS_KV_PREFIX}:${tableName}`
 }
 
+/**
+ * Tracks and drives per-table bootstrapping. Table statuses live in the
+ * `bootstrapStatuses` observable ('pending' | 'success' | Failure, or undefined).
+ *
+ * Successes are persisted to the KV store and broadcast across tabs. Failures are recorded but not persisted, and can be retried.
+ */
 export class Bootstrap<S extends ClientDatabaseSchema> {
   private readonly report: Reporter
   private readonly channel: ChannelListener<typeof bootstrapMessageSchema>
 
+  /** Subscribes to the cross-tab channel; each message triggers a `rescan`. */
   constructor(
     private readonly bootstrapURL: string,
     private readonly bootstrapStatuses: Observable<BootstrapsSnapshot<S>>,
@@ -61,10 +49,12 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
     this.channel.handle(message => void this.rescan(message.id))
   }
 
+  /** Tears down the cross-tab channel subscription. */
   close(): void {
     this.channel.close()
   }
 
+  /** Loads persisted 'success' statuses for every known table into the observable. */
   async hydrate(): Promise<void> {
     if (!this.storage) return
 
@@ -78,27 +68,25 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
     this.bootstrapStatuses.set({ ...this.bootstrapStatuses.get(), ...loaded })
   }
 
-  private rescan = async (modelName: string): Promise<void> => {
-    if (!this.storage) return
-
-    const status = await this.storage.transactionKVStore(kv => this.readPersistedBootstrapStatus(modelName, kv))
-    this.setStatus(modelName, status)
-  }
-
-  private async readPersistedBootstrapStatus(tableName: string, kv: IDBKVTransaction): Promise<'success' | undefined> {
-    const key = bootstrapKVKey(tableName)
-    const read = await kv.get(key)
-    if (!read.ok) {
-      this.report({ type: read.error.type, offending: { store: key, key, error: read.error } })
-      return undefined
-    }
-    return read.value === 'success' ? 'success' : undefined
-  }
-
-  private setStatus(modelName: string, status: BootstrapStatus | undefined): void {
-    this.bootstrapStatuses.set({ ...this.bootstrapStatuses.get(), [modelName]: status })
-  }
-
+  /**
+   * Bootstraps a single table, driving it through its status transitions.
+   *
+   * If `bootstrapStatuses[modelName]` is already 'success' or 'pending', returns
+   * immediately — the table is done or in flight. (A Failure status falls
+   * through, so a previously failed table retries here.) Otherwise:
+   *
+   *   1. Set the status to 'pending'.
+   *   2. Fetch `bootstrapURL?model=<modelName>` and validate the payload.
+   *      - If the fetch fails:
+   *          - Set the status to the http Failure and stop.
+   *      - If validation fails:
+   *          - Set the status to the validation Failure and stop.
+   *      - If both succeed:
+   *          - Hand the rows to `addToStoreIfNotExist`.
+   *          - Set the status to 'success'.
+   *          - Persist the success and broadcast it to other tabs
+   *            (best-effort; see `persistSuccess`).
+   */
   async load(modelName: string): Promise<void> {
     const current = this.bootstrapStatuses.get()[modelName as TableName<S>]
     if (current === 'success' || current === 'pending') return undefined
@@ -135,5 +123,26 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
       return
     }
     this.channel.post({ id: modelName })
+  }
+
+  private rescan = async (modelName: string): Promise<void> => {
+    if (!this.storage) return
+
+    const status = await this.storage.transactionKVStore(kv => this.readPersistedBootstrapStatus(modelName, kv))
+    this.setStatus(modelName, status)
+  }
+
+  private async readPersistedBootstrapStatus(tableName: string, kv: IDBKVTransaction): Promise<'success' | undefined> {
+    const key = bootstrapKVKey(tableName)
+    const read = await kv.get(key)
+    if (!read.ok) {
+      this.report({ type: read.error.type, offending: { store: key, key, error: read.error } })
+      return undefined
+    }
+    return read.value === 'success' ? 'success' : undefined
+  }
+
+  private setStatus(modelName: string, status: BootstrapStatus | undefined): void {
+    this.bootstrapStatuses.set({ ...this.bootstrapStatuses.get(), [modelName]: status })
   }
 }
