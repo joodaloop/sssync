@@ -1,15 +1,14 @@
-import { fetchJSON } from './boundaries'
+import { fetchJSON } from './boundaries';
+import type { ValidatePayload } from './boundaries';
 import type { HttpFailure, IDBReadFailure, ValidationFailure } from './errors'
 import type { IDBKVTransaction, IDBStorage } from './idb/types'
 import { object, string } from './json-validator'
 import { listenChannel } from './listen-channel'
 import type { ChannelListener } from './listen-channel'
-import type { TableName } from './schema/infer'
-import type { ClientDatabaseSchema } from './schema/table-schema'
+import type { TableName, ClientDatabaseSchema } from './schema'
 import type { Observable } from './shared'
 import type { Reporter, ReporterFactory } from './sss'
 import type { RowsByTable } from './store'
-import type { ValidatePayload } from './validate'
 
 /*
 `this.bootstrapStatuses` is an Observable to track bootstrapping status (BootstrapStatus) across tables
@@ -32,7 +31,9 @@ import type { ValidatePayload } from './validate'
 
 type BootstrapStatus = 'pending' | 'success' | HttpFailure | ValidationFailure | IDBReadFailure
 
-export type BootstrapsSnapshot<S extends ClientDatabaseSchema> = Readonly<Partial<Record<TableName<S>, BootstrapStatus>>>
+export type BootstrapsSnapshot<S extends ClientDatabaseSchema> = Readonly<
+  Partial<Record<TableName<S>, BootstrapStatus>>
+>
 
 const bootstrapMessageSchema = object({ id: string() })
 export const BOOTSTRAPS_KV_PREFIX = 'bootstraps'
@@ -76,16 +77,11 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
   }
 
   private rescan = async (modelName: string): Promise<void> => {
-    const status = await this.storage?.transactionKVStore(kv =>
-      this.readPersistedBootstrapStatus(modelName, kv),
-    )
+    const status = await this.storage?.transactionKVStore(kv => this.readPersistedBootstrapStatus(modelName, kv))
     this.bootstrapStatuses.set({ ...this.bootstrapStatuses.get(), [modelName]: status })
   }
 
-  private async readPersistedBootstrapStatus(
-    tableName: string,
-    kv: IDBKVTransaction,
-  ): Promise<'success' | undefined> {
+  private async readPersistedBootstrapStatus(tableName: string, kv: IDBKVTransaction): Promise<'success' | undefined> {
     const key = bootstrapKVKey(tableName)
     const read = await kv.get(key)
     if (!read.ok) {
@@ -95,13 +91,10 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
     return read.value === 'success' ? 'success' : undefined
   }
 
-
-
   async load(modelName: string) {
     const url = `${this.bootstrapURL}?model=${encodeURIComponent(modelName)}`
     const payload = await fetchJSON(url)
     if (!payload.ok) return payload
     return this.validatePayload(payload.value)
   }
-
 }
