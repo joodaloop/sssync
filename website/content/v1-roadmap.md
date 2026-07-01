@@ -25,7 +25,6 @@ description: Todo list & progress tracking
 - [x] [Build bootstrap lifecycle manager](https://github.com/joodaloop/sssync/commit/fb47175bf0f13d76d9d0c43247ca3a65e3d3f694)
 - [x] [Design batch loader that dedupes query satisfactions and validates responses](https://github.com/joodaloop/sssync/commit/a96a3bfef518a3c44f3be8f6470fa5ba5dfa4fbc)
 - [x] [Handle the `bootstrap-store-updated` Broadcast Channel coordinator](https://github.com/joodaloop/sssync/commit/74e8d6d3b1781efca79094acb81996f080b83b61)
-- [ ] Handle the `coverage-updated` Broadcast Channel coordinator
 
 ## Store
 - [ ] Design APIs to write to the store from:
@@ -63,7 +62,8 @@ description: Todo list & progress tracking
 - [ ] Ensure that rebasing is fast
 
 ## QoL
-- [x] ~~[Switch to using `better-result` for typed error handling](https://github.com/joodaloop/sssync/commit/a7d7db728759c1e1fe64387cbd8a213ea9c0ed63)~~
+- [ ] Come up with a minimal set of key/id formats for everything
+- [ ] Decide on a single format for passing along row changes
 - [x] [Switch to using tagged union Result type for typed error handling](https://github.com/joodaloop/sssync/commit/1fadf96a23db72fde0ef75cebdbb0d2662b5b10c)
 - [x] [Flatten all table row vaildation into one shape (across network + persistence)](https://github.com/joodaloop/sssync/commit/d5cdd8df0184687eda048468189122052754fcfa)
 
@@ -87,6 +87,7 @@ description: Todo list & progress tracking
 ## Dead ends
 
 ### ~~Events & Projectors~~
+- [x] ~~[Switch to using `better-result` for typed error handling](https://github.com/joodaloop/sssync/commit/a7d7db728759c1e1fe64387cbd8a213ea9c0ed63)~~
 - [x] ~~Decide on an event schema format~~
 - [ ] ~~Figure out a nice projector API that is easy to use across backend and frontend~~
 - [ ] ~~Build type-safe projectors that connect **events** and **schema** in a SSSync client~~
