@@ -5,6 +5,13 @@ import { err, ok } from '../../src/result'
 import { column, createSchema, table } from '../../src/schema'
 import type { ReporterFactory, Where } from '../../src/sss'
 
+// listenChannel treats the absence of `window` as "running on the server" and
+// no-ops. Bun's test runtime has no `window`, so define one to exercise the
+// real (browser) BroadcastChannel path.
+if (typeof (globalThis as { window?: unknown }).window === 'undefined') {
+  ;(globalThis as { window?: unknown }).window = globalThis
+}
+
 // The shared test schema. Keep this in sync with what the test suite exercises;
 // new tests should import from here rather than redefining a local `issues`.
 export const issues = table('issues')

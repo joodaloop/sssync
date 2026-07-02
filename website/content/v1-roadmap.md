@@ -37,8 +37,9 @@ description: Todo list & progress tracking
 - [x] Design error types for library
 - [ ] Handle the `schema-changed` Broadcast Channel coordinator
 - [ ] Figure out how to play well with SSR:
-  1. Make IDB storage purely pluggable
-  2. Guard `BroadcastChannel` messages to only run on client
+  - [ ] Ensure that batcher and bootstrap run on the server
+  - [x] Make IDB storage purely pluggable
+  - [x] Guard `BroadcastChannel` messages to only run on client
 - [ ] Connect query layer with the coverage tracker
 - [x] [Connect bootstrap layer to store](https://github.com/joodaloop/sssync/commit/208bb9e729cbeec807de16a06ce0782234bf3fa5)
 - [x] [Connect the coverage tracker with the batch loader](https://github.com/joodaloop/sssync/commit/54d199d3d9bc435ca532ada96fa653bedccee3fe)
