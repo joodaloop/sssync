@@ -1,6 +1,6 @@
+import { rowValidatorsFor, validateRowsByTable } from '../../src/boundaries'
 import type { Failure } from '../../src/errors'
 import type { IDBKVTransaction, IDBStorage } from '../../src/idb/types'
-import { rowValidatorsFor, validateRowsByTable } from '../../src/boundaries'
 import { err, ok } from '../../src/result'
 import { column, createSchema, table } from '../../src/schema'
 import type { ReporterFactory, Where } from '../../src/sss'

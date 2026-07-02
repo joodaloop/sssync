@@ -1,5 +1,6 @@
 import { Batcher } from './batcher'
 import type { ResolvedBatch } from './batcher'
+import type { ValidatePayload } from './boundaries'
 import type { IDBStorage } from './idb/types'
 import { attemptAsync } from './result'
 import type { ClientDatabaseSchema } from './schema/table-schema'
@@ -7,7 +8,6 @@ import { cacheKeyForItem, coveredKeysForItem } from './shared'
 import type { BatchStats, Observable, ResolvedItem } from './shared'
 import type { Reporter, ReporterFactory } from './sss'
 import type { RowsByTable } from './store'
-import type { ValidatePayload } from './validate'
 
 export type Coverage = 'success' | 'error'
 

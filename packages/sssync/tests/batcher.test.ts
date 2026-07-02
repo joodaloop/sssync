@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:
 
 import { Batcher, mergeRequests } from '../src/batcher'
 import type { ResolvedBatch } from '../src/batcher'
+import { rowValidatorsFor, validateRowsByTable } from '../src/boundaries'
 import { column, createSchema, table } from '../src/schema'
 import { Observable, resolvedItemFor } from '../src/shared'
 import type { BatchStats } from '../src/shared'
-import { rowValidatorsFor, validateRowsByTable } from '../src/validate'
 
 const issues = table('issues')
   .columns({

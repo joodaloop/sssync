@@ -14,17 +14,26 @@ description: Todo list & progress tracking
 - [ ] Build cross-tab ordering system
 - [ ] Connect to IDB for persistence
 - [ ] Choose an incrementing Mutation ID format per (client|browser)
+- [ ] Connect mutations rebasing to store
 
-## Query DSL
+## Queries
 - [x] [Finalise design for query DSL](https://github.com/joodaloop/sssync/commit/3e255be4fd00f77772a3ee91b83d3dd02c0c10e7)
 - [ ] Design system for subscriptions
 - [ ] Make sure updates to queries are batched before revealing to the UI
 - [ ] Add lazy accessor to queries to track just insert/update/delete (like experimental `watch()` API) 
+- [ ] Connect query layer with the coverage tracker
 
-## Network requests
-- [x] [Build bootstrap lifecycle manager](https://github.com/joodaloop/sssync/commit/fb47175bf0f13d76d9d0c43247ca3a65e3d3f694)
+## Batcher
+- [x] [Connect batch loader with the store](https://github.com/joodaloop/sssync/commit/14e178c136b6ddbfe431a6a00076394d405f57d4)
 - [x] [Design batch loader that dedupes query satisfactions and validates responses](https://github.com/joodaloop/sssync/commit/a96a3bfef518a3c44f3be8f6470fa5ba5dfa4fbc)
-- [x] [Handle the `bootstrap-store-updated` Broadcast Channel coordinator](https://github.com/joodaloop/sssync/commit/74e8d6d3b1781efca79094acb81996f080b83b61)
+- [x] [Connect the coverage tracker with the batch loader](https://github.com/joodaloop/sssync/commit/54d199d3d9bc435ca532ada96fa653bedccee3fe)
+
+## Bootstrap
+- [x] [Handle the `bootstraps` Broadcast Channel updates](https://github.com/joodaloop/sssync/commit/74e8d6d3b1781efca79094acb81996f080b83b61)
+- [x] [Build bootstrap lifecycle manager](https://github.com/joodaloop/sssync/commit/fb47175bf0f13d76d9d0c43247ca3a65e3d3f694)
+- [x] [Connect bootstrap layer to store](https://github.com/joodaloop/sssync/commit/208bb9e729cbeec807de16a06ce0782234bf3fa5)
+- [x] Persist and load BoostrapStatus(es) from IDB
+- [x] Expose BoostrapStatus as an Observable
 
 ## Store
 - [ ] Design APIs to write to the store from:
@@ -33,29 +42,21 @@ description: Todo list & progress tracking
   - [x] [Batch/bootstrap](https://github.com/joodaloop/sssync/commit/068f1bcd36abd5f8bac0887c67458e94988811c5)
 - [ ] Handle the `store-updated` Broadcast Channel coordinator
 
-## SSSync class
-- [x] Design error types for library
-- [ ] Handle the `schema-changed` Broadcast Channel coordinator
-- [ ] Figure out how to play well with SSR:
-  - [ ] Ensure that batcher and bootstrap run on the server
-  - [x] Make IDB storage purely pluggable
-  - [x] Guard `BroadcastChannel` messages to only run on client
-- [ ] Connect query layer with the coverage tracker
-- [x] [Connect bootstrap layer to store](https://github.com/joodaloop/sssync/commit/208bb9e729cbeec807de16a06ce0782234bf3fa5)
-- [x] [Connect the coverage tracker with the batch loader](https://github.com/joodaloop/sssync/commit/54d199d3d9bc435ca532ada96fa653bedccee3fe)
-- [x] [Connect batch loader with the store](https://github.com/joodaloop/sssync/commit/14e178c136b6ddbfe431a6a00076394d405f57d4)
-- [ ] Coordinate the startup sequence (check for database, create if needed)
-- [ ] Connect mutations rebasing to store
-
 ## Persistence (IDB)
+- [ ] Handle the `schema-changed` Broadcast Channel coordinator
 - [ ] Build an IndexedDB database management system
+- [ ] Coordinate the startup sequence (check for database, create if needed)
 - [ ] Design API for storing mutation queue
 - [x] [Design API for persisting store data](https://github.com/joodaloop/sssync/commit/18c53c26654781be9035c87ffa6723c6049c5941)
-- [x] [Design KV store API for storing coverage indexes & bootstrap status](https://github.com/joodaloop/sssync/commit/7b2c6376a0b315d3bc7618d0be0fa7985e3bf89e)
+- [x] [Provide namespaced KV store](https://github.com/joodaloop/sssync/commit/7b2c6376a0b315d3bc7618d0be0fa7985e3bf89e)
 
 ## Integrations
 - [ ] Solid.js wrapper with Stores on the reactive layers
 - [ ] React wrapper with stable identity
+- [ ] Figure out how to play well with SSR:
+  - [ ] Surface query interface in a way that allows usage with a Loader function
+  - [x] Make IDB storage purely pluggable
+  - [x] Guard `BroadcastChannel` messages to only run on client
 
 ## Performance
 - [ ] Make sure store APIs are fast
@@ -63,8 +64,10 @@ description: Todo list & progress tracking
 - [ ] Ensure that rebasing is fast
 
 ## QoL
+- [ ] Add thorough docstrings to all files to drive agents and test creation
 - [ ] Come up with a minimal set of key/id formats for everything
 - [ ] Decide on a single format for passing along row changes
+- [x] [Design error types for library](https://github.com/joodaloop/sssync/commit/828689ae2f701543653da3e9f06bf7f013ab1f9a)
 - [x] [Switch to using tagged union Result type for typed error handling](https://github.com/joodaloop/sssync/commit/1fadf96a23db72fde0ef75cebdbb0d2662b5b10c)
 - [x] [Flatten all table row vaildation into one shape (across network + persistence)](https://github.com/joodaloop/sssync/commit/d5cdd8df0184687eda048468189122052754fcfa)
 

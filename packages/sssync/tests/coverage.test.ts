@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 
+import { rowValidatorsFor, validateRowsByTable } from '../src/boundaries'
 import { CoverageTracker } from '../src/coverage'
 import type { Failure } from '../src/errors'
 import type { IDBKVTransaction, IDBStorage } from '../src/idb/types'
@@ -8,7 +9,6 @@ import type { ClientDatabaseSchema } from '../src/schema'
 import { cacheKeyForItem, Observable, resolvedItemFor } from '../src/shared'
 import type { BatchStats, ResolvedItem } from '../src/shared'
 import type { ReporterFactory, Where } from '../src/sss'
-import { rowValidatorsFor, validateRowsByTable } from '../src/validate'
 
 const status = <S extends ClientDatabaseSchema>(tracker: CoverageTracker<S>, item: ResolvedItem) =>
   tracker.coverage.get(cacheKeyForItem(item))

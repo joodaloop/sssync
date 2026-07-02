@@ -1,11 +1,11 @@
 import { openDB } from 'idb'
 import type { IDBPDatabase, IDBPTransaction } from 'idb'
 
+import type { ValidatePayload } from '../boundaries'
 import { describe } from '../errors'
 import { panic } from '../result'
 import type { ClientDatabaseSchema, IdInputOf, Relationship, RowOf, TableName, TableSchema, Tables } from '../schema'
 import { primaryKeyFor, tupleKey } from '../shared'
-import type { ValidatePayload } from '../validate'
 import type { IDBKVTransaction, IDBReadTransaction, IDBStorage, IDBStorageInitOptions } from './types'
 
 type StorageRecord = {

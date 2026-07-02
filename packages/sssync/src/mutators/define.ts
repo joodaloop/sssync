@@ -1,7 +1,7 @@
 import type { Failure } from '../errors'
 import { safeValidate } from '../json-validator'
-import { attemptAsync, err, ok } from '../result';
-import type { Result } from '../result';
+import { attemptAsync, err, ok } from '../result'
+import type { Result } from '../result'
 import type { IdInputOf, IdOf } from '../schema/infer'
 import type { ClientDatabaseSchema } from '../schema/table-schema'
 import type {

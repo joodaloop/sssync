@@ -1,7 +1,7 @@
+import type { ValidatePayload } from '../boundaries'
 import type { IDBReadFailure, IDBWriteFailure } from '../errors'
 import type { Result } from '../result'
 import type { ClientDatabaseSchema, IdInputOf, RowOf, TableName, Tables } from '../schema'
-import type { ValidatePayload } from '../validate'
 
 export type IDBStorageInitOptions<S extends ClientDatabaseSchema = ClientDatabaseSchema> = {
   readonly name: string

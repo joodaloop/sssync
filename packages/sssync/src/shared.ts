@@ -29,10 +29,6 @@ export function hasOwn(obj: object, key: PropertyKey): boolean {
   return Object.prototype.hasOwnProperty.call(obj, key)
 }
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
-
 export type Listener = () => void
 
 // The read side of an Observable: a referentially-stable snapshot plus a way to
@@ -88,14 +84,6 @@ export type MergedRequest = {
 export type BatchStats = {
   readonly pending: readonly MergedRequest[]
   readonly inflight: readonly MergedRequest[]
-}
-
-export type WorkError = {
-  readonly source: 'bootstrap' | 'batch' | 'coverage' | 'channel' | 'leader'
-  readonly key: string
-  readonly message: string
-  readonly timestamp: number
-  readonly retryable: boolean
 }
 
 export function tupleKey(parts: readonly unknown[]): string {

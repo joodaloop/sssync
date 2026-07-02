@@ -46,7 +46,12 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
   ) {
     this.report = reporterFor('bootstrap')
     this.channel = listenChannel(sssyncId, 'bootstrap', bootstrapMessageSchema)
-    this.channel.handle(message => void this.rescan(message.id))
+    this.channel.handle(async message => {
+      if (!this.storage) return
+
+      const status = await this.storage.transactionKVStore(kv => this.readPersistedBootstrapStatus(message.id, kv))
+      this.setStatus(message.id, status)
+    })
   }
 
   /** Tears down the cross-tab channel subscription. */
@@ -123,13 +128,6 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
       return
     }
     this.channel.post({ id: modelName })
-  }
-
-  private rescan = async (modelName: string): Promise<void> => {
-    if (!this.storage) return
-
-    const status = await this.storage.transactionKVStore(kv => this.readPersistedBootstrapStatus(modelName, kv))
-    this.setStatus(modelName, status)
   }
 
   private async readPersistedBootstrapStatus(tableName: string, kv: IDBKVTransaction): Promise<'success' | undefined> {
