@@ -22,6 +22,7 @@ import type { ClientDatabaseSchema } from './schema/table-schema'
 import { Observable } from './shared'
 import type { BatchStats, ReadonlyObservable } from './shared'
 import { Store } from './store'
+import type { RowsByTable } from './store'
 
 /** Which subsystem a failure came from; attached at the reporting boundary. */
 export type Where = 'batcher' | 'bootstrap' | 'coverage' | 'sssync'
@@ -58,6 +59,10 @@ export type SSSyncOptions<
   readonly batchURL: string
   readonly bootstrapURL: string
   readonly storage: null | IDBStorage<S>
+  readonly initialBootstrap?: {
+    readonly rowsByTable: RowsByTable<S>
+    readonly successfulTables?: readonly TableName<S>[]
+  }
 }
 
 /**
@@ -116,6 +121,9 @@ export class SSSync<
     })
     this.#isPersistent.set(options.storage !== null)
     this.#rows = new Store(options.schema)
+    if (options.initialBootstrap) {
+      this.#rows.addIfNotExist(options.initialBootstrap.rowsByTable)
+    }
     this.#store = store(options.schema, {
       getRowFromTable: this.#rows.getRowFromTable,
       subscribeToRowChanges: this.#rows.subscribeToRowChanges,
@@ -149,7 +157,9 @@ export class SSSync<
       Object.keys(options.schema.tables),
     )
     // Load any persisted bootstrap state before serving loads.
-    this.ready = bootstrap.hydrate()
+    this.ready = bootstrap.hydrate(
+      options.initialBootstrap?.successfulTables ?? Object.keys(options.initialBootstrap?.rowsByTable ?? {}),
+    )
     this.#bootstrap = this.ready.then(() => bootstrap)
   }
 

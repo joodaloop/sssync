@@ -73,6 +73,17 @@ describe('Bootstrap', () => {
     expect(statuses.get().issues).toBe('success')
   })
 
+  test('hydrate persists server-seeded successes when storage is available', async () => {
+    const { storage, values, puts } = fakeStorage()
+    const { bootstrap, statuses } = makeBootstrap({ storage })
+
+    await bootstrap.hydrate(['issues'])
+
+    expect(statuses.get().issues).toBe('success')
+    expect(values.get(bootstrapKVKey('issues'))).toBe('success')
+    expect(puts).toEqual([[bootstrapKVKey('issues'), 'success']])
+  })
+
   // Docstring: "On initialisation: Set up listener on
   // `bootstrap-broadcast-channel` to trigger rescans of bootstrap successes".
   test('a broadcast-channel message triggers a rescan of the persisted status', async () => {

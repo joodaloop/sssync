@@ -59,16 +59,32 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
     this.channel.close()
   }
 
-  /** Loads persisted 'success' statuses for every known table into the observable. */
-  async hydrate(): Promise<void> {
-    if (!this.storage) return
-
+  /** Loads server-seeded and persisted 'success' statuses into the observable. */
+  async hydrate(seedSuccesses: readonly string[] = []): Promise<void> {
     const loaded: Partial<Record<string, BootstrapStatus>> = {}
-    await this.storage.transactionKVStore(async kv => {
-      for (const tableName of this.tableNames) {
-        loaded[tableName] = await this.readPersistedBootstrapStatus(tableName, kv)
+
+    for (const tableName of seedSuccesses) {
+      if (this.tableNames.includes(tableName)) {
+        loaded[tableName] = 'success'
       }
-    })
+    }
+
+    if (this.storage) {
+      await this.storage.transactionKVStore(async kv => {
+        for (const tableName of seedSuccesses) {
+          if (!this.tableNames.includes(tableName)) continue
+          await this.persistSuccessToKV(tableName, kv)
+        }
+
+        for (const tableName of this.tableNames) {
+          loaded[tableName] = await this.readPersistedBootstrapStatus(tableName, kv)
+        }
+      })
+    }
+
+    if (Object.keys(loaded).length === 0) {
+      return
+    }
 
     this.bootstrapStatuses.set({ ...this.bootstrapStatuses.get(), ...loaded })
   }
@@ -121,13 +137,21 @@ export class Bootstrap<S extends ClientDatabaseSchema> {
   private async persistSuccess(modelName: string): Promise<void> {
     if (!this.storage) return
 
-    const key = bootstrapKVKey(modelName)
-    const write = await this.storage.transactionKVStore(kv => kv.put(key, 'success'))
-    if (!write.ok) {
-      this.report({ type: write.error.type, offending: write.error.offending })
+    const written = await this.storage.transactionKVStore(kv => this.persistSuccessToKV(modelName, kv))
+    if (!written) {
       return
     }
     this.channel.post({ id: modelName })
+  }
+
+  private async persistSuccessToKV(modelName: string, kv: IDBKVTransaction): Promise<boolean> {
+    const key = bootstrapKVKey(modelName)
+    const write = await kv.put(key, 'success')
+    if (!write.ok) {
+      this.report({ type: write.error.type, offending: write.error.offending })
+      return false
+    }
+    return true
   }
 
   private async readPersistedBootstrapStatus(tableName: string, kv: IDBKVTransaction): Promise<'success' | undefined> {
